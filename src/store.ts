@@ -68,7 +68,7 @@ const JOB_DISPLAY_NAMES: Record<string, string> = {
   'ピクトマンサー': 'PCT',
   'キャスター': 'CAST',
   '近接': 'MELEE',
-  'タンク': 'TANK',
+  'タンク': 'LB',
 };
 
 export { JOB_DISPLAY_NAMES };

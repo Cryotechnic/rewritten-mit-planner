@@ -24,6 +24,7 @@ const ROLE_GROUPS: string[][] = [
   ['吟遊詩人', '機工士', '踊り子'],
   ['黒魔道士', '召喚士', '赤魔道士', 'ピクトマンサー', 'キャスター', '近接'],
 ];
+const ROLE_NAMES = ['Tank', 'Healer', 'Melee', 'Ranged', 'Caster'];
 const JOB_ORDER_FLAT = ROLE_GROUPS.flat();
 
 function getSkillDisplayName(nameJP: string, skills: Skill[], lang: Language): string {
@@ -56,7 +57,7 @@ const DAMAGE_TYPE_ICONS: Record<string, string> = {
 };
 
 export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
-  const { language, mitGrid, toggleMit, initPhase, showJobs, maxHP, tankHP, actionOverrides, hiddenRows, toggleHideRow, clearHiddenRows, encounterLevel, customActions, addCustomAction, removeCustomAction } = useStore();
+  const { language, mitGrid, toggleMit, initPhase, showJobs, setShowJobs, maxHP, tankHP, actionOverrides, hiddenRows, toggleHideRow, clearHiddenRows, encounterLevel, customActions, addCustomAction, removeCustomAction } = useStore();
 
   const [editingRow, setEditingRow] = React.useState<number | null>(null);
   const [showHidden, setShowHidden] = React.useState(true);
@@ -298,19 +299,56 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
       )}
       {/* Job filter toggles */}
       <div className="job-toggles">
-        {colGroups.map((g) => (
-          <React.Fragment key={g.job}>
-            {g.isRoleStart && colGroups.indexOf(g) !== 0 && (
-              <span className="role-divider" />
-            )}
-            <button
-              className={`job-toggle ${showJobs[g.job] === false ? 'job-off' : 'visible'}`}
-              onClick={() => useStore.getState().toggleJob(g.job)}
-            >
-              {JOB_DISPLAY_NAMES[g.job] ?? g.job}
-            </button>
-          </React.Fragment>
-        ))}
+        {(() => {
+          // Group colGroups by role index
+          const roleIdx = (job: string) => ROLE_GROUPS.findIndex((r) => r.includes(job));
+          let lastRole = -1;
+          return colGroups.map((g) => {
+            const ri = roleIdx(g.job);
+            const isNewRole = ri !== lastRole;
+            if (isNewRole) lastRole = ri;
+
+            // Role toggle button shown at the start of each role
+            const roleButton = isNewRole ? (() => {
+              const roleJobs = colGroups.filter((x) => roleIdx(x.job) === ri).map((x) => x.job);
+              const allOff = roleJobs.every((j) => showJobs[j] === false);
+              const anyOff = roleJobs.some((j) => showJobs[j] === false);
+              const handleRoleToggle = () => {
+                const next = { ...showJobs };
+                if (allOff || anyOff) {
+                  // Turn all on
+                  roleJobs.forEach((j) => delete next[j]);
+                } else {
+                  // Turn all off
+                  roleJobs.forEach((j) => { next[j] = false; });
+                }
+                setShowJobs(next);
+              };
+              return (
+                <button
+                  key={`role-${ri}`}
+                  className={`role-toggle ${allOff ? 'role-off' : anyOff ? 'role-partial' : 'role-on'}`}
+                  onClick={handleRoleToggle}
+                  title={allOff || anyOff ? `Show all ${ROLE_NAMES[ri]}` : `Hide all ${ROLE_NAMES[ri]}`}
+                >
+                  {ROLE_NAMES[ri] ?? `Role ${ri}`}
+                </button>
+              );
+            })() : null;
+
+            return (
+              <React.Fragment key={g.job}>
+                {roleButton}
+                <button
+                  className={`job-toggle ${showJobs[g.job] === false ? 'job-off' : 'visible'}`}
+                  onClick={() => useStore.getState().toggleJob(g.job)}
+                >
+                  {JOB_DISPLAY_NAMES[g.job] ?? g.job}
+                </button>
+              </React.Fragment>
+            );
+          });
+        })()}
         {hiddenCount > 0 && (
           <>
             <span className="role-divider" />
