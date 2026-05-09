@@ -51,7 +51,7 @@ export default function PlanTabBar() {
               onClick={(e) => e.stopPropagation()}
             />
           ) : (
-            <span className="plan-tab-name">{plan.name}</span>
+            <span className="plan-tab-name">{plan.name || <em style={{ opacity: 0.5 }}>Untitled</em>}</span>
           )}
           {canRemove && (
             <button
