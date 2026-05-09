@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import type { Phase, Language } from './types';
 
 // mitStates[phaseIndex][actionRow][col] = checked boolean
@@ -18,6 +19,7 @@ interface PlannerState {
   mitGrid: Record<number, MitGrid>; // phaseIdx -> actionRow -> col -> checked
   maxHP: number;
   tankHP: number;
+  encounterLevel: number;
   actionOverrides: Record<number, Record<number, ActionOverride>>;
   hiddenRows: Record<number, Set<number>>; // phaseIdx -> set of hidden row ids
 
@@ -29,6 +31,7 @@ interface PlannerState {
   setMit: (phaseIdx: number, actionRow: number, col: string, val: boolean) => void;
   setMaxHP: (hp: number) => void;
   setTankHP: (hp: number) => void;
+  setEncounterLevel: (lv: number) => void;
   setActionOverride: (phaseIdx: number, row: number, fields: ActionOverride) => void;
   resetActionOverride: (phaseIdx: number, row: number) => void;
   toggleHideRow: (phaseIdx: number, row: number) => void;
@@ -67,13 +70,16 @@ const JOB_DISPLAY_NAMES: Record<string, string> = {
 
 export { JOB_DISPLAY_NAMES };
 
-export const useStore = create<PlannerState>((set, get) => ({
+export const useStore = create<PlannerState>()(
+  persist(
+    (set, get) => ({
   activePhaseIdx: 0,
   language: 'EN',
   showJobs: {},
   mitGrid: {},
   maxHP: 142000,
   tankHP: 225800,
+  encounterLevel: 70,
   actionOverrides: {},
   hiddenRows: {},
 
@@ -126,6 +132,7 @@ export const useStore = create<PlannerState>((set, get) => ({
 
   setMaxHP: (hp) => set({ maxHP: hp }),
   setTankHP: (hp) => set({ tankHP: hp }),
+  setEncounterLevel: (lv) => set({ encounterLevel: lv }),
 
   setActionOverride: (phaseIdx, row, fields) => set((s) => ({
     actionOverrides: {
@@ -166,4 +173,28 @@ export const useStore = create<PlannerState>((set, get) => ({
       mitGrid: { ...s.mitGrid, [phaseIdx]: s.mitGrid[phaseIdx] ?? grid },
     }));
   },
-}));
+}),
+    {
+      name: 'ucob-planner-state',
+      storage: createJSONStorage(() => localStorage, {
+        replacer: (_key, value) =>
+          value instanceof Set ? { __type: 'Set', values: [...value] } : value,
+        reviver: (_key, value) =>
+          value && typeof value === 'object' && (value as any).__type === 'Set'
+            ? new Set((value as any).values)
+            : value,
+      }),
+      partialize: (s) => ({
+        mitGrid: s.mitGrid,
+        showJobs: s.showJobs,
+        language: s.language,
+        maxHP: s.maxHP,
+        tankHP: s.tankHP,
+        encounterLevel: s.encounterLevel,
+        actionOverrides: s.actionOverrides,
+        hiddenRows: s.hiddenRows,
+        activePhaseIdx: s.activePhaseIdx,
+      }),
+    }
+  )
+);

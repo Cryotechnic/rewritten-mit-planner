@@ -10,7 +10,7 @@ interface Props {
   onClose: () => void;
 }
 
-const DAMAGE_TYPES = ['Magic', 'Physical', 'hide'];
+const DAMAGE_TYPES = ['', 'Magic', 'Physical', 'Unique'];
 
 function parseTime(str: string): number | null {
   const trimmed = str.trim();
@@ -107,7 +107,7 @@ export default function EditActionModal({ phaseIdx, action, displayAction, onClo
               onChange={(e) => setType(e.target.value)}
             >
               {DAMAGE_TYPES.map((t) => (
-                <option key={t} value={t}>{t}</option>
+                <option key={t} value={t}>{t === '' ? 'None' : t}</option>
               ))}
             </select>
           </label>

@@ -1,8 +1,9 @@
 import React from 'react';
 import { useStore, JOB_DISPLAY_NAMES } from '../store';
 import type { Phase, Skill, Language, Action } from '../types';
-import { computeMitigation, computeBarrier, formatTime } from '../calc';
+import { computeMitigation, computeBarrier, computeHealBuff, formatTime } from '../calc';
 import EditActionModal from './EditActionModal';
+import { getSkillLevelReq } from '../data/skillLevels';
 
 interface Props {
   phaseIdx: number;
@@ -48,8 +49,14 @@ const DAMAGE_TYPE_COLORS: Record<string, string> = {
   hide: 'transparent',
 };
 
+const DAMAGE_TYPE_ICONS: Record<string, string> = {
+  Physical: 'https://xivapi.com/i/060000/060011.png',
+  Magic:    'https://xivapi.com/i/060000/060012.png',
+  Unique:   'https://xivapi.com/i/060000/060013.png',
+};
+
 export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
-  const { language, mitGrid, toggleMit, initPhase, showJobs, maxHP, tankHP, actionOverrides, hiddenRows, toggleHideRow, clearHiddenRows } = useStore();
+  const { language, mitGrid, toggleMit, initPhase, showJobs, maxHP, tankHP, actionOverrides, hiddenRows, toggleHideRow, clearHiddenRows, encounterLevel } = useStore();
 
   const [editingRow, setEditingRow] = React.useState<number | null>(null);
   const [showHidden, setShowHidden] = React.useState(true);
@@ -69,10 +76,26 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
     [mitGrid, phaseIdx]
   );
 
+  // Build a nameJP → nameEN lookup for level-requirement checks
+  const skillNameEN = React.useMemo(() => {
+    const m = new Map<string, string | null>();
+    for (const s of skills) m.set(s.nameJP, s.nameEN);
+    return m;
+  }, [skills]);
+
+  // Filter skillCols by encounter level
+  const levelFilteredSkillCols = React.useMemo(
+    () => phase.skillCols.filter((sc) => {
+      const nameEN = skillNameEN.get(sc.skill) ?? null;
+      return getSkillLevelReq(nameEN) <= encounterLevel;
+    }),
+    [phase.skillCols, skillNameEN, encounterLevel]
+  );
+
   // Group skill columns by job
   const colGroups = React.useMemo<ColGroup[]>(() => {
     const map = new Map<string, Phase['skillCols']>();
-    for (const sc of phase.skillCols) {
+    for (const sc of levelFilteredSkillCols) {
       if (!map.has(sc.job)) map.set(sc.job, []);
       map.get(sc.job)!.push(sc);
     }
@@ -93,7 +116,7 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
       }
     }
     return sorted;
-  }, [phase.skillCols]);
+  }, [levelFilteredSkillCols]);
 
   // Filter groups by showJobs
   const visibleGroups = React.useMemo(() => {
@@ -292,6 +315,8 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
                     ) : (
                       <span className="skill-short">{name.substring(0, 4)}</span>
                     )}
+                    {sc.barrier ? <span className="skill-badge barrier-badge" title={`Barrier: ${sc.barrier}×HP/1000`}>🛡</span> : null}
+                    {sc.barrierBuff ? <span className="skill-badge barrierbuff-badge" title={`+${Math.round(sc.barrierBuff*100)}% barrier`}>+</span> : null}
                   </th>
                 );
               })}
@@ -324,9 +349,9 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
               const mit = computeMitigation(action, allVisibleCols, checked, damageType === 'Physical' ? 'Physical' : 'Magic');
               const baseDamage = action.damageHit ?? 0;
               const mitigatedDamage = Math.round(baseDamage * mit);
-              const barrier = computeBarrier(allVisibleCols, checked);
-              const mitPct = baseDamage > 0 ? Math.round((1 - mit) * 100) : null;
               const hp = damageType === 'Physical' ? tankHP : maxHP;
+              const barrier = computeBarrier(allVisibleCols, checked, hp, computeHealBuff(allVisibleCols, checked));
+              const mitPct = baseDamage > 0 ? Math.round((1 - mit) * 100) : null;
               const typeColor = DAMAGE_TYPE_COLORS[action.type ?? ''] ?? '#aaa';
 
               return (
@@ -335,7 +360,7 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
                     {formatTime(action.timeSec)}
                     {isOverridden && <span className="edited-dot" title="Edited" />}
                   </td>
-                  <td className="sticky-col action-cell">
+                  <td className="sticky-col action-cell" onDoubleClick={() => setEditingRow(action.row)}>
                     <span className="action-name">{action.name}</span>
                     <button
                       className="edit-action-btn"
@@ -359,12 +384,21 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
                         </svg>
                       )}</button>
                   </td>
-                  <td className="sticky-col type-cell">
-                    <span className="type-badge" style={{ backgroundColor: typeColor }}>
-                      {action.type}
-                    </span>
+                  <td className="sticky-col type-cell editable-cell" onDoubleClick={() => setEditingRow(action.row)}>
+                    {action.type && DAMAGE_TYPE_ICONS[action.type] ? (
+                      <img
+                        src={DAMAGE_TYPE_ICONS[action.type]}
+                        alt={action.type}
+                        title={action.type}
+                        width={20}
+                        height={20}
+                        style={{ display: 'block', margin: 'auto' }}
+                      />
+                    ) : action.type ? (
+                      <span className="type-badge" style={{ backgroundColor: typeColor }}>{action.type}</span>
+                    ) : null}
                   </td>
-                  <td className="sticky-col dmg-cell">
+                  <td className="sticky-col dmg-cell editable-cell" onDoubleClick={() => setEditingRow(action.row)}>
                     {baseDamage > 0 ? baseDamage.toLocaleString() : ''}
                   </td>
                   {/* Calc cols */}

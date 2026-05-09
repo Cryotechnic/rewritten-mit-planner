@@ -309,6 +309,16 @@ thead .sticky-col { z-index: 60 !important; }
 .skill-col-header img { display: block; margin: auto; border-radius: 3px; }
 .skill-short { font-size: 9px; }
 
+.skill-badge {
+  display: block;
+  font-size: 9px;
+  line-height: 1;
+  text-align: center;
+  margin-top: 1px;
+}
+.barrier-badge { color: var(--barrier); }
+.barrierbuff-badge { color: var(--barrier); font-weight: 700; }
+
 .skill-recast-header {
   font-size: 9px;
   color: var(--text-muted);

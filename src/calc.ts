@@ -23,9 +23,10 @@ export function computeMitigation(
     let mit: number | null = null;
     if (damageType === 'Magic') mit = sc.mitMagic;
     else if (damageType === 'Physical') mit = sc.mitPhysical;
-    else mit = sc.mitUnique ?? sc.mitMagic ?? sc.mitPhysical;
+    else mit = sc.mitUnique; // null = skill doesn't apply to Unique/tankbuster, no fallback
 
-    if (mit !== null && mit > 0) {
+    // mit === 1 means "skill active but no reduction" (e.g. Holmgang) — skip for perf
+    if (mit !== null && mit > 0 && mit < 1) {
       combined *= mit;
     }
   }
@@ -34,21 +35,28 @@ export function computeMitigation(
 
 /**
  * Compute total barrier from checked barrier skills.
- * Returns the sum of barrier amounts.
+ * Stored barrier coefficients are per-mille of maxHP (÷1000), so scale accordingly.
+ * barrierBuff on a skill multiplies all barrier-granting skills (they are separate).
  */
 export function computeBarrier(
   skillCols: SkillCol[],
   checkedCols: Record<string, boolean>,
+  maxHP = 1,
   healBuffMultiplier = 1.0
 ): number {
+  // Sum additive barrier buff multipliers (e.g. Divine Veil +10%)
+  let barrierMult = 1.0;
+  for (const sc of skillCols) {
+    if (!checkedCols[sc.col]) continue;
+    if (sc.barrierBuff) barrierMult += sc.barrierBuff;
+  }
+  // Sum flat barriers, each scaled from per-mille coefficient to actual HP
   let total = 0;
   for (const sc of skillCols) {
     if (!checkedCols[sc.col]) continue;
-    if (sc.barrier) {
-      total += sc.barrier * (sc.barrierBuff ? 1 + sc.barrierBuff : 1);
-    }
+    if (sc.barrier) total += sc.barrier * (maxHP / 1000);
   }
-  return total * healBuffMultiplier;
+  return total * barrierMult * healBuffMultiplier;
 }
 
 /**

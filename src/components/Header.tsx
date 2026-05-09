@@ -6,9 +6,10 @@ interface Props {
 }
 
 const LANGS = ['JP', 'EN', 'DE', 'FR', 'KO', 'CN'] as const;
+const ENCOUNTER_LEVELS = [50, 60, 70, 80, 90, 100] as const;
 
 export default function Header({ data }: Props) {
-  const { activePhaseIdx, setActivePhase, language, setLanguage, maxHP, tankHP, setMaxHP, setTankHP } = useStore();
+  const { activePhaseIdx, setActivePhase, language, setLanguage, maxHP, tankHP, setMaxHP, setTankHP, encounterLevel, setEncounterLevel } = useStore();
 
   return (
     <header className="header">
@@ -68,6 +69,20 @@ export default function Header({ data }: Props) {
             onChange={(e) => setTankHP(Number(e.target.value))}
             step={1000}
           />
+        </div>
+        <div className="control-group">
+          <label>Encounter Level</label>
+          <div className="lang-buttons">
+            {ENCOUNTER_LEVELS.map((lv) => (
+              <button
+                key={lv}
+                className={`lang-btn ${encounterLevel === lv ? 'active' : ''}`}
+                onClick={() => setEncounterLevel(lv)}
+              >
+                {lv}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </header>
