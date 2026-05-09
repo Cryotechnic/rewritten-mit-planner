@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { Phase, Language } from './types';
+import type { Phase, Language, Action } from './types';
 
 // mitStates[phaseIndex][actionRow][col] = checked boolean
 type MitGrid = Record<number, Record<string, boolean>>;
@@ -22,6 +22,7 @@ interface PlannerState {
   encounterLevel: number;
   actionOverrides: Record<number, Record<number, ActionOverride>>;
   hiddenRows: Record<number, Set<number>>; // phaseIdx -> set of hidden row ids
+  customActions: Record<number, Action[]>; // phaseIdx -> custom action rows
 
   setActivePhase: (idx: number) => void;
   setLanguage: (lang: Language) => void;
@@ -36,6 +37,8 @@ interface PlannerState {
   resetActionOverride: (phaseIdx: number, row: number) => void;
   toggleHideRow: (phaseIdx: number, row: number) => void;
   clearHiddenRows: (phaseIdx: number) => void;
+  addCustomAction: (phaseIdx: number, action: Action) => void;
+  removeCustomAction: (phaseIdx: number, row: number) => void;
 
   // Initialize mit states from loaded data for a phase
   initPhase: (phaseIdx: number, phase: Phase) => void;
@@ -82,6 +85,7 @@ export const useStore = create<PlannerState>()(
   encounterLevel: 70,
   actionOverrides: {},
   hiddenRows: {},
+  customActions: {},
 
   setActivePhase: (idx) => set({ activePhaseIdx: idx }),
   setLanguage: (lang) => set({ language: lang }),
@@ -161,6 +165,20 @@ export const useStore = create<PlannerState>()(
     hiddenRows: { ...s.hiddenRows, [phaseIdx]: new Set<number>() },
   })),
 
+  addCustomAction: (phaseIdx, action) => set((s) => ({
+    customActions: {
+      ...s.customActions,
+      [phaseIdx]: [...(s.customActions[phaseIdx] ?? []), action],
+    },
+  })),
+
+  removeCustomAction: (phaseIdx, row) => set((s) => ({
+    customActions: {
+      ...s.customActions,
+      [phaseIdx]: (s.customActions[phaseIdx] ?? []).filter((a) => a.row !== row),
+    },
+  })),
+
   initPhase: (phaseIdx, phase) => {
     const grid: MitGrid = {};
     for (const action of phase.actions) {
@@ -193,6 +211,7 @@ export const useStore = create<PlannerState>()(
         encounterLevel: s.encounterLevel,
         actionOverrides: s.actionOverrides,
         hiddenRows: s.hiddenRows,
+        customActions: s.customActions,
         activePhaseIdx: s.activePhaseIdx,
       }),
     }

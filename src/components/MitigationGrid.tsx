@@ -56,7 +56,7 @@ const DAMAGE_TYPE_ICONS: Record<string, string> = {
 };
 
 export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
-  const { language, mitGrid, toggleMit, initPhase, showJobs, maxHP, tankHP, actionOverrides, hiddenRows, toggleHideRow, clearHiddenRows, encounterLevel } = useStore();
+  const { language, mitGrid, toggleMit, initPhase, showJobs, maxHP, tankHP, actionOverrides, hiddenRows, toggleHideRow, clearHiddenRows, encounterLevel, customActions, addCustomAction, removeCustomAction } = useStore();
 
   const [editingRow, setEditingRow] = React.useState<number | null>(null);
   const [showHidden, setShowHidden] = React.useState(true);
@@ -188,16 +188,51 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
   // Only show actions that have a name
   const actions = phase.actions.filter((a) => a.name);
 
-  // Merge user overrides onto each action
-  const mergedActions = React.useMemo<Action[]>(
-    () => actions.map((a) => {
+  // Custom actions for this phase (row IDs >= 1_000_000)
+  const phaseCustomActions = customActions[phaseIdx] ?? [];
+
+  // Merge user overrides onto each action, then interleave custom actions sorted by time
+  const mergedActions = React.useMemo<Action[]>(() => {
+    const base: Action[] = actions.map((a) => {
       const ov = actionOverrides[phaseIdx]?.[a.row];
       return ov ? { ...a, ...ov } : a;
-    }),
-    [actions, actionOverrides, phaseIdx]
+    });
+    const custom: Action[] = phaseCustomActions.map((a) => {
+      const ov = actionOverrides[phaseIdx]?.[a.row];
+      return ov ? { ...a, ...ov } : a;
+    });
+    return [...base, ...custom].sort((a, b) => {
+      const ta = a.timeSec ?? Infinity;
+      const tb = b.timeSec ?? Infinity;
+      return ta - tb;
+    });
+  }, [actions, phaseCustomActions, actionOverrides, phaseIdx]);
+
+  // Set of custom row IDs for UI differentiation
+  const customRowIds = React.useMemo(
+    () => new Set(phaseCustomActions.map((a) => a.row)),
+    [phaseCustomActions]
   );
 
-  const editingAction = editingRow !== null ? actions.find((a) => a.row === editingRow) ?? null : null;
+  const handleAddAction = () => {
+    const row = Date.now(); // unique ID well above data row IDs
+    const newAction: Action = {
+      row,
+      timeSec: null,
+      name: 'New Action',
+      type: 'Magic',
+      damageHit: null,
+      damageDot: null,
+      damageTick: null,
+      mitStates: {},
+    };
+    addCustomAction(phaseIdx, newAction);
+    setEditingRow(row);
+  };
+
+  const editingAction = editingRow !== null
+    ? (actions.find((a) => a.row === editingRow) ?? phaseCustomActions.find((a) => a.row === editingRow) ?? null)
+    : null;
   const editingDisplay = editingRow !== null ? mergedActions.find((a) => a.row === editingRow) ?? null : null;
 
   // Compute cooldown / effect coverage: Map<`col:row`, 'effect' | 'cooldown'>
@@ -311,6 +346,12 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
         )}
       </div>
 
+      <div className="mit-toolbar">
+        <button className="add-action-btn" onClick={handleAddAction} title="Add a custom action row">
+          + Add Action
+        </button>
+      </div>
+
       <div className="mit-table-container">
         <table className="mit-table">
           <thead>
@@ -398,7 +439,7 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
               const typeColor = DAMAGE_TYPE_COLORS[action.type ?? ''] ?? '#aaa';
 
               return (
-                <tr key={action.row} className={`action-row ${action.type === 'hide' ? 'hide-row' : ''} ${isRowHidden ? 'row-hidden-dim' : ''}`}>
+                <tr key={action.row} className={`action-row ${action.type === 'hide' ? 'hide-row' : ''} ${isRowHidden ? 'row-hidden-dim' : ''} ${customRowIds.has(action.row) ? 'custom-row' : ''}`}>
                   <td className="sticky-col time-cell editable-cell" onClick={() => setEditingRow(action.row)}>
                     {formatTime(action.timeSec)}
                     {isOverridden && <span className="edited-dot" title="Edited" />}
@@ -410,22 +451,34 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
                       onClick={() => setEditingRow(action.row)}
                       title="Edit action"
                     >✎</button>
-                    <button
-                      className={`hide-row-btn ${isRowHidden ? 'hide-row-btn-on' : ''}`}
-                      onClick={(e) => { e.stopPropagation(); toggleHideRow(phaseIdx, action.row); if (!showHidden && !isRowHidden) {} }}
-                      title={isRowHidden ? 'Unhide row' : 'Hide row'}
-                    >{isRowHidden ? (
+                    {customRowIds.has(action.row) ? (
+                      <button
+                        className="hide-row-btn hide-row-btn-on"
+                        onClick={(e) => { e.stopPropagation(); removeCustomAction(phaseIdx, action.row); }}
+                        title="Delete this action"
+                      >
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-                          <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-                          <line x1="1" y1="1" x2="23" y2="23"/>
+                          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
                         </svg>
-                      ) : (
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                          <circle cx="12" cy="12" r="3"/>
-                        </svg>
-                      )}</button>
+                      </button>
+                    ) : (
+                      <button
+                        className={`hide-row-btn ${isRowHidden ? 'hide-row-btn-on' : ''}`}
+                        onClick={(e) => { e.stopPropagation(); toggleHideRow(phaseIdx, action.row); if (!showHidden && !isRowHidden) {} }}
+                        title={isRowHidden ? 'Unhide row' : 'Hide row'}
+                      >{isRowHidden ? (
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                            <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                            <line x1="1" y1="1" x2="23" y2="23"/>
+                          </svg>
+                        ) : (
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                          </svg>
+                        )}</button>
+                    )}
                   </td>
                   <td className="sticky-col type-cell editable-cell" onDoubleClick={() => setEditingRow(action.row)}>
                     {action.type && DAMAGE_TYPE_ICONS[action.type] ? (
