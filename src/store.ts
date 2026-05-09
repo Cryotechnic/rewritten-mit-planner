@@ -65,9 +65,16 @@ export const useStore = create<PlannerState>((set, get) => ({
   setActivePhase: (idx) => set({ activePhaseIdx: idx }),
   setLanguage: (lang) => set({ language: lang }),
 
-  toggleJob: (job) => set((s) => ({
-    showJobs: { ...s.showJobs, [job]: !s.showJobs[job] },
-  })),
+  toggleJob: (job) => set((s) => {
+    if (s.showJobs[job] === false) {
+      // Unhide: remove entry so job reverts to "visible"
+      const next = { ...s.showJobs };
+      delete next[job];
+      return { showJobs: next };
+    }
+    // Hide: set to false
+    return { showJobs: { ...s.showJobs, [job]: false } };
+  }),
 
   setShowJobs: (jobs) => set({ showJobs: jobs }),
 

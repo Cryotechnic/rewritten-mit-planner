@@ -12,7 +12,17 @@ interface Props {
 type ColGroup = {
   job: string;
   cols: Phase['skillCols'];
+  isRoleStart: boolean;
 };
+
+const ROLE_GROUPS: string[][] = [
+  ['タンク', 'ナイト', '戦士', '暗黒騎士', 'ガンブレイカー'],
+  ['白魔道士', '占星術師', '学者', '賢者'],
+  ['モンク', '竜騎士', '忍者', '侍', 'リーパー', 'ヴァイパー'],
+  ['吟遊詩人', '機工士', '踊り子'],
+  ['黒魔道士', '召喚士', '赤魔道士', 'ピクトマンサー', 'キャスター', '近接'],
+];
+const JOB_ORDER_FLAT = ROLE_GROUPS.flat();
 
 function getSkillDisplayName(nameJP: string, skills: Skill[], lang: Language): string {
   const found = skills.find((s) => s.nameJP === nameJP);
@@ -59,7 +69,23 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
       if (!map.has(sc.job)) map.set(sc.job, []);
       map.get(sc.job)!.push(sc);
     }
-    return Array.from(map.entries()).map(([job, cols]) => ({ job, cols }));
+    const sorted = Array.from(map.entries())
+      .map(([job, cols]) => ({ job, cols, isRoleStart: false }))
+      .sort((a, b) => {
+        const ai = JOB_ORDER_FLAT.indexOf(a.job);
+        const bi = JOB_ORDER_FLAT.indexOf(b.job);
+        return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+      });
+    // Mark the first visible job in each role as a role boundary
+    let lastRoleIdx = -1;
+    for (const g of sorted) {
+      const rIdx = ROLE_GROUPS.findIndex((r) => r.includes(g.job));
+      if (rIdx !== lastRoleIdx) {
+        g.isRoleStart = true;
+        lastRoleIdx = rIdx;
+      }
+    }
+    return sorted;
   }, [phase.skillCols]);
 
   // Filter groups by showJobs
@@ -73,6 +99,24 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
     [visibleGroups]
   );
 
+  // Sets for fast boundary lookup by col id
+  const roleStartCols = React.useMemo(() => {
+    const s = new Set<string>();
+    for (const g of visibleGroups)
+      if (g.isRoleStart && g.cols.length > 0) s.add(g.cols[0].col);
+    return s;
+  }, [visibleGroups]);
+
+  const jobStartCols = React.useMemo(() => {
+    const s = new Set<string>();
+    for (const g of visibleGroups)
+      if (g.cols.length > 0) s.add(g.cols[0].col);
+    return s;
+  }, [visibleGroups]);
+
+  const colBoundaryClass = (colId: string) =>
+    roleStartCols.has(colId) ? 'role-boundary' : jobStartCols.has(colId) ? 'job-boundary' : '';
+
   // Only show actions that have a name
   const actions = phase.actions.filter((a) => a.name);
 
@@ -81,13 +125,17 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
       {/* Job filter toggles */}
       <div className="job-toggles">
         {colGroups.map((g) => (
-          <button
-            key={g.job}
-            className={`job-toggle ${showJobs[g.job] === false ? 'hidden' : 'visible'}`}
-            onClick={() => useStore.getState().toggleJob(g.job)}
-          >
-            {JOB_DISPLAY_NAMES[g.job] ?? g.job}
-          </button>
+          <React.Fragment key={g.job}>
+            {g.isRoleStart && colGroups.indexOf(g) !== 0 && (
+              <span className="role-divider" />
+            )}
+            <button
+              className={`job-toggle ${showJobs[g.job] === false ? 'hidden' : 'visible'}`}
+              onClick={() => useStore.getState().toggleJob(g.job)}
+            >
+              {JOB_DISPLAY_NAMES[g.job] ?? g.job}
+            </button>
+          </React.Fragment>
         ))}
       </div>
 
@@ -107,7 +155,7 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
                 <th
                   key={g.job}
                   colSpan={g.cols.length}
-                  className={`job-group-header job-${(JOB_DISPLAY_NAMES[g.job] ?? g.job).toLowerCase()}`}
+                  className={`job-group-header job-${(JOB_DISPLAY_NAMES[g.job] ?? g.job).toLowerCase()} ${g.isRoleStart ? 'role-boundary' : 'job-boundary'}`}
                 >
                   {JOB_DISPLAY_NAMES[g.job] ?? g.job}
                 </th>
@@ -126,7 +174,7 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
                 const icon = getSkillIcon(sc.skill, skills);
                 const name = getSkillDisplayName(sc.skill, skills, language);
                 return (
-                  <th key={sc.col} className="skill-col-header" title={name}>
+                  <th key={sc.col} className={`skill-col-header ${colBoundaryClass(sc.col)}`} title={name}>
                     {icon ? (
                       <img src={icon} alt={name} width={24} height={24} loading="lazy"
                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
@@ -147,7 +195,7 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
               <th className="calc-col" />
               <th className="calc-col" />
               {allVisibleCols.map((sc) => (
-                <th key={sc.col} className="skill-recast-header">
+                <th key={sc.col} className={`skill-recast-header ${colBoundaryClass(sc.col)}`}>
                   {sc.effectTime != null ? `${sc.effectTime}s` : ''}
                 </th>
               ))}
@@ -207,7 +255,7 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
 
                     if (isUnavailable && rawState === '-') {
                       return (
-                        <td key={sc.col} className="skill-cell unavailable">
+                        <td key={sc.col} className={`skill-cell unavailable ${colBoundaryClass(sc.col)}`}>
                           <span className="unavail-mark">—</span>
                         </td>
                       );
@@ -216,7 +264,7 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
                     return (
                       <td
                         key={sc.col}
-                        className={`skill-cell ${isChecked ? 'checked' : ''}`}
+                        className={`skill-cell ${isChecked ? 'checked' : ''} ${colBoundaryClass(sc.col)}`}
                         onClick={() => {
                           if (rawState !== '-') toggleMit(phaseIdx, action.row, sc.col);
                         }}

@@ -261,6 +261,27 @@ thead .sticky-col { z-index: 60 !important; }
   border-bottom: 2px solid var(--border) !important;
 }
 
+/* Role divider — thick accent border between role sections */
+.role-boundary {
+  border-left: 3px solid var(--accent) !important;
+}
+
+/* Job divider — subtle border between jobs within the same role */
+.job-boundary {
+  border-left: 2px solid #3e4268 !important;
+}
+
+/* Role separator in the job toggle bar */
+.role-divider {
+  display: inline-block;
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 4px;
+  vertical-align: middle;
+  align-self: center;
+}
+
 /* Job color accents */
 .job-pld, .job-ナイト { color: #a8c2ff; }
 .job-war, .job-戦士 { color: #ff6b6b; }
