@@ -120,6 +120,57 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
   // Only show actions that have a name
   const actions = phase.actions.filter((a) => a.name);
 
+  // Compute cooldown / effect coverage: Map<`col:row`, 'effect' | 'cooldown'>
+  const cellCoverage = React.useMemo(() => {
+    const map = new Map<string, 'effect' | 'cooldown'>();
+
+    for (const sc of allVisibleCols) {
+      const recast = sc.recast ?? 0;
+      const effectTime = sc.effectTime ?? 0;
+      if (recast === 0 && effectTime === 0) continue;
+
+      // Actions where this col is actively checked, sorted by time
+      const sources = actions
+        .filter((a) => (mitGrid[phaseIdx]?.[a.row]?.[sc.col] === true) && a.timeSec != null)
+        .sort((a, b) => (a.timeSec as number) - (b.timeSec as number));
+      if (sources.length === 0) continue;
+
+      const maxCharges = Math.max(1, sc.charge ?? 1);
+
+      for (const target of actions) {
+        const T = target.timeSec;
+        if (T == null) continue;
+        // Source rows handle their own display
+        if (mitGrid[phaseIdx]?.[target.row]?.[sc.col] === true) continue;
+        // Already marked '-' in the spreadsheet — don't override
+        if (target.mitStates[sc.col] === '-') continue;
+
+        // Is this row within any source's effect window?
+        const inEffect =
+          effectTime > 0 &&
+          sources.some((s) => s.timeSec != null && T > s.timeSec && T <= s.timeSec + effectTime);
+
+        // How many charges are still on cooldown at time T?
+        const chargesOnCooldown =
+          recast > 0
+            ? sources.filter((s) => s.timeSec != null && s.timeSec < T && T < s.timeSec + recast).length
+            : 0;
+        const onCooldown = chargesOnCooldown >= maxCharges;
+
+        // Effect window takes priority over cooldown (buff is active = more informative)
+        if (inEffect) {
+          map.set(`${sc.col}:${target.row}`, 'effect');
+        } else if (onCooldown) {
+          map.set(`${sc.col}:${target.row}`, 'cooldown');
+        }
+      }
+    }
+    return map;
+  }, [allVisibleCols, actions, mitGrid, phaseIdx]);
+
+  const getCoverage = (col: string, row: number) =>
+    cellCoverage.get(`${col}:${row}`) ?? null;
+
   return (
     <div className="mit-grid-wrap">
       {/* Job filter toggles */}
@@ -261,12 +312,18 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
                       );
                     }
 
+                    const coverage = getCoverage(sc.col, action.row);
+
                     return (
                       <td
                         key={sc.col}
-                        className={`skill-cell ${isChecked ? 'checked' : ''} ${colBoundaryClass(sc.col)}`}
+                        className={`skill-cell ${isChecked ? 'checked' : ''} ${coverage ? `coverage-${coverage}` : ''} ${colBoundaryClass(sc.col)}`}
+                        title={
+                          coverage === 'cooldown' ? 'On cooldown' :
+                          coverage === 'effect' ? 'Buff active' : undefined
+                        }
                         onClick={() => {
-                          if (rawState !== '-') toggleMit(phaseIdx, action.row, sc.col);
+                          if (rawState !== '-' && coverage == null) toggleMit(phaseIdx, action.row, sc.col);
                         }}
                       >
                         <input

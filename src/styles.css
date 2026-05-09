@@ -334,6 +334,22 @@ thead .sticky-col { z-index: 60 !important; }
 .skill-cell.checked { background: rgba(91, 125, 255, 0.35) !important; }
 .skill-cell input[type=checkbox] { pointer-events: none; accent-color: var(--accent); }
 
+/* Effect window — buff is still active on this row */
+.skill-cell.coverage-effect {
+  background: rgba(93, 204, 138, 0.18) !important;
+  box-shadow: inset 0 -2px 0 rgba(93, 204, 138, 0.6);
+  cursor: not-allowed !important;
+}
+.skill-cell.coverage-effect:hover { background: rgba(93, 204, 138, 0.28) !important; }
+
+/* Cooldown window — no charges available here */
+.skill-cell.coverage-cooldown {
+  background: rgba(120, 120, 140, 0.15) !important;
+  cursor: not-allowed !important;
+  box-shadow: inset 0 -2px 0 rgba(255, 100, 80, 0.45);
+}
+.skill-cell.coverage-cooldown:hover { background: rgba(120, 120, 140, 0.2) !important; }
+
 .unavailable { color: var(--text-muted); }
 .unavail-mark { font-size: 10px; }
 
