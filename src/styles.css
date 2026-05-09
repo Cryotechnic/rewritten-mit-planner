@@ -327,6 +327,27 @@ thead .sticky-col { z-index: 60 !important; }
 .skill-col-header img { display: block; margin: auto; border-radius: 3px; }
 .skill-short { font-size: 9px; }
 
+.icon-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.lb-num-badge {
+  position: absolute;
+  bottom: -3px;
+  right: -4px;
+  background: #1a1d2e;
+  color: #e0c96e;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0 2px;
+  border-radius: 3px;
+  border: 1px solid #e0c96e44;
+  pointer-events: none;
+}
+
 .skill-badge {
   display: block;
   font-size: 9px;

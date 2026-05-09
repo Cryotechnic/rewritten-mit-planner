@@ -83,14 +83,52 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
     return m;
   }, [skills]);
 
-  // Filter skillCols by encounter level
-  const levelFilteredSkillCols = React.useMemo(
-    () => phase.skillCols.filter((sc) => {
+  // Filter skillCols by encounter level, and inject LB1/LB2 if LB3 is present
+  const levelFilteredSkillCols = React.useMemo(() => {
+    const filtered = phase.skillCols.filter((sc) => {
       const nameEN = skillNameEN.get(sc.skill) ?? null;
       return getSkillLevelReq(nameEN) <= encounterLevel;
-    }),
-    [phase.skillCols, skillNameEN, encounterLevel]
-  );
+    });
+
+    // Inject LB1 and LB2 columns alongside LB3 if they aren't already present
+    const hasLB3 = filtered.some((sc) => sc.skill === 'LB3');
+    const hasLB1 = filtered.some((sc) => sc.skill === 'LB1');
+    const hasLB2 = filtered.some((sc) => sc.skill === 'LB2');
+
+    if (hasLB3 && (!hasLB1 || !hasLB2)) {
+      const lb3 = filtered.find((sc) => sc.skill === 'LB3')!;
+      const lb3Idx = filtered.indexOf(lb3);
+      const toInsert: typeof filtered = [];
+
+      const makeLBCol = (nameJP: 'LB1' | 'LB2'): typeof filtered[0] => {
+        const s = skills.find((sk) => sk.nameJP === nameJP);
+        return {
+          col: nameJP,
+          job: lb3.job,
+          skill: nameJP,
+          assign: lb3.assign,
+          charge: 1,
+          isAbility: false,
+          effectTime: s?.effectTime ?? null,
+          recast: s?.recast ?? null,
+          mitPhysical: s?.mitPhysical ?? null,
+          mitMagic: s?.mitMagic ?? null,
+          mitUnique: s?.mitUnique ?? null,
+          healBuffTarget: null,
+          healBuff: null,
+          barrierBuff: null,
+          barrier: null,
+        };
+      };
+
+      if (!hasLB1) toInsert.push(makeLBCol('LB1'));
+      if (!hasLB2) toInsert.push(makeLBCol('LB2'));
+
+      return [...filtered.slice(0, lb3Idx), ...toInsert, ...filtered.slice(lb3Idx)];
+    }
+
+    return filtered;
+  }, [phase.skillCols, skillNameEN, encounterLevel, skills]);
 
   // Group skill columns by job
   const colGroups = React.useMemo<ColGroup[]>(() => {
@@ -310,8 +348,13 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
                 return (
                   <th key={sc.col} className={`skill-col-header ${colBoundaryClass(sc.col)}`} title={name}>
                     {icon ? (
-                      <img src={icon} alt={name} width={24} height={24} loading="lazy"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                      <span className="icon-wrap">
+                        <img src={icon} alt={name} width={24} height={24} loading="lazy"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                        {/^LB[123]$/.test(sc.skill) && (
+                          <span className="lb-num-badge">{sc.skill.slice(2)}</span>
+                        )}
+                      </span>
                     ) : (
                       <span className="skill-short">{name.substring(0, 4)}</span>
                     )}
