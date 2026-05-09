@@ -1,4 +1,5 @@
 import { useState } from "react";
+import commitHash from 'virtual:git-hash';
 import ucobData from "./data/ucob_data.json";
 import type { UcobData } from "./types";
 import Header from "./components/Header";
@@ -50,7 +51,7 @@ export default function App() {
 
       <footer className="app-footer">
         <span>UCoB Mitigation Planner</span>
-        <span className="footer-version">{__COMMIT_HASH__}</span>
+        <span className="footer-version">{commitHash}</span>
       </footer>
     </div>
   );

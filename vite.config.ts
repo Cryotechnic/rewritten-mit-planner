@@ -1,18 +1,41 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { execSync } from 'child_process'
 
-let commitHash = 'dev'
-try {
-  commitHash = execSync('git rev-parse --short HEAD').toString().trim()
-} catch {
-  // not a git repo or git not available
+const VIRTUAL_ID = 'virtual:git-hash'
+const RESOLVED_ID = '\0' + VIRTUAL_ID
+
+function getHash(): string {
+  try {
+    return execSync('git rev-parse --short HEAD').toString().trim()
+  } catch {
+    return 'dev'
+  }
+}
+
+function gitHashPlugin(): Plugin {
+  return {
+    name: 'git-hash',
+    resolveId(id) {
+      if (id === VIRTUAL_ID) return RESOLVED_ID
+    },
+    load(id) {
+      if (id === RESOLVED_ID)
+        return `export default ${JSON.stringify(getHash())}`
+    },
+    configureServer(server) {
+      server.watcher.add('.git/HEAD')
+      server.watcher.on('change', (file) => {
+        if (!file.includes('.git')) return
+        const mod = server.moduleGraph.getModuleById(RESOLVED_ID)
+        if (mod) server.moduleGraph.invalidateModule(mod)
+        server.ws.send({ type: 'full-reload' })
+      })
+    },
+  }
 }
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
-  define: {
-    __COMMIT_HASH__: JSON.stringify(commitHash),
-  },
+  plugins: [react(), gitHashPlugin()],
 })

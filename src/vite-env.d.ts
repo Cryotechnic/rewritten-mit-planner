@@ -1,3 +1,6 @@
 /// <reference types="vite/client" />
 
-declare const __COMMIT_HASH__: string;
+declare module 'virtual:git-hash' {
+  const hash: string
+  export default hash
+}
