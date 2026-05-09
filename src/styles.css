@@ -151,6 +151,195 @@ body {
   font-size: 12px;
 }
 
+/* ========== Encounter dialog (OOBE + new plan) ========== */
+.encounter-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.encounter-dialog {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 28px 32px;
+  min-width: 380px;
+  max-width: 90vw;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.encounter-dialog-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.encounter-dialog-desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.encounter-dialog-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.encounter-dialog-input {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 14px;
+  padding: 8px 10px;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+.encounter-dialog-input:focus { border-color: var(--accent); }
+
+.encounter-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.encounter-dialog-cancel {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 7px 16px;
+  font-size: 13px;
+  font-family: inherit;
+  transition: border-color 0.15s, color 0.15s;
+}
+.encounter-dialog-cancel:hover { border-color: var(--text-muted); color: var(--text); }
+
+.encounter-dialog-confirm {
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+  padding: 7px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  transition: opacity 0.15s;
+}
+.encounter-dialog-confirm:disabled { opacity: 0.4; cursor: default; }
+.encounter-dialog-confirm:not(:disabled):hover { opacity: 0.85; }
+
+/* ========== Plan tab bar ========== */
+.plan-tab-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 6px 12px 0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.plan-tab {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 6px 6px 0 0;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-muted);
+  transition: background 0.15s, color 0.15s;
+  position: relative;
+  bottom: -1px;
+  user-select: none;
+}
+.plan-tab.active {
+  background: var(--surface2);
+  color: var(--text);
+  border-color: var(--accent);
+  border-bottom-color: var(--surface2);
+  font-weight: 500;
+}
+.plan-tab:hover:not(.active) { background: var(--surface2); color: var(--text); }
+
+.plan-tab-name { pointer-events: none; }
+
+.plan-tab-rename {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+  width: 90px;
+}
+
+.plan-tab-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  font-size: 15px;
+  line-height: 1;
+  opacity: 0.4;
+  transition: opacity 0.15s, color 0.15s;
+  display: flex;
+  align-items: center;
+}
+.plan-tab-close:hover { opacity: 1; color: var(--danger); }
+
+.plan-tab-rename-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  font-size: 13px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+  display: flex;
+  align-items: center;
+}
+.plan-tab:hover .plan-tab-rename-btn,
+.plan-tab.active .plan-tab-rename-btn { opacity: 0.5; }
+.plan-tab-rename-btn:hover { opacity: 1 !important; color: var(--accent); }
+
+.plan-tab-add {
+  padding: 5px 10px;
+  border-radius: 6px 6px 0 0;
+  border: 1px dashed var(--border);
+  border-bottom: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  transition: color 0.15s, border-color 0.15s;
+  position: relative;
+  bottom: -1px;
+}
+.plan-tab-add:hover { color: var(--accent); border-color: var(--accent); }
+
 /* ========== Tab bar ========== */
 .tab-bar {
   display: flex;

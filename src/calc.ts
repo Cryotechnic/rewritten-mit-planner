@@ -1,6 +1,16 @@
 import type { Action, SkillCol } from './types';
 
 /**
+ * Floor with epsilon correction for floating-point safety.
+ * Matches the fl() function from xiv-gear-planner/xivmath.ts.
+ * e.g. fl(2.3 * 100) === 230 even if JS gives 229.999...
+ */
+export function fl(input: number): number {
+  const floored = Math.floor(input);
+  return (input - floored) >= 0.99999995 ? floored + 1 : floored;
+}
+
+/**
  * Compute combined mitigation multiplier for a given action,
  * based on which skill checkboxes are checked.
  *
@@ -31,6 +41,34 @@ export function computeMitigation(
     }
   }
   return combined;
+}
+
+/**
+ * Apply mitigations step-by-step with flooring at each step,
+ * matching the game's actual integer-truncation behavior per
+ * xiv-gear-planner/xivmath.ts baseDamageFull.
+ */
+export function applyMitigations(
+  baseDmg: number,
+  action: Action,
+  skillCols: SkillCol[],
+  checkedCols: Record<string, boolean>,
+  damageType: 'Magic' | 'Physical' | 'Unique'
+): number {
+  let dmg = baseDmg;
+  for (const sc of skillCols) {
+    if (!checkedCols[sc.col]) continue;
+    const rawState = action.mitStates[sc.col];
+    if (rawState === '-') continue;
+    let mit: number | null = null;
+    if (damageType === 'Magic') mit = sc.mitMagic;
+    else if (damageType === 'Physical') mit = sc.mitPhysical;
+    else mit = sc.mitUnique;
+    if (mit !== null && mit > 0 && mit < 1) {
+      dmg = fl(dmg * mit);
+    }
+  }
+  return dmg;
 }
 
 /**

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useStore, JOB_DISPLAY_NAMES } from '../store';
 import type { Phase, Skill, Language, Action } from '../types';
-import { computeMitigation, computeBarrier, computeHealBuff, formatTime } from '../calc';
+import { computeMitigation, computeBarrier, computeHealBuff, formatTime, applyMitigations } from '../calc';
 import EditActionModal from './EditActionModal';
 import { getSkillLevelReq } from '../data/skillLevels';
 
@@ -57,7 +57,8 @@ const DAMAGE_TYPE_ICONS: Record<string, string> = {
 };
 
 export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
-  const { language, mitGrid, toggleMit, initPhase, showJobs, setShowJobs, maxHP, tankHP, actionOverrides, hiddenRows, toggleHideRow, clearHiddenRows, encounterLevel, customActions, addCustomAction, removeCustomAction } = useStore();
+  const { language, toggleMit, initPhase, showJobs, setShowJobs, maxHP, tankHP, toggleHideRow, clearHiddenRows, encounterLevel, addCustomAction, removeCustomAction } = useStore();
+  const { mitGrid, actionOverrides, hiddenRows, customActions } = useStore((s) => s.plans[s.activePlanId]);
 
   const [editingRow, setEditingRow] = React.useState<number | null>(null);
   const [showHidden, setShowHidden] = React.useState(true);
@@ -470,7 +471,9 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
               const damageType = (action.type ?? 'Magic') as 'Magic' | 'Physical' | 'Unique';
               const mit = computeMitigation(action, allVisibleCols, checked, damageType === 'Physical' ? 'Physical' : 'Magic');
               const baseDamage = action.damageHit ?? 0;
-              const mitigatedDamage = Math.round(baseDamage * mit);
+              const mitigatedDamage = baseDamage > 0
+                ? applyMitigations(baseDamage, action, allVisibleCols, checked, damageType)
+                : 0;
               const hp = damageType === 'Physical' ? tankHP : maxHP;
               const barrier = computeBarrier(allVisibleCols, checked, hp, computeHealBuff(allVisibleCols, checked));
               const mitPct = baseDamage > 0 ? Math.round((1 - mit) * 100) : null;

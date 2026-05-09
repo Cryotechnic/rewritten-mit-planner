@@ -9,14 +9,17 @@ const LANGS = ['JP', 'EN', 'DE', 'FR', 'KO', 'CN'] as const;
 const ENCOUNTER_LEVELS = [50, 60, 70, 80, 90, 100] as const;
 
 export default function Header({ data }: Props) {
-  const { activePhaseIdx, setActivePhase, language, setLanguage, maxHP, tankHP, setMaxHP, setTankHP, encounterLevel, setEncounterLevel } = useStore();
+  const { setActivePhase, language, setLanguage, maxHP, tankHP, setMaxHP, setTankHP, encounterLevel, setEncounterLevel, plans, activePlanId } = useStore();
+  const activePhaseIdx = plans[activePlanId].activePhaseIdx;
 
   return (
     <header className="header">
       <div className="header-title">
         <img src="/ffxiv-icon.png" alt="" className="logo" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-        <h1>UCoB Mitigation Planner</h1>
-        <span className="subtitle">The Unending Coil of Bahamut</span>
+        <h1>Rewritten Mitigation Planner</h1>
+        {plans[activePlanId].name && (
+          <span className="subtitle">{plans[activePlanId].name}</span>
+        )}
       </div>
 
       <div className="header-controls">

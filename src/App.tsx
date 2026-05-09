@@ -3,6 +3,8 @@ import commitHash from 'virtual:git-hash';
 import ucobData from "./data/ucob_data.json";
 import type { UcobData } from "./types";
 import Header from "./components/Header";
+import PlanTabBar from "./components/PlanTabBar";
+import EncounterDialog from "./components/EncounterDialog";
 import SkillDatabase from "./components/SkillDatabase";
 import MitigationGrid from "./components/MitigationGrid";
 import { useStore } from "./store";
@@ -13,14 +15,23 @@ const data = ucobData as unknown as UcobData;
 type Tab = "planner" | "skills";
 
 export default function App() {
-  const { activePhaseIdx } = useStore();
+  const { plans, activePlanId, renamePlan } = useStore();
   const [tab, setTab] = useState<Tab>("planner");
 
+  const activePhaseIdx = plans[activePlanId].activePhaseIdx;
+  const activePlan = plans[activePlanId];
   const activePhase = data.phases[activePhaseIdx];
 
   return (
     <div className="app">
+      {!activePlan.name && (
+        <EncounterDialog
+          mode="oobe"
+          onConfirm={(encounterName) => renamePlan(activePlanId, encounterName)}
+        />
+      )}
       <Header data={data} />
+      <PlanTabBar />
 
       <div className="tab-bar">
         <button
@@ -40,7 +51,7 @@ export default function App() {
       <main className="main">
         {tab === "planner" && activePhase && (
           <MitigationGrid
-            key={activePhaseIdx}
+            key={`${activePlanId}-${activePhaseIdx}`}
             phaseIdx={activePhaseIdx}
             phase={activePhase}
             skills={data.skills}
@@ -50,7 +61,7 @@ export default function App() {
       </main>
 
       <footer className="app-footer">
-        <span>UCoB Mitigation Planner</span>
+        <span>Rewritten Mitigation Planner</span>
         <span className="footer-version">{commitHash}</span>
       </footer>
     </div>
