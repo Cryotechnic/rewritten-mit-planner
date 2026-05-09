@@ -4,6 +4,13 @@ import type { Phase, Language } from './types';
 // mitStates[phaseIndex][actionRow][col] = checked boolean
 type MitGrid = Record<number, Record<string, boolean>>;
 
+export type ActionOverride = {
+  name?: string;
+  timeSec?: number | null;
+  type?: string | null;
+  damageHit?: number | null;
+};
+
 interface PlannerState {
   activePhaseIdx: number;
   language: Language;
@@ -11,6 +18,8 @@ interface PlannerState {
   mitGrid: Record<number, MitGrid>; // phaseIdx -> actionRow -> col -> checked
   maxHP: number;
   tankHP: number;
+  actionOverrides: Record<number, Record<number, ActionOverride>>;
+  hiddenRows: Record<number, Set<number>>; // phaseIdx -> set of hidden row ids
 
   setActivePhase: (idx: number) => void;
   setLanguage: (lang: Language) => void;
@@ -20,6 +29,10 @@ interface PlannerState {
   setMit: (phaseIdx: number, actionRow: number, col: string, val: boolean) => void;
   setMaxHP: (hp: number) => void;
   setTankHP: (hp: number) => void;
+  setActionOverride: (phaseIdx: number, row: number, fields: ActionOverride) => void;
+  resetActionOverride: (phaseIdx: number, row: number) => void;
+  toggleHideRow: (phaseIdx: number, row: number) => void;
+  clearHiddenRows: (phaseIdx: number) => void;
 
   // Initialize mit states from loaded data for a phase
   initPhase: (phaseIdx: number, phase: Phase) => void;
@@ -61,6 +74,8 @@ export const useStore = create<PlannerState>((set, get) => ({
   mitGrid: {},
   maxHP: 142000,
   tankHP: 225800,
+  actionOverrides: {},
+  hiddenRows: {},
 
   setActivePhase: (idx) => set({ activePhaseIdx: idx }),
   setLanguage: (lang) => set({ language: lang }),
@@ -111,6 +126,33 @@ export const useStore = create<PlannerState>((set, get) => ({
 
   setMaxHP: (hp) => set({ maxHP: hp }),
   setTankHP: (hp) => set({ tankHP: hp }),
+
+  setActionOverride: (phaseIdx, row, fields) => set((s) => ({
+    actionOverrides: {
+      ...s.actionOverrides,
+      [phaseIdx]: {
+        ...(s.actionOverrides[phaseIdx] ?? {}),
+        [row]: { ...(s.actionOverrides[phaseIdx]?.[row] ?? {}), ...fields },
+      },
+    },
+  })),
+
+  resetActionOverride: (phaseIdx, row) => set((s) => {
+    const phase = { ...(s.actionOverrides[phaseIdx] ?? {}) };
+    delete phase[row];
+    return { actionOverrides: { ...s.actionOverrides, [phaseIdx]: phase } };
+  }),
+
+  toggleHideRow: (phaseIdx, row) => set((s) => {
+    const prev = s.hiddenRows[phaseIdx] ?? new Set<number>();
+    const next = new Set(prev);
+    if (next.has(row)) next.delete(row); else next.add(row);
+    return { hiddenRows: { ...s.hiddenRows, [phaseIdx]: next } };
+  }),
+
+  clearHiddenRows: (phaseIdx) => set((s) => ({
+    hiddenRows: { ...s.hiddenRows, [phaseIdx]: new Set<number>() },
+  })),
 
   initPhase: (phaseIdx, phase) => {
     const grid: MitGrid = {};

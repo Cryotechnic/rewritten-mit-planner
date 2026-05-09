@@ -1,7 +1,8 @@
 import React from 'react';
 import { useStore, JOB_DISPLAY_NAMES } from '../store';
-import type { Phase, Skill, Language } from '../types';
+import type { Phase, Skill, Language, Action } from '../types';
 import { computeMitigation, computeBarrier, formatTime } from '../calc';
+import EditActionModal from './EditActionModal';
 
 interface Props {
   phaseIdx: number;
@@ -48,7 +49,13 @@ const DAMAGE_TYPE_COLORS: Record<string, string> = {
 };
 
 export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
-  const { language, mitGrid, toggleMit, initPhase, showJobs, maxHP, tankHP } = useStore();
+  const { language, mitGrid, toggleMit, initPhase, showJobs, maxHP, tankHP, actionOverrides, hiddenRows, toggleHideRow, clearHiddenRows } = useStore();
+
+  const [editingRow, setEditingRow] = React.useState<number | null>(null);
+  const [showHidden, setShowHidden] = React.useState(true);
+
+  const hiddenSet = hiddenRows[phaseIdx] ?? new Set<number>();
+  const hiddenCount = hiddenSet.size;
 
   // Init on mount
   React.useEffect(() => {
@@ -120,6 +127,18 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
   // Only show actions that have a name
   const actions = phase.actions.filter((a) => a.name);
 
+  // Merge user overrides onto each action
+  const mergedActions = React.useMemo<Action[]>(
+    () => actions.map((a) => {
+      const ov = actionOverrides[phaseIdx]?.[a.row];
+      return ov ? { ...a, ...ov } : a;
+    }),
+    [actions, actionOverrides, phaseIdx]
+  );
+
+  const editingAction = editingRow !== null ? actions.find((a) => a.row === editingRow) ?? null : null;
+  const editingDisplay = editingRow !== null ? mergedActions.find((a) => a.row === editingRow) ?? null : null;
+
   // Compute cooldown / effect coverage: Map<`col:row`, 'effect' | 'cooldown'>
   const cellCoverage = React.useMemo(() => {
     const map = new Map<string, 'effect' | 'cooldown'>();
@@ -130,14 +149,14 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
       if (recast === 0 && effectTime === 0) continue;
 
       // Actions where this col is actively checked, sorted by time
-      const sources = actions
+      const sources = mergedActions
         .filter((a) => (mitGrid[phaseIdx]?.[a.row]?.[sc.col] === true) && a.timeSec != null)
         .sort((a, b) => (a.timeSec as number) - (b.timeSec as number));
       if (sources.length === 0) continue;
 
       const maxCharges = Math.max(1, sc.charge ?? 1);
 
-      for (const target of actions) {
+      for (const target of mergedActions) {
         const T = target.timeSec;
         if (T == null) continue;
         // Source rows handle their own display
@@ -166,13 +185,21 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
       }
     }
     return map;
-  }, [allVisibleCols, actions, mitGrid, phaseIdx]);
+  }, [allVisibleCols, mergedActions, mitGrid, phaseIdx]);
 
   const getCoverage = (col: string, row: number) =>
     cellCoverage.get(`${col}:${row}`) ?? null;
 
   return (
     <div className="mit-grid-wrap">
+      {editingAction && editingDisplay && (
+        <EditActionModal
+          phaseIdx={phaseIdx}
+          action={editingAction}
+          displayAction={editingDisplay}
+          onClose={() => setEditingRow(null)}
+        />
+      )}
       {/* Job filter toggles */}
       <div className="job-toggles">
         {colGroups.map((g) => (
@@ -181,13 +208,46 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
               <span className="role-divider" />
             )}
             <button
-              className={`job-toggle ${showJobs[g.job] === false ? 'hidden' : 'visible'}`}
+              className={`job-toggle ${showJobs[g.job] === false ? 'job-off' : 'visible'}`}
               onClick={() => useStore.getState().toggleJob(g.job)}
             >
               {JOB_DISPLAY_NAMES[g.job] ?? g.job}
             </button>
           </React.Fragment>
         ))}
+        {hiddenCount > 0 && (
+          <>
+            <span className="role-divider" />
+            {showHidden ? (
+              // Rows are dimmed but visible — offer to collapse them
+              <>
+                <button
+                  className="job-toggle visible"
+                  onClick={() => setShowHidden(false)}
+                  title={`Remove ${hiddenCount} marked row${hiddenCount > 1 ? 's' : ''} from view`}
+                >
+                  Hide {hiddenCount} marked
+                </button>
+                <button
+                  className="job-toggle job-off"
+                  onClick={() => { clearHiddenRows(phaseIdx); }}
+                  title="Unmark all rows"
+                >
+                  Unmark all
+                </button>
+              </>
+            ) : (
+              // Rows are collapsed — offer to show them dimmed again
+              <button
+                className="job-toggle job-off"
+                onClick={() => setShowHidden(true)}
+                title={`Show ${hiddenCount} hidden row${hiddenCount > 1 ? 's' : ''} (dimmed)`}
+              >
+                {hiddenCount} hidden
+              </button>
+            )}
+          </>
+        )}
       </div>
 
       <div className="mit-table-container">
@@ -253,7 +313,12 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
             </tr>
           </thead>
           <tbody>
-            {actions.map((action) => {
+            {mergedActions.map((action) => {
+              const isRowHidden = hiddenSet.has(action.row);
+              if (isRowHidden && !showHidden) return null;
+
+              const original = actions.find((a) => a.row === action.row)!;;
+              const isOverridden = !!actionOverrides[phaseIdx]?.[action.row];
               const checked = checkedForAction(action.row);
               const damageType = (action.type ?? 'Magic') as 'Magic' | 'Physical' | 'Unique';
               const mit = computeMitigation(action, allVisibleCols, checked, damageType === 'Physical' ? 'Physical' : 'Magic');
@@ -265,11 +330,35 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
               const typeColor = DAMAGE_TYPE_COLORS[action.type ?? ''] ?? '#aaa';
 
               return (
-                <tr key={action.row} className={`action-row ${action.type === 'hide' ? 'hide-row' : ''}`}>
-                  <td className="sticky-col time-cell">
+                <tr key={action.row} className={`action-row ${action.type === 'hide' ? 'hide-row' : ''} ${isRowHidden ? 'row-hidden-dim' : ''}`}>
+                  <td className="sticky-col time-cell editable-cell" onClick={() => setEditingRow(action.row)}>
                     {formatTime(action.timeSec)}
+                    {isOverridden && <span className="edited-dot" title="Edited" />}
                   </td>
-                  <td className="sticky-col action-cell">{action.name}</td>
+                  <td className="sticky-col action-cell">
+                    <span className="action-name">{action.name}</span>
+                    <button
+                      className="edit-action-btn"
+                      onClick={() => setEditingRow(action.row)}
+                      title="Edit action"
+                    >✎</button>
+                    <button
+                      className={`hide-row-btn ${isRowHidden ? 'hide-row-btn-on' : ''}`}
+                      onClick={(e) => { e.stopPropagation(); toggleHideRow(phaseIdx, action.row); if (!showHidden && !isRowHidden) {} }}
+                      title={isRowHidden ? 'Unhide row' : 'Hide row'}
+                    >{isRowHidden ? (
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                          <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                          <line x1="1" y1="1" x2="23" y2="23"/>
+                        </svg>
+                      ) : (
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                          <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                      )}</button>
+                  </td>
                   <td className="sticky-col type-cell">
                     <span className="type-badge" style={{ backgroundColor: typeColor }}>
                       {action.type}
@@ -313,17 +402,19 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
                     }
 
                     const coverage = getCoverage(sc.col, action.row);
+                    const cellBlocked = isRowHidden || coverage != null;
 
                     return (
                       <td
                         key={sc.col}
                         className={`skill-cell ${isChecked ? 'checked' : ''} ${coverage ? `coverage-${coverage}` : ''} ${colBoundaryClass(sc.col)}`}
                         title={
+                          isRowHidden ? 'Row is marked hidden' :
                           coverage === 'cooldown' ? 'On cooldown' :
                           coverage === 'effect' ? 'Buff active' : undefined
                         }
                         onClick={() => {
-                          if (rawState !== '-' && coverage == null) toggleMit(phaseIdx, action.row, sc.col);
+                          if (rawState !== '-' && !cellBlocked) toggleMit(phaseIdx, action.row, sc.col);
                         }}
                       >
                         <input
