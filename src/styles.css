@@ -1,0 +1,441 @@
+/* Reset & base */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #232637;
+  --border: #2e3150;
+  --accent: #5b7dff;
+  --accent2: #a78bfa;
+  --text: #e2e4f0;
+  --text-muted: #7d82a8;
+  --magic: #7b9dff;
+  --physical: #ff9966;
+  --heal: #5dcc8a;
+  --barrier: #ffd700;
+  --danger: #ff4757;
+  --radius: 6px;
+  --font: 'Inter', system-ui, sans-serif;
+}
+
+html, body, #root { height: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ========== Header ========== */
+.header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-title h1 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent2);
+  white-space: nowrap;
+}
+
+.subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.logo { width: 36px; height: 36px; border-radius: 4px; }
+
+.header-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-left: auto;
+}
+
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.control-group label {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.phase-tabs { display: flex; gap: 4px; }
+
+.phase-tab {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 4px 12px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.15s;
+}
+
+.phase-tab:hover { background: var(--surface2); color: var(--text); }
+.phase-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.lang-buttons { display: flex; gap: 2px; }
+
+.lang-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 3px 7px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 0.15s;
+}
+
+.lang-btn:hover { background: var(--surface2); color: var(--text); }
+.lang-btn.active { background: var(--accent2); border-color: var(--accent2); color: #fff; }
+
+.hp-input {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 3px 6px;
+  border-radius: var(--radius);
+  width: 90px;
+  font-size: 12px;
+}
+
+/* ========== Tab bar ========== */
+.tab-bar {
+  display: flex;
+  gap: 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 16px;
+}
+
+.tab {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  padding: 10px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s;
+}
+
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ========== Main ========== */
+.main {
+  flex: 1;
+  overflow: auto;
+  padding: 0;
+}
+
+/* ========== Job toggles ========== */
+.job-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.job-toggle {
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.job-toggle.visible { background: var(--accent); border-color: var(--accent); color: #fff; }
+.job-toggle.hidden { background: transparent; color: var(--text-muted); }
+
+/* ========== Mitigation table ========== */
+.mit-grid-wrap {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 120px);
+}
+
+.mit-table-container {
+  flex: 1;
+  overflow: auto;
+}
+
+.mit-table {
+  border-collapse: collapse;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.mit-table th, .mit-table td {
+  border: 1px solid var(--border);
+  padding: 0 4px;
+  text-align: center;
+  height: 28px;
+}
+
+.mit-table thead th {
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.sticky-col {
+  position: sticky !important;
+  z-index: 40 !important;
+  background: var(--surface) !important;
+}
+
+thead .sticky-col { z-index: 60 !important; }
+
+.time-col { left: 0; min-width: 54px; }
+.action-col { left: 54px; min-width: 180px; text-align: left !important; }
+.type-col { left: 234px; min-width: 70px; }
+.dmg-col { left: 304px; min-width: 80px; }
+
+.time-cell { left: 0; color: var(--text-muted); font-family: monospace; }
+.action-cell { left: 54px; text-align: left !important; font-weight: 500; padding: 0 8px !important; }
+.type-cell { left: 234px; }
+.dmg-cell { left: 304px; font-family: monospace; color: var(--text-muted); }
+
+.type-badge {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+.calc-col {
+  min-width: 80px;
+  background: var(--surface2) !important;
+}
+
+.job-group-header {
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid var(--border) !important;
+}
+
+/* Job color accents */
+.job-pld, .job-ナイト { color: #a8c2ff; }
+.job-war, .job-戦士 { color: #ff6b6b; }
+.job-drk, .job-暗黒騎士 { color: #a064ff; }
+.job-gnb, .job-ガンブレイカー { color: #7dba7d; }
+.job-whm, .job-白魔道士 { color: #f0f0f0; }
+.job-ast, .job-占星術師 { color: #f9d876; }
+.job-sch, .job-学者 { color: #8bbcff; }
+.job-sge, .job-賢者 { color: #7dd3c0; }
+.job-brd, .job-吟遊詩人 { color: #c8a76b; }
+.job-mch, .job-機工士 { color: #88cce8; }
+.job-dnc, .job-踊り子 { color: #f9b8c4; }
+.job-blm, .job-黒魔道士 { color: #bb99ff; }
+.job-smn, .job-召喚士 { color: #77cc77; }
+.job-rdm, .job-赤魔道士 { color: #e87e7e; }
+.job-pct, .job-ピクトマンサー { color: #ffaa66; }
+
+.skill-col-header {
+  min-width: 32px;
+  max-width: 40px;
+  padding: 2px !important;
+}
+
+.skill-col-header img { display: block; margin: auto; border-radius: 3px; }
+.skill-short { font-size: 9px; }
+
+.skill-recast-header {
+  font-size: 9px;
+  color: var(--text-muted);
+  height: 18px !important;
+}
+
+.skill-info-row th {
+  height: 16px !important;
+}
+
+/* Action rows */
+.action-row:hover td { background: rgba(91, 125, 255, 0.07) !important; }
+.action-row:nth-child(even) td { background: rgba(255,255,255,0.02); }
+.hide-row { display: none; }
+
+/* Skill cells */
+.skill-cell {
+  cursor: pointer;
+  transition: background 0.1s;
+  width: 32px;
+}
+
+.skill-cell:hover { background: rgba(91, 125, 255, 0.2) !important; }
+.skill-cell.checked { background: rgba(91, 125, 255, 0.35) !important; }
+.skill-cell input[type=checkbox] { pointer-events: none; accent-color: var(--accent); }
+
+.unavailable { color: var(--text-muted); }
+.unavail-mark { font-size: 10px; }
+
+/* Mitigation calculation cells */
+.mit-pct { font-weight: 700; font-size: 13px; }
+.mit-pct.high { color: var(--heal); }
+.mit-pct.med { color: #ffd700; }
+.mit-pct.low { color: var(--text-muted); }
+
+/* HP bar */
+.hp-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 120px;
+}
+
+.hp-bar {
+  flex: 1;
+  height: 12px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 3px;
+  overflow: hidden;
+  display: flex;
+}
+
+.hp-life { background: var(--heal); height: 100%; transition: width 0.15s; }
+.hp-barrier { background: var(--barrier); height: 100%; }
+.hp-damage { background: var(--danger); height: 100%; opacity: 0.6; }
+
+.hp-label { font-size: 10px; color: var(--text-muted); min-width: 48px; text-align: right; }
+.hp-label.lethal { color: var(--danger); font-weight: 700; }
+
+/* ========== Skill DB ========== */
+.skill-db {
+  padding: 12px 16px;
+}
+
+.skill-db-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.skill-db-header h2 { font-size: 15px; }
+
+.skill-filters { display: flex; gap: 8px; }
+
+.search-input, .job-select {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 5px 10px;
+  border-radius: var(--radius);
+  font-size: 12px;
+}
+
+.search-input { width: 200px; }
+
+.skill-table-wrap {
+  overflow: auto;
+  max-height: calc(100vh - 180px);
+}
+
+.skill-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12px;
+}
+
+.skill-table th, .skill-table td {
+  border: 1px solid var(--border);
+  padding: 5px 8px;
+  text-align: left;
+}
+
+.skill-table thead th {
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.skill-table tbody tr:hover td { background: rgba(91, 125, 255, 0.07); }
+.skill-table tbody tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+
+.icon-cell { width: 40px; text-align: center; }
+.icon-cell img { border-radius: 4px; }
+.job-cell { width: 60px; }
+
+.job-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.mit-cell { color: var(--heal); font-weight: 600; }
+
+.notes-cell { display: flex; gap: 4px; flex-wrap: wrap; }
+
+.badge {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 10px;
+}
+
+.badge.precond { background: rgba(255, 153, 102, 0.2); color: var(--physical); }
+.badge.heal-buff { background: rgba(93, 204, 138, 0.2); color: var(--heal); }
+.badge.charge { background: rgba(91, 125, 255, 0.2); color: var(--accent); }
+
+.ability-row { }
+.gcd-row td { opacity: 0.85; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
