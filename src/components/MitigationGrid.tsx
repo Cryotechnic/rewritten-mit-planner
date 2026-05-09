@@ -558,10 +558,14 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
                   {/* Skill checkboxes */}
                   {allVisibleCols.map((sc) => {
                     const rawState = action.mitStates[sc.col];
-                    const isUnavailable = rawState === '-' || rawState === false;
+                    // Custom rows have no mitStates — single-target skills are unavailable by default
+                    const isSingleTarget = sc.assign === 'SINGLE_PARTY' || sc.assign === 'SINGLE_ENEMY';
+                    const effectivelyUnavailable =
+                      rawState === '-' || rawState === false ||
+                      (customRowIds.has(action.row) && rawState === undefined && isSingleTarget);
                     const isChecked = checked[sc.col] ?? false;
 
-                    if (isUnavailable && rawState === '-') {
+                    if (effectivelyUnavailable && (rawState === '-' || (customRowIds.has(action.row) && isSingleTarget))) {
                       return (
                         <td key={sc.col} className={`skill-cell unavailable ${colBoundaryClass(sc.col)}`}>
                           <span className="unavail-mark">—</span>
@@ -582,7 +586,7 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
                           coverage === 'effect' ? 'Buff active' : undefined
                         }
                         onClick={() => {
-                          if (rawState !== '-' && !cellBlocked) toggleMit(phaseIdx, action.row, sc.col);
+                          if (!effectivelyUnavailable && !cellBlocked) toggleMit(phaseIdx, action.row, sc.col);
                         }}
                       >
                         <input
