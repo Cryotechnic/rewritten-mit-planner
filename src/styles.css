@@ -36,6 +36,24 @@ body {
   min-height: 100vh;
 }
 
+.app-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 10px 16px;
+  font-size: 11px;
+  color: var(--text-dim, #6b7280);
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  margin-top: auto;
+}
+
+.footer-version {
+  font-family: monospace;
+  opacity: 0.7;
+}
+
 /* ========== Header ========== */
 .header {
   background: var(--surface);

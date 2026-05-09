@@ -47,6 +47,11 @@ export default function App() {
         )}
         {tab === "skills" && <SkillDatabase skills={data.skills} />}
       </main>
+
+      <footer className="app-footer">
+        <span>UCoB Mitigation Planner</span>
+        <span className="footer-version">{__COMMIT_HASH__}</span>
+      </footer>
     </div>
   );
 }
