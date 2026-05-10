@@ -12,6 +12,7 @@ export default function PlanTabBar() {
   const [copied, setCopied] = useState(false);
   const [joinInput, setJoinInput] = useState('');
   const [showJoinInput, setShowJoinInput] = useState(false);
+  const [showRegenConfirm, setShowRegenConfirm] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const canRemove = Object.keys(plans).length > 1;
@@ -46,6 +47,7 @@ export default function PlanTabBar() {
     const id = generateShareId();
     await pushPlan(id, plans, activePlanId, clientId);
     setShareId(id);
+    setShowRegenConfirm(false);
   };
 
   const handleCopy = () => {
@@ -109,7 +111,7 @@ export default function PlanTabBar() {
             <button className="sync-btn" onClick={handleCopy} title="Copy join link">
               {copied ? '✓ Copied' : 'Copy link'}
             </button>
-            <button className="sync-btn" onClick={handleRegen} title="Generate a new session code">↺ Refresh Session</button>
+            <button className="sync-btn" onClick={() => setShowRegenConfirm(true)} title="Generate a new session code">↺ Refresh Session</button>
 
           </>
         ) : showJoinInput ? (
@@ -148,6 +150,20 @@ export default function PlanTabBar() {
           onConfirm={(encounterName) => { renamePlan(renamingId, encounterName); setRenamingId(null); }}
           onCancel={() => setRenamingId(null)}
         />
+      )}
+      {showRegenConfirm && (
+        <div className="encounter-dialog-overlay" onClick={() => setShowRegenConfirm(false)}>
+          <div className="encounter-dialog" onClick={(e) => e.stopPropagation()}>
+            <h2 className="encounter-dialog-title" style={{ color: '#f87171' }}>⚠ Refresh Session?</h2>
+            <p style={{ margin: '0 0 16px', color: 'var(--text-dim, #9ca3af)', fontSize: 14 }}>
+              This generates a new session code. <strong style={{ color: '#fca5a5' }}>Make sure to share the new code with your group.</strong>
+            </p>
+            <div className="encounter-dialog-actions">
+              <button className="encounter-dialog-cancel" onClick={() => setShowRegenConfirm(false)}>Cancel</button>
+              <button className="encounter-dialog-confirm" style={{ background: '#dc2626' }} onClick={handleRegen}>Refresh</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
