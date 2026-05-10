@@ -10,9 +10,9 @@ import EncounterDialog from "./components/EncounterDialog";
 import Oobe from "./components/Oobe";
 import SkillDatabase from "./components/SkillDatabase";
 import MitigationGrid from "./components/MitigationGrid";
-import PasscodeGate from "./components/PasscodeGate";
+import { SharePasswordSetup, JoinPasswordPrompt } from "./components/SessionPasswordDialog";
 import { useStore } from "./store";
-import { pushPlan, subscribePlan, generateShareId } from "./lib/planSync";
+import { pushPlan, subscribePlan, generateShareId, getSessionMeta, validateSessionPassword } from "./lib/planSync";
 import type { Unsubscribe } from "firebase/firestore";
 import { t } from "./i18n";
 
@@ -45,44 +45,85 @@ export default function App() {
   // Suppress initial push when joining (so we don't overwrite the sharer's data)
   const awaitingFirstSyncRef = useRef(false);
 
-  // On mount: check URL for ?join=XXXXXX, or auto-share if not already sharing
+  // Per-session encryption
+  const pendingShareIdRef = useRef<string | null>(null);
+  const [sessionPassword, setSessionPassword] = useState<string | null>(null);
+  const [showPasswordSetup, setShowPasswordSetup] = useState(false);
+  const [needJoinPassword, setNeedJoinPassword] = useState(false);
+  const [joinPasswordChecking, setJoinPasswordChecking] = useState(false);
+  const [joinPasswordError, setJoinPasswordError] = useState(false);
+
+  // On mount: check URL for ?join=XXXXXX, or start share setup
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const joinId = params.get('join');
     if (joinId) {
-      awaitingFirstSyncRef.current = true; // joiner: wait for first remote before pushing
-      setShareId(joinId.toUpperCase());
+      const id = joinId.toUpperCase();
+      awaitingFirstSyncRef.current = true;
+      setShareId(id);
       const url = new URL(window.location.href);
       url.searchParams.delete('join');
       window.history.replaceState({}, '', url.toString());
-    } else if (!shareId) {
-      const id = generateShareId();
-      setShareId(id);
-      const { plans: p, activePlanId: aid, maxHP: mhp, tankHP: thp, encounterLevel: el } = useStore.getState();
-      pushPlan(id, p, aid, clientId, { maxHP: mhp, tankHP: thp, encounterLevel: el }).catch((err) => {
-        console.error('Failed to create session:', err);
-        setShareError('Could not create a sync session. Check your Firebase config or Firestore rules.');
+      // Check if the session is encrypted before subscribing
+      getSessionMeta(id).then(({ encrypted }) => {
+        if (encrypted) {
+          setNeedJoinPassword(true);
+        }
+        // If not encrypted, subscribe effect will fire automatically
+      }).catch(() => {
+        setShareError('Could not reach the sync session. Check your connection.');
       });
+    } else if (!shareId) {
+      // Sharer: generate ID but prompt for password before pushing
+      const id = generateShareId();
+      pendingShareIdRef.current = id;
+      setShowPasswordSetup(true);
     }
   }, []);
 
-  // Subscribe / unsubscribe when shareId changes
+  function handleSharerPasswordConfirm(password: string | null) {
+    const id = pendingShareIdRef.current!;
+    setSessionPassword(password);
+    setShowPasswordSetup(false);
+    setShareId(id); // triggers subscribe effect
+    const { plans: p, activePlanId: aid, maxHP: mhp, tankHP: thp, encounterLevel: el } = useStore.getState();
+    pushPlan(id, p, aid, clientId, { maxHP: mhp, tankHP: thp, encounterLevel: el }, password ?? undefined).catch((err) => {
+      console.error('Failed to create session:', err);
+      setShareError('Could not create a sync session. Check your Firebase config or Firestore rules.');
+    });
+  }
+
+  async function handleJoinPasswordSubmit(password: string) {
+    if (!shareId) return;
+    setJoinPasswordChecking(true);
+    setJoinPasswordError(false);
+    const ok = await validateSessionPassword(shareId, password);
+    if (ok) {
+      setSessionPassword(password);
+      setNeedJoinPassword(false); // triggers subscribe effect
+    } else {
+      setJoinPasswordError(true);
+    }
+    setJoinPasswordChecking(false);
+  }
+
+  // Subscribe / unsubscribe when shareId or session state changes
   useEffect(() => {
     if (unsubRef.current) { unsubRef.current(); unsubRef.current = null; }
-    if (!shareId) return;
+    if (!shareId || needJoinPassword) return;
     unsubRef.current = subscribePlan(shareId, clientId, (remotePlans, remoteActivePlanId, remoteSettings) => {
       awaitingFirstSyncRef.current = false;
       skipNextPushRef.current = true;
       applyRemotePlan(remotePlans as Record<string, PlanData>, remoteActivePlanId, remoteSettings);
-    });
+    }, sessionPassword ?? undefined);
     return () => { unsubRef.current?.(); unsubRef.current = null; };
-  }, [shareId, clientId]);
+  }, [shareId, clientId, needJoinPassword, sessionPassword]);
 
   // Push full plans snapshot to Firestore (debounced 600ms).
   // Skipped on echo or while waiting for the first remote update (join flow).
   const activePlanForSync = plans[activePlanId];
   useEffect(() => {
-    if (!shareId) return;
+    if (!shareId || needJoinPassword) return;
     if (awaitingFirstSyncRef.current) return;
     if (skipNextPushRef.current) {
       skipNextPushRef.current = false;
@@ -90,10 +131,10 @@ export default function App() {
     }
     if (pushTimerRef.current) clearTimeout(pushTimerRef.current);
     pushTimerRef.current = setTimeout(() => {
-      pushPlan(shareId, plans, activePlanId, clientId, { maxHP, tankHP, encounterLevel }).catch(console.error);
+      pushPlan(shareId, plans, activePlanId, clientId, { maxHP, tankHP, encounterLevel }, sessionPassword ?? undefined).catch(console.error);
     }, 600);
     return () => { if (pushTimerRef.current) clearTimeout(pushTimerRef.current); };
-  }, [shareId, clientId, activePlanForSync, plans, activePlanId, maxHP, tankHP, encounterLevel]);
+  }, [shareId, clientId, needJoinPassword, sessionPassword, activePlanForSync, plans, activePlanId, maxHP, tankHP, encounterLevel]);
 
   const activePhaseIdx = plans[activePlanId].activePhaseIdx;
   const activePlan = plans[activePlanId];
@@ -111,16 +152,27 @@ export default function App() {
   const hiddenPhases = activePlan.hiddenPhases ?? new Set<number>();
   const activePhase = !hiddenPhases.has(activePhaseIdx) ? allPhases[activePhaseIdx] : undefined;
 
-  if (!activePlan.name) {
+  if (showPasswordSetup && pendingShareIdRef.current) {
+    const shareUrl = `${window.location.origin}${window.location.pathname}?join=${pendingShareIdRef.current}`;
+    return <SharePasswordSetup shareUrl={shareUrl} onConfirm={handleSharerPasswordConfirm} />;
+  }
+
+  if (needJoinPassword && shareId) {
     return (
-      <PasscodeGate>
-        <Oobe onConfirm={(encounterName) => renamePlan(activePlanId, encounterName)} />
-      </PasscodeGate>
+      <JoinPasswordPrompt
+        shareId={shareId}
+        checking={joinPasswordChecking}
+        error={joinPasswordError}
+        onSubmit={handleJoinPasswordSubmit}
+      />
     );
   }
 
+  if (!activePlan.name) {
+    return <Oobe onConfirm={(encounterName) => renamePlan(activePlanId, encounterName)} />;
+  }
+
   return (
-    <PasscodeGate>
     <div className="app">
       <Header data={data} allPhases={allPhases} onAddPhase={() => setShowAddPhase(true)} />
       <PlanTabBar />
@@ -181,6 +233,5 @@ export default function App() {
         </div>
       )}
     </div>
-    </PasscodeGate>
   );
 }

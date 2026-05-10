@@ -3,18 +3,13 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /sessions/{shareId} {
-      // shareId must be exactly 6 uppercase alphanumeric chars (our format)
       function validShareId() {
         return shareId.matches('^[A-HJ-NP-Z2-9]{6}$');
       }
 
-      // Incoming document must have exactly the three expected fields
-      function validShape() {
+      function validBase() {
         let d = request.resource.data;
-        return d.keys().hasOnly(['json', 'clientId', 'updatedAt'])
-          && d.keys().hasAll(['json', 'clientId', 'updatedAt'])
-          && d.json is string
-          && d.json.size() < 2097152       // 2 MB max
+        return d.keys().hasAll(['clientId', 'updatedAt'])
           && d.clientId is string
           && d.clientId.size() > 0
           && d.clientId.size() <= 64
@@ -22,16 +17,31 @@ service cloud.firestore {
           && d.updatedAt > 0;
       }
 
-      // Writes must carry a fresh timestamp (within 60 s of server time)
+      function isPlain() {
+        let d = request.resource.data;
+        return d.keys().hasOnly(['json', 'clientId', 'updatedAt'])
+          && d.json is string
+          && d.json.size() < 2097152;
+      }
+
+      function isEncrypted() {
+        let d = request.resource.data;
+        return d.keys().hasOnly(['ciphertext', 'iv', 'salt', 'clientId', 'updatedAt'])
+          && d.ciphertext is string
+          && d.ciphertext.size() < 2097152
+          && d.iv is string
+          && d.iv.size() <= 32
+          && d.salt is string
+          && d.salt.size() <= 32;
+      }
+
       function freshTimestamp() {
         return request.resource.data.updatedAt > request.time.toMillis() - 60000
           && request.resource.data.updatedAt < request.time.toMillis() + 5000;
       }
 
       allow read: if validShareId();
-      allow write: if validShareId() && validShape() && freshTimestamp();
-
-      // No other collections allowed
+      allow write: if validShareId() && validBase() && (isPlain() || isEncrypted()) && freshTimestamp();
     }
   }
 }
