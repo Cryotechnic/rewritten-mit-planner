@@ -1,16 +1,29 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import commitHash from 'virtual:git-hash';
 import ucobData from "./data/ucob_data.json";
-import type { UcobData } from "./types";
+import type { UcobData, Phase } from "./types";
 import Header from "./components/Header";
 import PlanTabBar from "./components/PlanTabBar";
 import EncounterDialog from "./components/EncounterDialog";
+import Oobe from "./components/Oobe";
 import SkillDatabase from "./components/SkillDatabase";
 import MitigationGrid from "./components/MitigationGrid";
 import { useStore } from "./store";
 import "./App.css";
 
 const data = ucobData as unknown as UcobData;
+
+// All unique skill columns across all data phases — used for custom phases
+const allSkillCols = (() => {
+  const seen = new Set<string>();
+  const cols: UcobData['phases'][0]['skillCols'] = [];
+  for (const phase of data.phases) {
+    for (const sc of phase.skillCols) {
+      if (!seen.has(sc.col)) { seen.add(sc.col); cols.push(sc); }
+    }
+  }
+  return cols;
+})();
 
 type Tab = "planner" | "skills";
 
@@ -20,17 +33,26 @@ export default function App() {
 
   const activePhaseIdx = plans[activePlanId].activePhaseIdx;
   const activePlan = plans[activePlanId];
-  const activePhase = data.phases[activePhaseIdx];
+
+  // Build combined phase list: data phases + custom phases
+  const customPhaseEntries = activePlan.customPhases ?? [];
+  const allPhases = useMemo<Phase[]>(
+    () => [
+      ...data.phases,
+      ...customPhaseEntries.map((cp) => ({ name: cp.name, skillCols: allSkillCols, actions: [] as Phase['actions'] })),
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [customPhaseEntries.length, customPhaseEntries.map((c) => c.name).join('\0')]
+  );
+  const activePhase = allPhases[activePhaseIdx];
+
+  if (!activePlan.name) {
+    return <Oobe onConfirm={(encounterName) => renamePlan(activePlanId, encounterName)} />;
+  }
 
   return (
     <div className="app">
-      {!activePlan.name && (
-        <EncounterDialog
-          mode="oobe"
-          onConfirm={(encounterName) => renamePlan(activePlanId, encounterName)}
-        />
-      )}
-      <Header data={data} />
+      <Header data={data} allPhases={allPhases} />
       <PlanTabBar />
 
       <div className="tab-bar">

@@ -12,10 +12,17 @@ export type ActionOverride = {
   damageHit?: number | null;
 };
 
+export interface CustomPhaseEntry {
+  id: string;
+  name: string;
+}
+
 export interface PlanData {
   id: string;
   name: string;
   activePhaseIdx: number;
+  hiddenPhases: Set<number>;
+  customPhases: CustomPhaseEntry[];
   mitGrid: Record<number, MitGrid>;
   actionOverrides: Record<number, Record<number, ActionOverride>>;
   hiddenRows: Record<number, Set<number>>;
@@ -23,7 +30,7 @@ export interface PlanData {
 }
 
 function makePlan(id: string, name: string): PlanData {
-  return { id, name, activePhaseIdx: 0, mitGrid: {}, actionOverrides: {}, hiddenRows: {}, customActions: {} };
+  return { id, name, activePhaseIdx: 0, hiddenPhases: new Set(), customPhases: [], mitGrid: {}, actionOverrides: {}, hiddenRows: {}, customActions: {} };
 }
 
 const INIT_ID = 'plan-1';
@@ -56,6 +63,10 @@ interface PlannerState {
   removePlan: (id: string) => void;
   renamePlan: (id: string, name: string) => void;
   setActivePlan: (id: string) => void;
+  toggleHidePhase: (phaseIdx: number, totalPhases: number) => void;
+  addCustomPhase: (name: string, dataPhaseCount: number) => void;
+  removeCustomPhase: (phaseIdx: number, dataPhaseCount: number) => void;
+  renameCustomPhase: (phaseIdx: number, name: string, dataPhaseCount: number) => void;
   initPhase: (phaseIdx: number, phase: Phase) => void;
 }
 
@@ -211,21 +222,68 @@ export const useStore = create<PlannerState>()(
 
       setActivePlan: (id) => set({ activePlanId: id }),
 
+      addCustomPhase: (name, dataPhaseCount) => set((s) => patchActive(s, (plan) => {
+        const id = `custom-phase-${Date.now()}`;
+        const newCustomPhases = [...(plan.customPhases ?? []), { id, name }];
+        const newPhaseIdx = dataPhaseCount + newCustomPhases.length - 1;
+        return { customPhases: newCustomPhases, activePhaseIdx: newPhaseIdx };
+      })),
+
+      removeCustomPhase: (phaseIdx, dataPhaseCount) => set((s) => patchActive(s, (plan) => {
+        const customIdx = phaseIdx - dataPhaseCount;
+        const next = (plan.customPhases ?? []).filter((_, i) => i !== customIdx);
+        const newMitGrid = { ...plan.mitGrid };
+        const newActionOverrides = { ...plan.actionOverrides };
+        const newHiddenRows = { ...plan.hiddenRows };
+        const newCustomActions = { ...plan.customActions };
+        delete newMitGrid[phaseIdx];
+        delete newActionOverrides[phaseIdx];
+        delete newHiddenRows[phaseIdx];
+        delete newCustomActions[phaseIdx];
+        const hiddenNext = new Set(plan.hiddenPhases ?? []);
+        hiddenNext.delete(phaseIdx);
+        const activePhaseIdx = plan.activePhaseIdx === phaseIdx
+          ? Math.max(0, phaseIdx - 1)
+          : plan.activePhaseIdx > phaseIdx ? plan.activePhaseIdx - 1 : plan.activePhaseIdx;
+        return { customPhases: next, mitGrid: newMitGrid, actionOverrides: newActionOverrides, hiddenRows: newHiddenRows, customActions: newCustomActions, hiddenPhases: hiddenNext, activePhaseIdx };
+      })),
+
+      renameCustomPhase: (phaseIdx, name, dataPhaseCount) => set((s) => patchActive(s, (plan) => {
+        const customIdx = phaseIdx - dataPhaseCount;
+        const next = [...(plan.customPhases ?? [])];
+        if (next[customIdx]) next[customIdx] = { ...next[customIdx], name };
+        return { customPhases: next };
+      })),
+
+      initPhase: (phaseIdx, totalPhases) => set((s) => patchActive(s, (plan) => {
+        const next = new Set(plan.hiddenPhases ?? []);
+        if (next.has(phaseIdx)) {
+          next.delete(phaseIdx);
+        } else {
+          next.add(phaseIdx);
+          // If we're hiding the active phase, jump to first visible phase
+          if (plan.activePhaseIdx === phaseIdx) {
+            const firstVisible = Array.from({ length: totalPhases }, (_, i) => i).find((i) => !next.has(i)) ?? 0;
+            return { hiddenPhases: next, activePhaseIdx: firstVisible };
+          }
+        }
+        return { hiddenPhases: next };
+      })),
+
       initPhase: (phaseIdx, phase) => {
+        // Check before calling set() — returning {} from set() still triggers a re-render
+        const plan = get().plans[get().activePlanId];
+        if (plan.mitGrid[phaseIdx]) return;
         const grid: MitGrid = {};
         for (const action of phase.actions) {
           grid[action.row] = {};
-          for (const [col, val] of Object.entries(action.mitStates)) {
-            grid[action.row][col] = val === true || val === 1;
+          for (const col of Object.keys(action.mitStates)) {
+            grid[action.row][col] = false;
           }
         }
-        set((s) => {
-          const plan = s.plans[s.activePlanId];
-          if (plan.mitGrid[phaseIdx]) return {};
-          return patchActive(s, (p) => ({
-            mitGrid: { ...p.mitGrid, [phaseIdx]: grid },
-          }));
-        });
+        set((s) => patchActive(s, (p) => ({
+          mitGrid: { ...p.mitGrid, [phaseIdx]: grid },
+        })));
       },
     }),
     {

@@ -2,12 +2,16 @@ import { useState, useRef, useEffect } from 'react';
 
 interface Props {
   mode: 'oobe' | 'new' | 'rename';
+  title?: string;
+  label?: string;
+  placeholder?: string;
+  confirmLabel?: string;
   initialValue?: string;
   onConfirm: (encounterName: string) => void;
   onCancel?: () => void;
 }
 
-export default function EncounterDialog({ mode, initialValue = '', onConfirm, onCancel }: Props) {
+export default function EncounterDialog({ mode, title, label, placeholder, confirmLabel, initialValue = '', onConfirm, onCancel }: Props) {
   const [name, setName] = useState(initialValue);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -34,16 +38,14 @@ export default function EncounterDialog({ mode, initialValue = '', onConfirm, on
             <h2 className="encounter-dialog-title">Welcome</h2>
             <p className="encounter-dialog-desc">Name your first encounter to get started.</p>
           </>
-        ) : mode === 'rename' ? (
-          <h2 className="encounter-dialog-title">Rename Plan</h2>
         ) : (
-          <h2 className="encounter-dialog-title">New Plan</h2>
+          <h2 className="encounter-dialog-title">{title ?? (mode === 'rename' ? 'Rename Plan' : 'New Plan')}</h2>
         )}
-        <label className="encounter-dialog-label">Encounter Name</label>
+        <label className="encounter-dialog-label">{label ?? 'Encounter Name'}</label>
         <input
           ref={inputRef}
           className="encounter-dialog-input"
-          placeholder="e.g. The Unending Coil of Bahamut"
+          placeholder={placeholder ?? 'e.g. The Unending Coil of Bahamut'}
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={handleKey}
@@ -57,7 +59,7 @@ export default function EncounterDialog({ mode, initialValue = '', onConfirm, on
             onClick={confirm}
             disabled={!name.trim()}
           >
-            {mode === 'oobe' ? 'Get Started' : mode === 'rename' ? 'Rename' : 'Create Plan'}
+            {mode === 'oobe' ? 'Get Started' : confirmLabel ?? (mode === 'rename' ? 'Rename' : 'Create Plan')}
           </button>
         </div>
       </div>
