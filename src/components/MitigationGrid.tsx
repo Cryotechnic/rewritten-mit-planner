@@ -367,7 +367,7 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
 
   const [editingRow, setEditingRow] = React.useState<number | null>(null);
   const [showHidden, setShowHidden] = React.useState(true);
-  const [showNotes, setShowNotes] = React.useState(false);
+  const showNotes = true;
 
   const hiddenSet = hiddenRows[phaseIdx] ?? EMPTY_HIDDEN;
   const hiddenCount = hiddenSet.size;
@@ -770,14 +770,7 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
         >
           Job PIP
         </button>
-        <button
-          className="add-action-btn"
-          style={showNotes ? { color: '#fbbf24', borderColor: '#713f12', background: 'rgba(251,191,36,0.1)' } : {}}
-          onClick={() => setShowNotes((v) => !v)}
-          title="Toggle notes column"
-        >
-          Notes
-        </button>
+
         {baseActionsCleared && (
           <button
             className="add-action-btn"
