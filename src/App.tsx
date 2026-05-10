@@ -47,14 +47,18 @@ export default function App() {
 
   // Per-session encryption
   const pendingShareIdRef = useRef<string | null>(null);
+  const initDoneRef = useRef(false);
   const [sessionPassword, setSessionPassword] = useState<string | null>(null);
   const [showPasswordSetup, setShowPasswordSetup] = useState(false);
   const [needJoinPassword, setNeedJoinPassword] = useState(false);
   const [joinPasswordChecking, setJoinPasswordChecking] = useState(false);
   const [joinPasswordError, setJoinPasswordError] = useState(false);
+  const [waitingForHost, setWaitingForHost] = useState(false);
 
   // On mount: check URL for ?join=XXXXXX, or start share setup
   useEffect(() => {
+    if (initDoneRef.current) return;
+    initDoneRef.current = true;
     const params = new URLSearchParams(window.location.search);
     const joinId = params.get('join');
     if (joinId) {
@@ -64,12 +68,10 @@ export default function App() {
       const url = new URL(window.location.href);
       url.searchParams.delete('join');
       window.history.replaceState({}, '', url.toString());
-      // Check if the session is encrypted before subscribing
+      // Use getSessionMeta only as a quick early signal for the encrypted case.
+      // The subscription's onWaiting callback handles the doc-doesn't-exist case.
       getSessionMeta(id).then(({ encrypted }) => {
-        if (encrypted) {
-          setNeedJoinPassword(true);
-        }
-        // If not encrypted, subscribe effect will fire automatically
+        if (encrypted) setNeedJoinPassword(true);
       }).catch(() => {
         setShareError('Could not reach the sync session. Check your connection.');
       });
@@ -107,17 +109,27 @@ export default function App() {
     setJoinPasswordChecking(false);
   }
 
-  // Subscribe / unsubscribe when shareId or session state changes
+  // Subscribe / unsubscribe when shareId or sessionPassword changes.
+  // Intentionally NOT gated on needJoinPassword — we keep the subscription alive
+  // so onSnapshot can fire onWaiting/onNeedsPassword even while the prompt is shown.
   useEffect(() => {
     if (unsubRef.current) { unsubRef.current(); unsubRef.current = null; }
-    if (!shareId || needJoinPassword) return;
+    if (!shareId) return;
     unsubRef.current = subscribePlan(shareId, clientId, (remotePlans, remoteActivePlanId, remoteSettings) => {
       awaitingFirstSyncRef.current = false;
+      setWaitingForHost(false);
       skipNextPushRef.current = true;
       applyRemotePlan(remotePlans as Record<string, PlanData>, remoteActivePlanId, remoteSettings);
-    }, sessionPassword ?? undefined);
+    }, sessionPassword ?? undefined, () => {
+      // Encrypted doc arrived but we have no password — show prompt
+      setNeedJoinPassword(true);
+      setWaitingForHost(false);
+    }, () => {
+      // Doc doesn't exist yet — sharer hasn't pushed
+      setWaitingForHost(true);
+    });
     return () => { unsubRef.current?.(); unsubRef.current = null; };
-  }, [shareId, clientId, needJoinPassword, sessionPassword]);
+  }, [shareId, clientId, sessionPassword]);
 
   // Push full plans snapshot to Firestore (debounced 600ms).
   // Skipped on echo or while waiting for the first remote update (join flow).
@@ -155,6 +167,20 @@ export default function App() {
   if (showPasswordSetup && pendingShareIdRef.current) {
     const shareUrl = `${window.location.origin}${window.location.pathname}?join=${pendingShareIdRef.current}`;
     return <SharePasswordSetup shareUrl={shareUrl} onConfirm={handleSharerPasswordConfirm} />;
+  }
+
+  if (waitingForHost && shareId) {
+    return (
+      <div style={{
+        position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'var(--bg)', flexDirection: 'column', gap: '12px',
+      }}>
+        <div style={{ fontWeight: 700, fontSize: '17px', color: 'var(--text)' }}>Waiting for host…</div>
+        <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+          Session <span style={{ fontFamily: 'monospace', color: 'var(--accent)' }}>{shareId}</span> hasn't started yet.
+        </div>
+      </div>
+    );
   }
 
   if (needJoinPassword && shareId) {

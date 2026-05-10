@@ -131,15 +131,23 @@ export function subscribePlan(
   clientId: string,
   onUpdate: (plans: unknown, activePlanId: string, settings: GlobalSettings | undefined) => void,
   password?: string,
+  onNeedsPassword?: () => void,
+  onWaiting?: () => void,
 ): Unsubscribe {
   return onSnapshot(doc(db, COLLECTION, shareId), async (snap) => {
-    if (!snap.exists()) return;
+    if (!snap.exists()) {
+      onWaiting?.();
+      return;
+    }
     const data = snap.data();
     if (data.clientId === clientId) return;
 
     let json: string;
     if (typeof data.ciphertext === 'string') {
-      if (!password) return; // encrypted but no password — ignore
+      if (!password) {
+        onNeedsPassword?.();
+        return;
+      }
       try {
         json = await decryptJson(data.ciphertext, data.iv, data.salt, password);
       } catch {
