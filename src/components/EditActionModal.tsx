@@ -25,12 +25,15 @@ function parseTime(str: string): number | null {
 }
 
 export default function EditActionModal({ phaseIdx, action, displayAction, onClose }: Props) {
-  const { setActionOverride, resetActionOverride, language } = useStore();
+  const { setActionOverride, resetActionOverride, setRowTag, language } = useStore();
+  const rowTags = useStore((s) => s.plans[s.activePlanId].rowTags);
+  const currentTag = (rowTags ?? {})[phaseIdx]?.[action.row] ?? null;
 
   const [name, setName] = React.useState(displayAction.name ?? '');
   const [timeStr, setTimeStr] = React.useState(formatTime(displayAction.timeSec));
   const [type, setType] = React.useState(displayAction.type ?? 'Magic');
   const [damage, setDamage] = React.useState(String(displayAction.damageHit ?? ''));
+  const [tag, setTag] = React.useState<'tank' | 'heal' | 'dps' | 'note' | null>(currentTag);
   const [timeError, setTimeError] = React.useState(false);
 
   const isModified =
@@ -52,6 +55,7 @@ export default function EditActionModal({ phaseIdx, action, displayAction, onClo
       type: type || undefined,
       damageHit: damage !== '' ? Number(damage) : null,
     });
+    setRowTag(phaseIdx, action.row, tag);
     onClose();
   }
 
@@ -124,6 +128,25 @@ export default function EditActionModal({ phaseIdx, action, displayAction, onClo
               placeholder={String(action.damageHit ?? 0)}
             />
           </label>
+
+          <div className="modal-field">
+            <span>Tag</span>
+            <div style={{ display: 'flex', gap: '6px', marginTop: '2px' }}>
+              {([['tank', '#3b82f6', 'Tank'], ['heal', '#22c55e', 'Heal'], ['dps', '#ef4444', 'DPS'], ['note', '#f97316', 'Note']] as const).map(([val, color, label]) => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => setTag(tag === val ? null : val)}
+                  style={{
+                    padding: '3px 10px', borderRadius: '4px', border: `1px solid ${color}`,
+                    background: tag === val ? color : 'transparent',
+                    color: tag === val ? '#fff' : color,
+                    fontSize: '11px', fontWeight: 600, cursor: 'pointer', transition: 'background 0.1s',
+                  }}
+                >{label}</button>
+              ))}
+            </div>
+          </div>
         </div>
 
         <div className="modal-footer">

@@ -30,10 +30,12 @@ export interface PlanData {
   baseActionsCleared: boolean;
   // phaseIdx → row → note text
   actionNotes: Record<number, Record<number, string>>;
+  // phaseIdx → row → tag
+  rowTags: Record<number, Record<number, 'tank' | 'heal' | 'dps' | 'note'>>;
 }
 
 function makePlan(id: string, name: string): PlanData {
-  return { id, name, activePhaseIdx: 0, hiddenPhases: new Set(), customPhases: [], mitGrid: {}, actionOverrides: {}, hiddenRows: {}, customActions: {}, baseActionsCleared: false, actionNotes: {} };
+  return { id, name, activePhaseIdx: 0, hiddenPhases: new Set(), customPhases: [], mitGrid: {}, actionOverrides: {}, hiddenRows: {}, customActions: {}, baseActionsCleared: false, actionNotes: {}, rowTags: {} };
 }
 
 const INIT_ID = 'plan-1';
@@ -82,6 +84,7 @@ interface PlannerState {
   renameCustomPhase: (phaseIdx: number, name: string, dataPhaseCount: number) => void;
   initPhase: (phaseIdx: number, phase: Phase) => void;
   setActionNote: (phaseIdx: number, row: number, note: string) => void;
+  setRowTag: (phaseIdx: number, row: number, tag: 'tank' | 'heal' | 'dps' | 'note' | null) => void;
   setShareId: (id: string | null) => void;
   applyRemotePlan: (plans: Record<string, PlanData>, activePlanId: string, settings?: { maxHP?: number; tankHP?: number; encounterLevel?: number }) => void;
 }
@@ -328,10 +331,16 @@ export const useStore = create<PlannerState>()(
 
       setActionNote: (phaseIdx, row, note) => set((s) => patchActive(s, (plan) => ({
         actionNotes: {
-          ...plan.actionNotes,
-          [phaseIdx]: { ...(plan.actionNotes[phaseIdx] ?? {}), [row]: note },
+          ...(plan.actionNotes ?? {}),
+          [phaseIdx]: { ...((plan.actionNotes ?? {})[phaseIdx] ?? {}), [row]: note },
         },
       }))),
+
+      setRowTag: (phaseIdx, row, tag) => set((s) => patchActive(s, (plan) => {
+        const phase = { ...((plan.rowTags ?? {})[phaseIdx] ?? {}) };
+        if (tag === null) { delete phase[row]; } else { phase[row] = tag; }
+        return { rowTags: { ...(plan.rowTags ?? {}), [phaseIdx]: phase } };
+      })),
 
       setShareId: (id) => set({ shareId: id }),
 

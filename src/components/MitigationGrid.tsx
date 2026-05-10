@@ -6,7 +6,8 @@ import EditActionModal from './EditActionModal';
 import ClearAllModal from './ClearAllModal';
 import MacroExportModal from './MacroExportModal';
 import FFlogsImportModal from './FFlogsImportModal';
-import { openPipWindow, type PipWindowHandle, JOB_ICON_URL } from './JobPipWindow';
+import { openPipWindow, type PipWindowHandle } from './JobPipWindow';
+import { JOB_ICON_URL } from '../jobIcons';
 import { t, tFmt } from '../i18n';
 import { getSkillLevelReq } from '../data/skillLevels';
 
@@ -94,6 +95,7 @@ interface TableBodyProps {
   showNotes: boolean;
   actionNotes: Record<number, string>;
   setActionNote: (phaseIdx: number, row: number, note: string) => void;
+  rowTagsForPhase: Record<number, 'tank' | 'heal' | 'dps' | 'note'>;
 }
 
 function NoteCell({ phaseIdx, row, note, setActionNote }: { phaseIdx: number; row: number; note: string; setActionNote: (p: number, r: number, n: string) => void }) {
@@ -121,7 +123,7 @@ const MitigationTableBody = React.memo(function MitigationTableBody({
   mergedActions, customRowIds, allVisibleCols, mitGridForPhase, cellCoverage,
   hiddenSet, showHidden, actionOverridesForPhase, phaseIdx, maxHP, tankHP,
   roleStartCols, jobStartCols, toggleMit, setEditingRow, removeCustomAction, toggleHideRow, insertAfterRow,
-  showNotes, actionNotes, setActionNote,
+  showNotes, actionNotes, setActionNote, rowTagsForPhase,
 }: TableBodyProps) {
   const colBoundaryClass = (colId: string) =>
     roleStartCols.has(colId) ? 'role-boundary' : jobStartCols.has(colId) ? 'job-boundary' : '';
@@ -157,12 +159,16 @@ const MitigationTableBody = React.memo(function MitigationTableBody({
 
         return (
           <React.Fragment key={action.row}>
-          <tr className={`action-row ${action.type === 'hide' ? 'hide-row' : ''} ${isRowHidden ? 'row-hidden-dim' : ''} ${customRowIds.has(action.row) ? 'custom-row' : ''}`}>
+          <tr className={`action-row ${action.type === 'hide' ? 'hide-row' : ''} ${isRowHidden ? 'row-hidden-dim' : ''} ${customRowIds.has(action.row) ? 'custom-row' : ''} ${rowTagsForPhase[action.row] ? `tagged-row tagged-row-${rowTagsForPhase[action.row]}` : ''}`}>
             <td className="sticky-col time-cell editable-cell" onClick={() => setEditingRow(action.row)}>
               {formatTime(action.timeSec)}
-              {isOverridden && <span className="edited-dot" title="Edited" />}
             </td>
             <td className="sticky-col action-cell" onDoubleClick={() => setEditingRow(action.row)}>
+              {rowTagsForPhase[action.row] && (
+                <span className={`row-tag row-tag-${rowTagsForPhase[action.row]}`}>
+                  {{ tank: 'Tank', heal: 'Heal', dps: 'DPS', note: 'Note' }[rowTagsForPhase[action.row]]}
+                </span>
+              )}
               <span className="action-name">{action.name}</span>
               <button className="edit-action-btn" onClick={() => setEditingRow(action.row)} title="Edit action">✎</button>
               {customRowIds.has(action.row) ? (
@@ -270,7 +276,7 @@ const MitigationTableBody = React.memo(function MitigationTableBody({
 
 export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onOpenPip }: Props) {
   const { language, toggleMit, initPhase, showJobs, setShowJobs, maxHP, tankHP, toggleHideRow, clearHiddenRows, encounterLevel, addCustomAction, removeCustomAction, clearPhase, clearPlan, clearAllPlans, clearPlanActions, restoreBaseActions, setActionNote } = useStore();
-  const { mitGrid, actionOverrides, hiddenRows, customActions, name: planName, baseActionsCleared, actionNotes } = useStore((s) => s.plans[s.activePlanId]);
+  const { mitGrid, actionOverrides, hiddenRows, customActions, name: planName, baseActionsCleared, actionNotes, rowTags } = useStore((s) => s.plans[s.activePlanId]);
 
   const [showClearModal, setShowClearModal] = React.useState(false);
   const [showMacroModal, setShowMacroModal] = React.useState(false);
@@ -892,6 +898,7 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
             showNotes={showNotes}
             actionNotes={(actionNotes ?? {})[phaseIdx] ?? {}}
             setActionNote={setActionNote}
+            rowTagsForPhase={(rowTags ?? {})[phaseIdx] ?? {}}
           />
         </table>
       </div>

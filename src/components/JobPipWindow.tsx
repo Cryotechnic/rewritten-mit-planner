@@ -2,31 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import type { Phase, Skill, Action, Language } from '../types';
 import { useStore } from '../store';
-
-// XIVAPI ClassJob icon URLs — keyed by EN abbreviation
-export const JOB_ICON_URL: Record<string, string> = {
-  PLD: 'https://xivapi.com/i/062000/062119.png',
-  WAR: 'https://xivapi.com/i/062000/062121.png',
-  DRK: 'https://xivapi.com/i/062000/062132.png',
-  GNB: 'https://xivapi.com/i/062000/062137.png',
-  WHM: 'https://xivapi.com/i/062000/062124.png',
-  AST: 'https://xivapi.com/i/062000/062133.png',
-  SCH: 'https://xivapi.com/i/062000/062128.png',
-  SGE: 'https://xivapi.com/i/062000/062140.png',
-  MNK: 'https://xivapi.com/i/062000/062120.png',
-  DRG: 'https://xivapi.com/i/062000/062122.png',
-  NIN: 'https://xivapi.com/i/062000/062130.png',
-  SAM: 'https://xivapi.com/i/062000/062134.png',
-  RPR: 'https://xivapi.com/i/062000/062139.png',
-  VPR: 'https://xivapi.com/i/062000/062141.png',
-  BRD: 'https://xivapi.com/i/062000/062123.png',
-  MCH: 'https://xivapi.com/i/062000/062131.png',
-  DNC: 'https://xivapi.com/i/062000/062138.png',
-  BLM: 'https://xivapi.com/i/062000/062125.png',
-  SMN: 'https://xivapi.com/i/062000/062127.png',
-  RDM: 'https://xivapi.com/i/062000/062135.png',
-  PCT: 'https://xivapi.com/i/062000/062142.png',
-};
+import { JOB_ICON_URL } from '../jobIcons';
 
 declare global {
   interface Window {
@@ -47,6 +23,8 @@ export interface PipAction {
   duration: number | null;
   skills: PipSkill[];
   note: string;
+  phaseIdx: number;
+  row: number;
 }
 
 export interface PipPhaseData {
@@ -116,15 +94,15 @@ function pipBuildPhases(
       .sort((a, b) => (a.timeSec ?? Infinity) - (b.timeSec ?? Infinity));
 
     const actions: PipAction[] = merged.flatMap((action) => {
+      const note = actionNotes[pi]?.[action.row] ?? '';
       const checkedCols = jobCols.filter((sc) => mitGrid[pi]?.[action.row]?.[sc.col] === true);
-      if (checkedCols.length === 0) return [];
+      if (checkedCols.length === 0 && !note) return [];
       const checkedSkills = checkedCols.map((sc) => pipGetSkill(sc.skill, skills, language));
       const maxDuration = checkedCols.reduce<number | null>((max, sc) => {
         if (sc.effectTime == null) return max;
         return max === null ? sc.effectTime : Math.max(max, sc.effectTime);
       }, null);
-      const note = actionNotes[pi]?.[action.row] ?? '';
-      return [{ actionName: action.name ?? '(unnamed)', timeSec: action.timeSec, duration: maxDuration, skills: checkedSkills, note }];
+      return [{ actionName: action.name ?? '(unnamed)', timeSec: action.timeSec, duration: maxDuration, skills: checkedSkills, note, phaseIdx: pi, row: action.row }];
     });
 
     return { phaseName: phase.name, actions };
@@ -141,20 +119,26 @@ interface PipContentProps {
 }
 
 export function PipContent({ jobJP, jobName, allPhases, skills }: PipContentProps) {
-  const { mitGrid, actionOverrides, customActions, baseActionsCleared, actionNotes } = useStore((s) => s.plans[s.activePlanId]);
+  const plan = useStore((s) => s.plans[s.activePlanId]);
+  const mitGrid = plan?.mitGrid ?? {};
+  const actionOverrides = plan?.actionOverrides ?? {};
+  const customActions = plan?.customActions ?? {};
+  const baseActionsCleared = plan?.baseActionsCleared ?? false;
+  const actionNotesRaw = useStore((s) => s.plans[s.activePlanId]?.actionNotes);
+  const actionNotes = actionNotesRaw ?? {};
   const language = useStore((s) => s.language);
 
   const jobIconUrl = JOB_ICON_URL[jobName] ?? null;
 
   const phases = useMemo(
-    () => pipBuildPhases(jobJP, allPhases, skills, language, mitGrid, actionOverrides, customActions, baseActionsCleared ?? false, actionNotes ?? {}),
+    () => pipBuildPhases(jobJP, allPhases, skills, language, mitGrid, actionOverrides, customActions, baseActionsCleared ?? false, actionNotes),
     [jobJP, allPhases, skills, language, mitGrid, actionOverrides, customActions, baseActionsCleared, actionNotes],
   );
 
   const [baseElapsed, setBaseElapsed] = useState(0);
   const [runStart, setRunStart] = useState<number | null>(null);
   const [now, setNow] = useState(Date.now());
-  const [showNotes, setShowNotes] = useState(false);
+  const [showNotes, setShowNotes] = useState(true);
 
   const running = runStart !== null;
   const elapsed = running ? baseElapsed + (now - runStart) / 1000 : baseElapsed;
@@ -270,11 +254,11 @@ export function PipContent({ jobJP, jobName, allPhases, skills }: PipContentProp
                       ))}
                     </div>
                   )}
-                  {showNotes && action.note && (
+                  {showNotes && (() => { const liveNote = actionNotes[action.phaseIdx]?.[action.row] ?? ''; return liveNote ? (
                     <div style={{ fontSize: '11px', color: '#fbbf24', marginTop: '3px', fontStyle: 'italic', lineHeight: 1.4, borderLeft: '2px solid #92400e', paddingLeft: '6px' }}>
-                      {action.note}
+                      {liveNote}
                     </div>
-                  )}
+                  ) : null; })()}
                 </div>
               );
             })}
