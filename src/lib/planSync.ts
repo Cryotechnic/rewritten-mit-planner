@@ -69,8 +69,17 @@ export function subscribePlan(
     if (!snap.exists()) return;
     const data = snap.data();
     if (data.clientId === clientId) return;
+    if (typeof data.json !== 'string' || data.json.length > 2097152) return;
     try {
       const parsed = JSON.parse(data.json, reviver);
+      // Validate top-level shape before handing to the store
+      if (
+        parsed === null ||
+        typeof parsed !== 'object' ||
+        typeof parsed.activePlanId !== 'string' ||
+        typeof parsed.plans !== 'object' ||
+        parsed.plans === null
+      ) return;
       onUpdate(parsed.plans, parsed.activePlanId, parsed.settings);
     } catch {
       // Malformed doc — ignore
