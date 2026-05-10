@@ -422,6 +422,18 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
 
       <div className="mit-table-container">
         <table className="mit-table">
+          <colgroup>
+            <col style={{ width: '54px' }} />
+            <col style={{ width: '180px' }} />
+            <col style={{ width: '70px' }} />
+            <col style={{ width: '80px' }} />
+            <col style={{ width: '80px' }} />
+            <col style={{ width: '80px' }} />
+            <col style={{ width: '80px' }} />
+            {allVisibleCols.map((sc) => (
+              <col key={sc.col} style={{ width: '36px' }} />
+            ))}
+          </colgroup>
           <thead>
             {/* Job row */}
             <tr className="job-header-row">

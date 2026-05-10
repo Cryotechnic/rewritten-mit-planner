@@ -808,17 +808,25 @@ body {
 }
 
 .mit-table {
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
   white-space: nowrap;
   font-size: 12px;
 }
 
 .mit-table th, .mit-table td {
-  border: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
   padding: 0 4px;
   text-align: center;
   height: 28px;
 }
+
+.mit-table tr > th:last-child,
+.mit-table tr > td:last-child { border-right: 1px solid var(--border); }
+
+.mit-table thead tr:first-child > th { border-top: 1px solid var(--border); }
 
 .mit-table thead th {
   background: var(--surface);
@@ -959,7 +967,9 @@ thead .sticky-col { z-index: 60 !important; }
 
 /* Action rows */
 .action-row:hover td { background: rgba(91, 125, 255, 0.07) !important; }
+.action-row:hover td.sticky-col { background: color-mix(in srgb, rgb(91, 125, 255) 7%, var(--surface)) !important; }
 .action-row:nth-child(even) td { background: rgba(255,255,255,0.02); }
+.action-row:nth-child(even) td.sticky-col { background: color-mix(in srgb, #fff 2%, var(--surface)) !important; }
 .hide-row { display: none; }
 
 /* Skill cells */
@@ -1026,10 +1036,10 @@ thead .sticky-col { z-index: 60 !important; }
 .editable-cell { cursor: pointer; }
 .editable-cell:hover { color: var(--accent) !important; }
 
-.action-cell { position: relative; }
+.action-cell { position: relative; display: flex; align-items: center; overflow: hidden; }
 .action-cell:hover .edit-action-btn { opacity: 1; }
 
-.action-name { flex: 1; }
+.action-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
 .edit-action-btn {
   opacity: 0;
