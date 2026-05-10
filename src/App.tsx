@@ -28,8 +28,9 @@ const allSkillCols = (() => {
 type Tab = "planner" | "skills";
 
 export default function App() {
-  const { plans, activePlanId, renamePlan } = useStore();
+  const { plans, activePlanId, renamePlan, addCustomPhase } = useStore();
   const [tab, setTab] = useState<Tab>("planner");
+  const [showAddPhase, setShowAddPhase] = useState(false);
 
   const activePhaseIdx = plans[activePlanId].activePhaseIdx;
   const activePlan = plans[activePlanId];
@@ -44,7 +45,8 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [customPhaseEntries.length, customPhaseEntries.map((c) => c.name).join('\0')]
   );
-  const activePhase = allPhases[activePhaseIdx];
+  const hiddenPhases = activePlan.hiddenPhases ?? new Set<number>();
+  const activePhase = !hiddenPhases.has(activePhaseIdx) ? allPhases[activePhaseIdx] : undefined;
 
   if (!activePlan.name) {
     return <Oobe onConfirm={(encounterName) => renamePlan(activePlanId, encounterName)} />;
@@ -52,7 +54,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <Header data={data} allPhases={allPhases} />
+      <Header data={data} allPhases={allPhases} onAddPhase={() => setShowAddPhase(true)} />
       <PlanTabBar />
 
       <div className="tab-bar">
@@ -79,8 +81,26 @@ export default function App() {
             skills={data.skills}
           />
         )}
+        {tab === "planner" && !activePhase && (
+          <div className="no-phase-empty">
+            <p className="no-phase-hint">No phases visible</p>
+            <button className="no-phase-add-btn" onClick={() => setShowAddPhase(true)}>+ Add Phase</button>
+          </div>
+        )}
         {tab === "skills" && <SkillDatabase skills={data.skills} />}
       </main>
+
+      {showAddPhase && (
+        <EncounterDialog
+          mode="new"
+          title="New Phase"
+          label="Phase Name"
+          placeholder="e.g. Phase 6"
+          confirmLabel="Add Phase"
+          onConfirm={(name) => { addCustomPhase(name, data.phases.length); setShowAddPhase(false); }}
+          onCancel={() => setShowAddPhase(false)}
+        />
+      )}
 
       <footer className="app-footer">
         <span>Rewritten Mitigation Planner</span>

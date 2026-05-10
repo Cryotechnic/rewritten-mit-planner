@@ -255,7 +255,7 @@ export const useStore = create<PlannerState>()(
         return { customPhases: next };
       })),
 
-      initPhase: (phaseIdx, totalPhases) => set((s) => patchActive(s, (plan) => {
+      toggleHidePhase: (phaseIdx, totalPhases) => set((s) => patchActive(s, (plan) => {
         const next = new Set(plan.hiddenPhases ?? []);
         if (next.has(phaseIdx)) {
           next.delete(phaseIdx);

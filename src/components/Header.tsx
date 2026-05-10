@@ -1,24 +1,23 @@
 import { useState } from 'react';
 import { useStore } from '../store';
-import EncounterDialog from './EncounterDialog';
 import type { UcobData, Phase } from '../types';
 
 interface Props {
   data: UcobData;
   allPhases: Phase[];
+  onAddPhase: () => void;
 }
 
 const LANGS = ['JP', 'EN', 'DE', 'FR', 'KO', 'CN'] as const;
 const ENCOUNTER_LEVELS = [50, 60, 70, 80, 90, 100] as const;
 
-export default function Header({ data, allPhases }: Props) {
+export default function Header({ data, allPhases, onAddPhase }: Props) {
   const { setActivePhase, language, setLanguage, maxHP, tankHP, setMaxHP, setTankHP, encounterLevel, setEncounterLevel, plans, activePlanId, toggleHidePhase, addCustomPhase, removeCustomPhase } = useStore();
   const activePlan = plans[activePlanId];
   const activePhaseIdx = activePlan.activePhaseIdx;
   const hiddenPhases = activePlan.hiddenPhases ?? new Set<number>();
   const hiddenPhaseList = allPhases.map((p, i) => ({ phase: p, idx: i })).filter(({ idx }) => hiddenPhases.has(idx));
   const [showRestoreMenu, setShowRestoreMenu] = useState(false);
-  const [showAddPhase, setShowAddPhase] = useState(false);
   const totalPhases = allPhases.length;
 
   return (
@@ -50,10 +49,10 @@ export default function Header({ data, allPhases }: Props) {
                 {isCustom ? (
                   <button
                     className="phase-tab-hide-btn phase-tab-delete-btn"
-                    onClick={() => removeCustomPhase(idx, data.phases.length)}
+                    onClick={(e) => { e.stopPropagation(); removeCustomPhase(idx, data.phases.length); }}
                     title={`Delete ${phase.name}`}
-                  >🗑</button>
-                ) : visibleCount > 1 && (
+                  >×</button>
+                ) : (
                   <button
                     className="phase-tab-hide-btn"
                     onClick={() => toggleHidePhase(idx, totalPhases)}
@@ -66,7 +65,7 @@ export default function Header({ data, allPhases }: Props) {
           {/* Add custom phase */}
           <button
             className="phase-tab-restore-btn"
-            onClick={() => setShowAddPhase(true)}
+            onClick={() => onAddPhase()}
             title="Add custom phase"
           >+</button>
           {/* Restore hidden phases */}
@@ -93,17 +92,6 @@ export default function Header({ data, allPhases }: Props) {
             </div>
           )}
         </nav>
-        {showAddPhase && (
-          <EncounterDialog
-            mode="new"
-            title="New Phase"
-            label="Phase Name"
-            placeholder="e.g. Phase 6"
-            confirmLabel="Add Phase"
-            onConfirm={(name) => { addCustomPhase(name, data.phases.length); setShowAddPhase(false); }}
-            onCancel={() => setShowAddPhase(false)}
-          />
-        )}
 
         {/* Language */}
         <div className="control-group">
