@@ -60,6 +60,9 @@ interface PlannerState {
   resetActionOverride: (phaseIdx: number, row: number) => void;
   toggleHideRow: (phaseIdx: number, row: number) => void;
   clearHiddenRows: (phaseIdx: number) => void;
+  clearPhase: (phaseIdx: number) => void;
+  clearPlan: () => void;
+  clearAllPlans: () => void;
   addCustomAction: (phaseIdx: number, action: Action) => void;
   removeCustomAction: (phaseIdx: number, row: number) => void;
   addPlan: (encounterName: string) => void;
@@ -191,6 +194,20 @@ export const useStore = create<PlannerState>()(
       clearHiddenRows: (phaseIdx) => set((s) => patchActive(s, (plan) => ({
         hiddenRows: { ...plan.hiddenRows, [phaseIdx]: new Set<number>() },
       }))),
+
+      clearPhase: (phaseIdx) => set((s) => patchActive(s, (plan) => ({
+        mitGrid: { ...plan.mitGrid, [phaseIdx]: {} },
+      }))),
+
+      clearPlan: () => set((s) => patchActive(s, () => ({
+        mitGrid: {},
+      }))),
+
+      clearAllPlans: () => set((s) => ({
+        plans: Object.fromEntries(
+          Object.entries(s.plans).map(([id, plan]) => [id, { ...plan, mitGrid: {} }])
+        ),
+      })),
 
       addCustomAction: (phaseIdx, action) => set((s) => patchActive(s, (plan) => ({
         customActions: {

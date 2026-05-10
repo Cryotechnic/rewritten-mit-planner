@@ -3,6 +3,7 @@ import { useStore, JOB_DISPLAY_NAMES } from '../store';
 import type { Phase, Skill, Language, Action } from '../types';
 import { computeMitigation, computeBarrier, computeHealBuff, formatTime, applyMitigations } from '../calc';
 import EditActionModal from './EditActionModal';
+import ClearAllModal from './ClearAllModal';
 import { getSkillLevelReq } from '../data/skillLevels';
 
 interface Props {
@@ -57,8 +58,10 @@ const DAMAGE_TYPE_ICONS: Record<string, string> = {
 };
 
 export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
-  const { language, toggleMit, initPhase, showJobs, setShowJobs, maxHP, tankHP, toggleHideRow, clearHiddenRows, encounterLevel, addCustomAction, removeCustomAction } = useStore();
-  const { mitGrid, actionOverrides, hiddenRows, customActions } = useStore((s) => s.plans[s.activePlanId]);
+  const { language, toggleMit, initPhase, showJobs, setShowJobs, maxHP, tankHP, toggleHideRow, clearHiddenRows, encounterLevel, addCustomAction, removeCustomAction, clearPhase, clearPlan, clearAllPlans } = useStore();
+  const { mitGrid, actionOverrides, hiddenRows, customActions, name: planName } = useStore((s) => s.plans[s.activePlanId]);
+
+  const [showClearModal, setShowClearModal] = React.useState(false);
 
   const [editingRow, setEditingRow] = React.useState<number | null>(null);
   const [showHidden, setShowHidden] = React.useState(true);
@@ -389,7 +392,21 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
         <button className="add-action-btn" onClick={handleAddAction} title="Add a custom action row">
           + Add Action
         </button>
+        <button className="add-action-btn" style={{ color: '#f87171', borderColor: '#7f1d1d' }} onClick={() => setShowClearModal(true)} title="Clear mitigations">
+          Clear…
+        </button>
       </div>
+
+      {showClearModal && (
+        <ClearAllModal
+          phaseName={phase.name}
+          planName={planName}
+          onClearPhase={() => { clearPhase(phaseIdx); setShowClearModal(false); }}
+          onClearPlan={() => { clearPlan(); setShowClearModal(false); }}
+          onClearAll={() => { clearAllPlans(); setShowClearModal(false); }}
+          onCancel={() => setShowClearModal(false)}
+        />
+      )}
 
       <div className="mit-table-container">
         <table className="mit-table">
