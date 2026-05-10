@@ -1,8 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import type { Phase, Skill, Action, Language } from '../types';
 import type { ActionOverride } from '../store';
 import { JOB_DISPLAY_NAMES } from '../store';
-import { formatTime } from '../calc';
 
 // FFXIV macro limits
 const MAX_LINES_PER_MACRO = 15;
@@ -111,7 +110,6 @@ function buildPhaseMacros(
       ? ' | ' + Array.from(byJob.entries()).map(([job, sks]) => `${job}: ${sks.join(', ')}`).join(' | ')
       : '';
 
-    const timeStr = action.timeSec != null ? formatTime(action.timeSec) : '?:??';
     const actionName = action.name ?? '(unnamed)';
 
     // Calculate wait time to next action

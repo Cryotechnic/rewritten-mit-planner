@@ -5,6 +5,7 @@ import { computeMitigation, computeBarrier, computeHealBuff, formatTime, applyMi
 import EditActionModal from './EditActionModal';
 import ClearAllModal from './ClearAllModal';
 import MacroExportModal from './MacroExportModal';
+import FFlogsImportModal from './FFlogsImportModal';
 import { openPipWindow, type PipWindowHandle, JOB_ICON_URL } from './JobPipWindow';
 import { t, tFmt } from '../i18n';
 import { getSkillLevelReq } from '../data/skillLevels';
@@ -69,6 +70,7 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
   const [showClearModal, setShowClearModal] = React.useState(false);
   const [showMacroModal, setShowMacroModal] = React.useState(false);
   const [showJobPipSelector, setShowJobPipSelector] = React.useState(false);
+  const [showFFlogsModal, setShowFFlogsModal] = React.useState(false);
 
   const [editingRow, setEditingRow] = React.useState<number | null>(null);
   const [showHidden, setShowHidden] = React.useState(true);
@@ -436,6 +438,14 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
         </button>
         <button
           className="add-action-btn"
+          style={{ color: '#fbbf24', borderColor: '#713f12' }}
+          onClick={() => setShowFFlogsModal(true)}
+          title="Import from FFLogs"
+        >
+          FFLogs
+        </button>
+        <button
+          className="add-action-btn"
           style={{ color: '#67e8f9', borderColor: '#164e63' }}
           onClick={() => setShowJobPipSelector(true)}
           title="Open Job PIP"
@@ -479,6 +489,13 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
           customActions={customActions}
           baseActionsCleared={baseActionsCleared ?? false}
           onClose={() => setShowMacroModal(false)}
+        />
+      )}
+
+      {showFFlogsModal && (
+        <FFlogsImportModal
+          allPhases={allPhases}
+          onClose={() => setShowFFlogsModal(false)}
         />
       )}
 
