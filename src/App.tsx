@@ -34,6 +34,7 @@ export default function App() {
   const { plans, activePlanId, renamePlan, addCustomPhase, shareId, clientId, setShareId, applyRemotePlan } = useStore();
   const [tab, setTab] = useState<Tab>("planner");
   const [showAddPhase, setShowAddPhase] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
   const unsubRef = useRef<Unsubscribe | null>(null);
   const pushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Suppress echo after applying a remote update
@@ -55,7 +56,10 @@ export default function App() {
       const id = generateShareId();
       setShareId(id);
       const { plans: p, activePlanId: aid } = useStore.getState();
-      pushPlan(id, p, aid, clientId).catch(console.error);
+      pushPlan(id, p, aid, clientId).catch((err) => {
+        console.error('Failed to create session:', err);
+        setShareError('Could not create a sync session. Check your Firebase config or Firestore rules.');
+      });
     }
   }, []);
 
@@ -162,6 +166,12 @@ export default function App() {
         <span>Rewritten Mitigation Planner</span>
         <span className="footer-version">{commitHash}</span>
       </footer>
+      {shareError && (
+        <div className="share-error-banner">
+          ⚠ {shareError}
+          <button onClick={() => setShareError(null)}>✕</button>
+        </div>
+      )}
     </div>
   );
 }

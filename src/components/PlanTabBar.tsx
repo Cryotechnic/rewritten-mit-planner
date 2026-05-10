@@ -42,6 +42,12 @@ export default function PlanTabBar() {
     if (id.length === 6) { setShareId(id); setShowJoinInput(false); setJoinInput(''); }
   };
 
+  const handleRegen = async () => {
+    const id = generateShareId();
+    await pushPlan(id, plans, activePlanId, clientId);
+    setShareId(id);
+  };
+
   const handleCopy = () => {
     const url = new URL(window.location.href);
     url.searchParams.set('join', shareId!);
@@ -103,6 +109,7 @@ export default function PlanTabBar() {
             <button className="sync-btn" onClick={handleCopy} title="Copy join link">
               {copied ? '✓ Copied' : 'Copy link'}
             </button>
+            <button className="sync-btn" onClick={handleRegen} title="Generate a new session code">↺ Refresh Session</button>
 
           </>
         ) : showJoinInput ? (
