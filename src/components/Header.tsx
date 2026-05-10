@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useStore } from '../store';
-import type { UcobData, Phase } from '../types';
+import type { EncounterData, Phase } from '../types';
+import { t } from '../i18n';
 
 interface Props {
-  data: UcobData;
+  data: EncounterData;
   allPhases: Phase[];
   onAddPhase: () => void;
 }
@@ -94,7 +95,7 @@ export default function Header({ data, allPhases, onAddPhase }: Props) {
 
         {/* Language */}
         <div className="control-group">
-          <label>Language</label>
+          <label>{t('labelLanguage', language)}</label>
           <div className="lang-buttons">
             {LANGS.map((l) => (
               <button
@@ -110,7 +111,7 @@ export default function Header({ data, allPhases, onAddPhase }: Props) {
 
         {/* HP settings */}
         <div className="control-group">
-          <label>Party HP</label>
+          <label>{t('labelPartyHP', language)}</label>
           <input
             type="number"
             className="hp-input"
@@ -120,7 +121,7 @@ export default function Header({ data, allPhases, onAddPhase }: Props) {
           />
         </div>
         <div className="control-group">
-          <label>Tank HP</label>
+          <label>{t('labelTankHP', language)}</label>
           <input
             type="number"
             className="hp-input"
@@ -130,7 +131,7 @@ export default function Header({ data, allPhases, onAddPhase }: Props) {
           />
         </div>
         <div className="control-group">
-          <label>Encounter Level</label>
+          <label>{t('labelEncLevel', language)}</label>
           <div className="lang-buttons">
             {ENCOUNTER_LEVELS.map((lv) => (
               <button

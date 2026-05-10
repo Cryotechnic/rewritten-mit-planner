@@ -1,6 +1,7 @@
 import React from 'react';
 import { useStore, JOB_DISPLAY_NAMES } from '../store';
 import type { Skill, Language } from '../types';
+import { t } from '../i18n';
 
 interface Props {
   skills: Skill[];
@@ -48,11 +49,11 @@ export default function SkillDatabase({ skills }: Props) {
   return (
     <section className="skill-db">
       <div className="skill-db-header">
-        <h2>Skill Reference</h2>
+        <h2>{t('skillDbTitle', language)}</h2>
         <div className="skill-filters">
           <input
             className="search-input"
-            placeholder="Search skills…"
+            placeholder={t('skillSearch', language)}
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
           />
@@ -61,7 +62,7 @@ export default function SkillDatabase({ skills }: Props) {
             value={jobFilter}
             onChange={(e) => setJobFilter(e.target.value)}
           >
-            <option value="">All Jobs</option>
+            <option value="">{t('skillAllJobs', language)}</option>
             {jobs.map((j) => (
               <option key={j} value={j}>{JOB_DISPLAY_NAMES[j] ?? j}</option>
             ))}
@@ -73,16 +74,16 @@ export default function SkillDatabase({ skills }: Props) {
         <table className="skill-table">
           <thead>
             <tr>
-              <th>Icon</th>
-              <th>Job</th>
-              <th>Skill</th>
-              <th>Recast</th>
-              <th>Duration</th>
-              <th>Phys. Mit</th>
-              <th>Magic Mit</th>
-              <th>Barrier</th>
-              <th>Heal</th>
-              <th>Notes</th>
+              <th>{t('skillColIcon', language)}</th>
+              <th>{t('skillColJob', language)}</th>
+              <th>{t('skillColSkill', language)}</th>
+              <th>{t('skillColRecast', language)}</th>
+              <th>{t('skillColDuration', language)}</th>
+              <th>{t('skillColPhysMit', language)}</th>
+              <th>{t('skillColMagMit', language)}</th>
+              <th>{t('skillColBarrier', language)}</th>
+              <th>{t('skillColHeal', language)}</th>
+              <th>{t('skillColNotes', language)}</th>
             </tr>
           </thead>
           <tbody>

@@ -4,6 +4,7 @@ import type { Phase, Skill, Language, Action } from '../types';
 import { computeMitigation, computeBarrier, computeHealBuff, formatTime, applyMitigations } from '../calc';
 import EditActionModal from './EditActionModal';
 import ClearAllModal from './ClearAllModal';
+import { t, tFmt } from '../i18n';
 import { getSkillLevelReq } from '../data/skillLevels';
 
 interface Props {
@@ -25,7 +26,7 @@ const ROLE_GROUPS: string[][] = [
   ['吟遊詩人', '機工士', '踊り子'],
   ['黒魔道士', '召喚士', '赤魔道士', 'ピクトマンサー', 'キャスター', '近接'],
 ];
-const ROLE_NAMES = ['Tank', 'Healer', 'Melee', 'Ranged', 'Caster'];
+const ROLE_NAMES_KEYS = ['roleT', 'roleH', 'roleM', 'roleR', 'roleC'] as const;
 const JOB_ORDER_FLAT = ROLE_GROUPS.flat();
 
 function getSkillDisplayName(nameJP: string, skills: Skill[], lang: Language): string {
@@ -333,9 +334,9 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
                   key={`role-${ri}`}
                   className={`role-toggle ${allOff ? 'role-off' : anyOff ? 'role-partial' : 'role-on'}`}
                   onClick={handleRoleToggle}
-                  title={allOff || anyOff ? `Show all ${ROLE_NAMES[ri]}` : `Hide all ${ROLE_NAMES[ri]}`}
+                  title={allOff || anyOff ? `Show all ${t(ROLE_NAMES_KEYS[ri], language)}` : `Hide all ${t(ROLE_NAMES_KEYS[ri], language)}`}
                 >
-                  {ROLE_NAMES[ri] ?? `Role ${ri}`}
+                  {t(ROLE_NAMES_KEYS[ri], language) ?? `Role ${ri}`}
                 </button>
               );
             })() : null;
@@ -364,7 +365,7 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
                   onClick={() => setShowHidden(false)}
                   title={`Remove ${hiddenCount} marked row${hiddenCount > 1 ? 's' : ''} from view`}
                 >
-                  Hide {hiddenCount} marked
+                  {t('colAction', language)} {hiddenCount}
                 </button>
                 <button
                   className="job-toggle job-off"
@@ -381,7 +382,7 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
                 onClick={() => setShowHidden(true)}
                 title={`Show ${hiddenCount} hidden row${hiddenCount > 1 ? 's' : ''} (dimmed)`}
               >
-                {hiddenCount} hidden
+                {tFmt('hiddenRows', language, { n: hiddenCount })}
               </button>
             )}
           </>
@@ -389,11 +390,11 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
       </div>
 
       <div className="mit-toolbar">
-        <button className="add-action-btn" onClick={handleAddAction} title="Add a custom action row">
-          + Add Action
+        <button className="add-action-btn" onClick={handleAddAction} title={t('btnAddAction', language)}>
+          {t('btnAddAction', language)}
         </button>
-        <button className="add-action-btn" style={{ color: '#f87171', borderColor: '#7f1d1d' }} onClick={() => setShowClearModal(true)} title="Clear mitigations">
-          Clear…
+        <button className="add-action-btn" style={{ color: '#f87171', borderColor: '#7f1d1d' }} onClick={() => setShowClearModal(true)} title={t('btnClear', language)}>
+          {t('btnClear', language)}
         </button>
       </div>
 
@@ -413,13 +414,13 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
           <thead>
             {/* Job row */}
             <tr className="job-header-row">
-              <th className="sticky-col time-col">Time</th>
-              <th className="sticky-col action-col">Action</th>
-              <th className="sticky-col type-col">Type</th>
-              <th className="sticky-col dmg-col">Damage</th>
-              <th className="calc-col">Mit%</th>
-              <th className="calc-col">Mitigated</th>
-              <th className="calc-col">Barrier</th>
+              <th className="sticky-col time-col">{t('colTime', language)}</th>
+              <th className="sticky-col action-col">{t('colAction', language)}</th>
+              <th className="sticky-col type-col">{t('colType', language)}</th>
+              <th className="sticky-col dmg-col">{t('colDamage', language)}</th>
+              <th className="calc-col">{t('colMitPct', language)}</th>
+              <th className="calc-col">{t('colMitigated', language)}</th>
+              <th className="calc-col">{t('colBarrier', language)}</th>
               {visibleGroups.map((g) => (
                 <th
                   key={g.job}

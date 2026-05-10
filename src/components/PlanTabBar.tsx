@@ -2,9 +2,10 @@ import { useState, useRef, useEffect } from 'react';
 import { useStore } from '../store';
 import EncounterDialog from './EncounterDialog';
 import { generateShareId, pushPlan } from '../lib/planSync';
+import { t } from '../i18n';
 
 export default function PlanTabBar() {
-  const { plans, activePlanId, setActivePlan, addPlan, removePlan, renamePlan, shareId, clientId, setShareId, maxHP, tankHP, encounterLevel } = useStore();
+  const { plans, activePlanId, setActivePlan, addPlan, removePlan, renamePlan, shareId, clientId, setShareId, maxHP, tankHP, encounterLevel, language } = useStore();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [showDialog, setShowDialog] = useState(false);
@@ -108,30 +109,30 @@ export default function PlanTabBar() {
               <span className="sync-dot" />
               {shareId}
             </span>
-            <button className="sync-btn" onClick={handleCopy} title="Copy join link">
-              {copied ? '✓ Copied' : 'Copy link'}
+          <button className="sync-btn" onClick={handleCopy} title={t('btnCopyLink', language)}>
+              {copied ? t('btnCopied', language) : t('btnCopyLink', language)}
             </button>
-            <button className="sync-btn" onClick={() => setShowRegenConfirm(true)} title="Generate a new session code">↺ Refresh Session</button>
+            <button className="sync-btn" onClick={() => setShowRegenConfirm(true)} title={t('btnRegen', language)}>{t('btnRegen', language)}</button>
 
           </>
         ) : showJoinInput ? (
           <>
             <input
               className="sync-join-input"
-              placeholder="Code (e.g. X4K9MQ)"
+              placeholder={t('joinPlaceholder', language)}
               value={joinInput}
               maxLength={6}
               onChange={(e) => setJoinInput(e.target.value.toUpperCase())}
               onKeyDown={(e) => { if (e.key === 'Enter') handleJoin(); if (e.key === 'Escape') setShowJoinInput(false); }}
               autoFocus
             />
-            <button className="sync-btn" onClick={handleJoin}>Join</button>
+            <button className="sync-btn" onClick={handleJoin}>{t('btnJoin', language)}</button>
             <button className="sync-btn sync-btn-stop" onClick={() => setShowJoinInput(false)}>✕</button>
           </>
         ) : (
           <>
-            <button className="sync-btn" onClick={handleShare} title="Share this plan and start syncing">Share</button>
-            <button className="sync-btn" onClick={() => setShowJoinInput(true)} title="Join an existing session">Join</button>
+            <button className="sync-btn" onClick={handleShare} title={t('btnShare', language)}>{t('btnShare', language)}</button>
+            <button className="sync-btn" onClick={() => setShowJoinInput(true)} title={t('btnJoin', language)}>{t('btnJoin', language)}</button>
           </>
         )}
       </div>
@@ -154,13 +155,13 @@ export default function PlanTabBar() {
       {showRegenConfirm && (
         <div className="encounter-dialog-overlay" onClick={() => setShowRegenConfirm(false)}>
           <div className="encounter-dialog" onClick={(e) => e.stopPropagation()}>
-            <h2 className="encounter-dialog-title" style={{ color: '#f87171' }}>⚠ Refresh Session?</h2>
+            <h2 className="encounter-dialog-title" style={{ color: '#f87171' }}>{t('regenTitle', language)}</h2>
             <p style={{ margin: '0 0 16px', color: 'var(--text-dim, #9ca3af)', fontSize: 14 }}>
-              This generates a new session code. <strong style={{ color: '#fca5a5' }}>Make sure to share the new code with your group.</strong>
+              {t('regenDesc', language)} <strong style={{ color: '#fca5a5' }}>{t('regenWarn', language)}</strong>
             </p>
             <div className="encounter-dialog-actions">
-              <button className="encounter-dialog-cancel" onClick={() => setShowRegenConfirm(false)}>Cancel</button>
-              <button className="encounter-dialog-confirm" style={{ background: '#dc2626' }} onClick={handleRegen}>Refresh</button>
+              <button className="encounter-dialog-cancel" onClick={() => setShowRegenConfirm(false)}>{t('btnCancel', language)}</button>
+              <button className="encounter-dialog-confirm" style={{ background: '#dc2626' }} onClick={handleRegen}>{t('btnRefresh', language)}</button>
             </div>
           </div>
         </div>

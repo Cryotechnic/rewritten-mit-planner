@@ -77,10 +77,13 @@ export interface Options {
   tankHP: number;
 }
 
-export interface UcobData {
-  skills: Skill[];
+export interface EncounterData {
   phases: Phase[];
   options: Options;
+}
+
+export interface SkillsData {
+  skills: Skill[];
 }
 
 export type Language = 'JP' | 'EN' | 'DE' | 'FR' | 'KO' | 'CN';

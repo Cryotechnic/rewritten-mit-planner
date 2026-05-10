@@ -2,6 +2,7 @@ import React from 'react';
 import { useStore } from '../store';
 import type { Action } from '../types';
 import { formatTime } from '../calc';
+import { t } from '../i18n';
 
 interface Props {
   phaseIdx: number;
@@ -24,7 +25,7 @@ function parseTime(str: string): number | null {
 }
 
 export default function EditActionModal({ phaseIdx, action, displayAction, onClose }: Props) {
-  const { setActionOverride, resetActionOverride } = useStore();
+  const { setActionOverride, resetActionOverride, language } = useStore();
 
   const [name, setName] = React.useState(displayAction.name ?? '');
   const [timeStr, setTimeStr] = React.useState(formatTime(displayAction.timeSec));
@@ -72,13 +73,13 @@ export default function EditActionModal({ phaseIdx, action, displayAction, onClo
     <div className="modal-backdrop" onClick={handleBackdropClick} onKeyDown={handleKeyDown}>
       <div className="modal" role="dialog" aria-modal="true" aria-label="Edit Action">
         <div className="modal-header">
-          <span className="modal-title">Edit Action</span>
+          <span className="modal-title">{t('editActionTitle', language)}</span>
           <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
         </div>
 
         <div className="modal-body">
           <label className="modal-field">
-            <span>Name</span>
+            <span>{t('editFieldName', language)}</span>
             <input
               className="modal-input"
               value={name}
@@ -89,31 +90,31 @@ export default function EditActionModal({ phaseIdx, action, displayAction, onClo
           </label>
 
           <label className="modal-field">
-            <span>Time <span className="modal-hint">(M:SS.s, e.g. -0:20.0)</span></span>
+            <span>{t('editFieldTime', language)} <span className="modal-hint">{t('editTimeHint', language)}</span></span>
             <input
               className={`modal-input ${timeError ? 'input-error' : ''}`}
               value={timeStr}
               onChange={(e) => { setTimeStr(e.target.value); setTimeError(false); }}
               placeholder={formatTime(action.timeSec)}
             />
-            {timeError && <span className="error-msg">Invalid format — use M:SS.s</span>}
+            {timeError && <span className="error-msg">{t('editTimeError', language)}</span>}
           </label>
 
           <label className="modal-field">
-            <span>Damage Type</span>
+            <span>{t('editFieldDmgType', language)}</span>
             <select
               className="modal-input modal-select"
               value={type}
               onChange={(e) => setType(e.target.value)}
             >
-              {DAMAGE_TYPES.map((t) => (
-                <option key={t} value={t}>{t === '' ? 'None' : t}</option>
+              {DAMAGE_TYPES.map((dt) => (
+                <option key={dt} value={dt}>{dt === '' ? t('editDmgNone', language) : dt}</option>
               ))}
             </select>
           </label>
 
           <label className="modal-field">
-            <span>Damage (pre-mit)</span>
+            <span>{t('editFieldDmg', language)}</span>
             <input
               className="modal-input"
               type="number"
@@ -132,11 +133,11 @@ export default function EditActionModal({ phaseIdx, action, displayAction, onClo
             disabled={!isModified}
             title="Restore original spreadsheet values"
           >
-            Reset to default
+            {t('editBtnReset', language)}
           </button>
           <div className="modal-footer-right">
-            <button className="modal-btn cancel" onClick={onClose}>Cancel</button>
-            <button className="modal-btn save" onClick={handleSave}>Save</button>
+            <button className="modal-btn cancel" onClick={onClose}>{t('btnCancel', language)}</button>
+            <button className="modal-btn save" onClick={handleSave}>{t('editBtnSave', language)}</button>
           </div>
         </div>
       </div>

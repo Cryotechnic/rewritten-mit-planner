@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import commitHash from 'virtual:git-hash';
 import ucobData from "./data/ucob_data.json";
-import type { UcobData, Phase } from "./types";
+import skillsData from "./data/skills.json";
+import type { EncounterData, Phase } from "./types";
 import type { PlanData } from "./store";
 import Header from "./components/Header";
 import PlanTabBar from "./components/PlanTabBar";
@@ -12,14 +13,15 @@ import MitigationGrid from "./components/MitigationGrid";
 import { useStore } from "./store";
 import { pushPlan, subscribePlan, generateShareId } from "./lib/planSync";
 import type { Unsubscribe } from "firebase/firestore";
-import "./App.css";
+import { t } from "./i18n";
 
-const data = ucobData as unknown as UcobData;
+const data = ucobData as unknown as EncounterData;
+const skills = skillsData as unknown as import('./types').Skill[];
 
 // All unique skill columns across all data phases — used for custom phases
 const allSkillCols = (() => {
   const seen = new Set<string>();
-  const cols: UcobData['phases'][0]['skillCols'] = [];
+  const cols: EncounterData['phases'][0]['skillCols'] = [];
   for (const phase of data.phases) {
     for (const sc of phase.skillCols) {
       if (!seen.has(sc.col)) { seen.add(sc.col); cols.push(sc); }
@@ -31,7 +33,7 @@ const allSkillCols = (() => {
 type Tab = "planner" | "skills";
 
 export default function App() {
-  const { plans, activePlanId, renamePlan, addCustomPhase, shareId, clientId, setShareId, applyRemotePlan, maxHP, tankHP, encounterLevel } = useStore();
+  const { plans, activePlanId, renamePlan, addCustomPhase, shareId, clientId, setShareId, applyRemotePlan, maxHP, tankHP, encounterLevel, language } = useStore();
   const [tab, setTab] = useState<Tab>("planner");
   const [showAddPhase, setShowAddPhase] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
@@ -122,13 +124,13 @@ export default function App() {
           className={`tab ${tab === "planner" ? "active" : ""}`}
           onClick={() => setTab("planner")}
         >
-          Mitigation Planner
+          {t('tabPlanner', language)}
         </button>
         <button
           className={`tab ${tab === "skills" ? "active" : ""}`}
           onClick={() => setTab("skills")}
         >
-          Skill Reference
+          {t('tabSkills', language)}
         </button>
       </div>
 
@@ -138,16 +140,16 @@ export default function App() {
             key={`${activePlanId}-${activePhaseIdx}`}
             phaseIdx={activePhaseIdx}
             phase={activePhase}
-            skills={data.skills}
+            skills={skills}
           />
         )}
         {tab === "planner" && !activePhase && (
           <div className="no-phase-empty">
-            <p className="no-phase-hint">No phases visible</p>
-            <button className="no-phase-add-btn" onClick={() => setShowAddPhase(true)}>+ Add Phase</button>
+            <p className="no-phase-hint">{t('btnNoPhase', language)}</p>
+            <button className="no-phase-add-btn" onClick={() => setShowAddPhase(true)}>+ {t('btnAddPhase', language).replace(/^\+ /, '')}</button>
           </div>
         )}
-        {tab === "skills" && <SkillDatabase skills={data.skills} />}
+        {tab === "skills" && <SkillDatabase skills={skills} />}
       </main>
 
       {showAddPhase && (

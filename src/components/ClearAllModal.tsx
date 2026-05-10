@@ -1,4 +1,6 @@
 import type React from 'react';
+import { useStore } from '../store';
+import { t } from '../i18n';
 
 interface Props {
   phaseName: string;
@@ -35,11 +37,12 @@ const SCOPE_BTN_BASE: React.CSSProperties = {
 };
 
 export default function ClearAllModal({ phaseName, planName, onClearPhase, onClearPlan, onClearAll, onCancel }: Props) {
+  const { language } = useStore();
   return (
     <div className="encounter-dialog-overlay" onClick={onCancel}>
       <div className="encounter-dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
-        <h2 className="encounter-dialog-title" style={{ color: '#f87171' }}>⚠ Clear Mitigations</h2>
-        <p style={WARNING_STYLE}>Choose a scope. <strong style={{ color: '#fca5a5' }}>This cannot be undone.</strong></p>
+        <h2 className="encounter-dialog-title" style={{ color: '#f87171' }}>{t('clearTitle', language)}</h2>
+        <p style={WARNING_STYLE}>{t('clearScopeChoose', language)} <strong style={{ color: '#fca5a5' }}>{t('clearWarning', language)}</strong></p>
         <div style={SCOPE_BTNS}>
           <button
             style={{ ...SCOPE_BTN_BASE, borderColor: '#4b5563', color: '#d1d5db' }}
@@ -47,7 +50,7 @@ export default function ClearAllModal({ phaseName, planName, onClearPhase, onCle
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
             onClick={onClearPhase}
           >
-            <strong>This phase</strong> — {phaseName}
+            <strong>{t('clearPhaseLabel', language)}</strong> — {phaseName}
           </button>
           <button
             style={{ ...SCOPE_BTN_BASE, borderColor: '#92400e', color: '#fbbf24' }}
@@ -55,7 +58,7 @@ export default function ClearAllModal({ phaseName, planName, onClearPhase, onCle
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
             onClick={onClearPlan}
           >
-            <strong>This encounter</strong> — {planName}
+            <strong>{t('clearPlanLabel', language)}</strong> — {planName}
           </button>
           <button
             style={{ ...SCOPE_BTN_BASE, borderColor: '#7f1d1d', color: '#f87171' }}
@@ -63,11 +66,11 @@ export default function ClearAllModal({ phaseName, planName, onClearPhase, onCle
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
             onClick={onClearAll}
           >
-            <strong>All encounters</strong> — every plan
+            <strong>{t('clearAllLabel', language)}</strong> — {t('clearAllDesc', language)}
           </button>
         </div>
         <div className="encounter-dialog-actions">
-          <button className="encounter-dialog-cancel" onClick={onCancel}>Cancel</button>
+          <button className="encounter-dialog-cancel" onClick={onCancel}>{t('btnCancel', language)}</button>
         </div>
       </div>
     </div>
