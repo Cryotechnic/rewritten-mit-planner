@@ -465,7 +465,6 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
               const isRowHidden = hiddenSet.has(action.row);
               if (isRowHidden && !showHidden) return null;
 
-              const original = actions.find((a) => a.row === action.row)!;;
               const isOverridden = !!actionOverrides[phaseIdx]?.[action.row];
               const checked = checkedForAction(action.row);
               const damageType = (action.type ?? 'Magic') as 'Magic' | 'Physical' | 'Unique';

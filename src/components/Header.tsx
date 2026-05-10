@@ -12,7 +12,7 @@ const LANGS = ['JP', 'EN', 'DE', 'FR', 'KO', 'CN'] as const;
 const ENCOUNTER_LEVELS = [50, 60, 70, 80, 90, 100] as const;
 
 export default function Header({ data, allPhases, onAddPhase }: Props) {
-  const { setActivePhase, language, setLanguage, maxHP, tankHP, setMaxHP, setTankHP, encounterLevel, setEncounterLevel, plans, activePlanId, toggleHidePhase, addCustomPhase, removeCustomPhase } = useStore();
+  const { setActivePhase, language, setLanguage, maxHP, tankHP, setMaxHP, setTankHP, encounterLevel, setEncounterLevel, plans, activePlanId, toggleHidePhase, removeCustomPhase } = useStore();
   const activePlan = plans[activePlanId];
   const activePhaseIdx = activePlan.activePhaseIdx;
   const hiddenPhases = activePlan.hiddenPhases ?? new Set<number>();
@@ -36,7 +36,6 @@ export default function Header({ data, allPhases, onAddPhase }: Props) {
           {allPhases.map((phase, idx) => {
             const isHidden = hiddenPhases.has(idx);
             const isCustom = idx >= data.phases.length;
-            const visibleCount = allPhases.filter((_, i) => !hiddenPhases.has(i)).length;
             if (isHidden) return null;
             return (
               <div key={idx} className="phase-tab-wrap">
