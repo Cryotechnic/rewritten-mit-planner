@@ -3,6 +3,31 @@ import { createPortal } from 'react-dom';
 import type { Phase, Skill, Action, Language } from '../types';
 import { useStore } from '../store';
 
+// XIVAPI ClassJob icon URLs â€” keyed by EN abbreviation
+export const JOB_ICON_URL: Record<string, string> = {
+  PLD: 'https://xivapi.com/i/062000/062119.png',
+  WAR: 'https://xivapi.com/i/062000/062121.png',
+  DRK: 'https://xivapi.com/i/062000/062132.png',
+  GNB: 'https://xivapi.com/i/062000/062137.png',
+  WHM: 'https://xivapi.com/i/062000/062124.png',
+  AST: 'https://xivapi.com/i/062000/062133.png',
+  SCH: 'https://xivapi.com/i/062000/062128.png',
+  SGE: 'https://xivapi.com/i/062000/062140.png',
+  MNK: 'https://xivapi.com/i/062000/062120.png',
+  DRG: 'https://xivapi.com/i/062000/062122.png',
+  NIN: 'https://xivapi.com/i/062000/062130.png',
+  SAM: 'https://xivapi.com/i/062000/062134.png',
+  RPR: 'https://xivapi.com/i/062000/062139.png',
+  VPR: 'https://xivapi.com/i/062000/062141.png',
+  BRD: 'https://xivapi.com/i/062000/062123.png',
+  MCH: 'https://xivapi.com/i/062000/062131.png',
+  DNC: 'https://xivapi.com/i/062000/062138.png',
+  BLM: 'https://xivapi.com/i/062000/062125.png',
+  SMN: 'https://xivapi.com/i/062000/062127.png',
+  RDM: 'https://xivapi.com/i/062000/062135.png',
+  PCT: 'https://xivapi.com/i/062000/062142.png',
+};
+
 declare global {
   interface Window {
     documentPictureInPicture?: {
@@ -11,10 +36,15 @@ declare global {
   }
 }
 
+export interface PipSkill {
+  name: string;
+  icon: string | null;
+}
+
 export interface PipAction {
   actionName: string;
   timeSec: number | null;
-  skills: string[];
+  skills: PipSkill[];
 }
 
 export interface PipPhaseData {
@@ -29,7 +59,7 @@ export interface PipWindowHandle {
   jobName: string;
 }
 
-// Helpers — prefixed pip* to avoid any HMR redeclaration collisions
+// Helpers ï¿½ prefixed pip* to avoid any HMR redeclaration collisions
 
 function pipFormatElapsed(sec: number): string {
   const sign = sec < 0 ? '-' : '';
@@ -45,17 +75,19 @@ function pipFormatCountdown(sec: number): string {
   return `${Math.floor(sec / 60)}:${Math.floor(sec % 60).toString().padStart(2, '0')}`;
 }
 
-function pipGetSkillName(nameJP: string, skills: Skill[], language: Language): string {
+function pipGetSkill(nameJP: string, skills: Skill[], language: Language): PipSkill {
   const s = skills.find((sk) => sk.nameJP === nameJP);
-  if (!s) return nameJP;
+  if (!s) return { name: nameJP, icon: null };
+  let name: string;
   switch (language) {
-    case 'EN': return s.nameEN || nameJP;
-    case 'DE': return s.nameDE || s.nameEN || nameJP;
-    case 'FR': return s.nameFR || s.nameEN || nameJP;
-    case 'KO': return s.nameKO || s.nameEN || nameJP;
-    case 'CN': return s.nameCN || s.nameEN || nameJP;
-    default: return nameJP;
+    case 'EN': name = s.nameEN || nameJP; break;
+    case 'DE': name = s.nameDE || s.nameEN || nameJP; break;
+    case 'FR': name = s.nameFR || s.nameEN || nameJP; break;
+    case 'KO': name = s.nameKO || s.nameEN || nameJP; break;
+    case 'CN': name = s.nameCN || s.nameEN || nameJP; break;
+    default: name = nameJP;
   }
+  return { name, icon: s.icon ?? null };
 }
 
 function pipBuildPhases(
@@ -83,7 +115,7 @@ function pipBuildPhases(
     const actions: PipAction[] = merged.flatMap((action) => {
       const checkedSkills = jobCols
         .filter((sc) => mitGrid[pi]?.[action.row]?.[sc.col] === true)
-        .map((sc) => pipGetSkillName(sc.skill, skills, language));
+        .map((sc) => pipGetSkill(sc.skill, skills, language));
       if (checkedSkills.length === 0) return [];
       return [{ actionName: action.name ?? '(unnamed)', timeSec: action.timeSec, skills: checkedSkills }];
     });
@@ -92,7 +124,7 @@ function pipBuildPhases(
   });
 }
 
-// PipContent — rendered via createPortal so it lives in the main React tree
+// PipContent ï¿½ rendered via createPortal so it lives in the main React tree
 
 interface PipContentProps {
   jobJP: string;
@@ -104,6 +136,8 @@ interface PipContentProps {
 export function PipContent({ jobJP, jobName, allPhases, skills }: PipContentProps) {
   const { mitGrid, actionOverrides, customActions, baseActionsCleared } = useStore((s) => s.plans[s.activePlanId]);
   const language = useStore((s) => s.language);
+
+  const jobIconUrl = JOB_ICON_URL[jobName] ?? null;
 
   const phases = useMemo(
     () => pipBuildPhases(jobJP, allPhases, skills, language, mitGrid, actionOverrides, customActions, baseActionsCleared ?? false),
@@ -151,7 +185,10 @@ export function PipContent({ jobJP, jobName, allPhases, skills }: PipContentProp
   return (
     <div style={{ fontFamily: 'system-ui, sans-serif', background: '#0f1117', color: '#e2e8f0', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <div style={{ background: '#181c2e', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #2d3154', flexShrink: 0 }}>
-        <span style={{ fontWeight: 700, fontSize: '15px', color: '#7c9fff' }}>{jobName}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {jobIconUrl && <img src={jobIconUrl} alt={jobName} width={24} height={24} style={{ borderRadius: '4px', flexShrink: 0 }} />}
+          <span style={{ fontWeight: 700, fontSize: '15px', color: '#7c9fff' }}>{jobName}</span>
+        </div>
         <span style={{ fontFamily: 'monospace', fontSize: '14px', color: started ? '#86efac' : '#475569' }}>
           {pipFormatElapsed(elapsed)}
         </span>
@@ -191,8 +228,13 @@ export function PipContent({ jobJP, jobName, allPhases, skills }: PipContentProp
                     )}
                   </div>
                   {action.skills.length > 0 && (
-                    <div style={{ fontSize: '11px', color: '#7c9fff', marginTop: '2px', lineHeight: 1.4 }}>
-                      {action.skills.join('  .  ')}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px' }}>
+                      {action.skills.map((sk, si) => (
+                        <div key={si} style={{ display: 'flex', alignItems: 'center', gap: '3px', background: 'rgba(124,159,255,0.1)', borderRadius: '4px', padding: '1px 5px 1px 2px' }}>
+                          {sk.icon && <img src={sk.icon} alt={sk.name} width={16} height={16} style={{ borderRadius: '2px', flexShrink: 0 }} />}
+                          <span style={{ fontSize: '11px', color: '#7c9fff', lineHeight: 1.3 }}>{sk.name}</span>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -213,7 +255,7 @@ export function PipContent({ jobJP, jobName, allPhases, skills }: PipContentProp
   );
 }
 
-// Opens the PIP window and returns a handle — no React root created here.
+// Opens the PIP window and returns a handle ï¿½ no React root created here.
 // MitigationGrid uses createPortal to render PipContent into handle.container.
 
 export async function openPipWindow(jobJP: string, jobName: string): Promise<PipWindowHandle | null> {
@@ -222,15 +264,24 @@ export async function openPipWindow(jobJP: string, jobName: string): Promise<Pip
     return null;
   }
   const win = await window.documentPictureInPicture.requestWindow({ width: 300, height: 480 });
-  win.document.title = `${jobName} — Mitigations`;
+  win.document.title = `${jobName} ï¿½ Mitigations`;
   win.document.body.style.cssText = 'margin:0;padding:0;height:100vh;overflow:hidden;background:#0f1117';
+  const style = win.document.createElement('style');
+  style.textContent = `
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0d1020; }
+    ::-webkit-scrollbar-thumb { background: #2d3154; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3d4270; }
+    * { scrollbar-width: thin; scrollbar-color: #2d3154 #0d1020; }
+  `;
+  win.document.head.appendChild(style);
   const container = win.document.createElement('div');
   container.style.height = '100%';
   win.document.body.appendChild(container);
   return { win, container, jobJP, jobName };
 }
 
-// PipPortal — drop this in JSX to portal PipContent into an open PIP window.
+// PipPortal ï¿½ drop this in JSX to portal PipContent into an open PIP window.
 
 interface PipPortalProps {
   handle: PipWindowHandle;

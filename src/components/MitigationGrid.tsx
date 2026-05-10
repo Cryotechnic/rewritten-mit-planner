@@ -5,7 +5,7 @@ import { computeMitigation, computeBarrier, computeHealBuff, formatTime, applyMi
 import EditActionModal from './EditActionModal';
 import ClearAllModal from './ClearAllModal';
 import MacroExportModal from './MacroExportModal';
-import { openPipWindow, PipPortal, type PipWindowHandle } from './JobPipWindow';
+import { openPipWindow, type PipWindowHandle, JOB_ICON_URL } from './JobPipWindow';
 import { t, tFmt } from '../i18n';
 import { getSkillLevelReq } from '../data/skillLevels';
 
@@ -14,6 +14,7 @@ interface Props {
   phase: Phase;
   allPhases: Phase[];
   skills: Skill[];
+  onOpenPip: (handle: PipWindowHandle) => void;
 }
 
 type ColGroup = {
@@ -61,14 +62,13 @@ const DAMAGE_TYPE_ICONS: Record<string, string> = {
   Unique:   'https://xivapi.com/i/060000/060013.png',
 };
 
-export default function MitigationGrid({ phaseIdx, phase, allPhases, skills }: Props) {
+export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onOpenPip }: Props) {
   const { language, toggleMit, initPhase, showJobs, setShowJobs, maxHP, tankHP, toggleHideRow, clearHiddenRows, encounterLevel, addCustomAction, removeCustomAction, clearPhase, clearPlan, clearAllPlans, clearPlanActions, restoreBaseActions } = useStore();
   const { mitGrid, actionOverrides, hiddenRows, customActions, name: planName, baseActionsCleared } = useStore((s) => s.plans[s.activePlanId]);
 
   const [showClearModal, setShowClearModal] = React.useState(false);
   const [showMacroModal, setShowMacroModal] = React.useState(false);
   const [showJobPipSelector, setShowJobPipSelector] = React.useState(false);
-  const [pipHandle, setPipHandle] = React.useState<PipWindowHandle | null>(null);
 
   const [editingRow, setEditingRow] = React.useState<number | null>(null);
   const [showHidden, setShowHidden] = React.useState(true);
@@ -197,14 +197,31 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills }: P
   const colBoundaryClass = (colId: string) =>
     roleStartCols.has(colId) ? 'role-boundary' : jobStartCols.has(colId) ? 'job-boundary' : '';
 
-  // Unique jobs across all phases (for PIP selector)
+  // Unique real jobs across all phases (for PIP selector) — excludes role-generic pseudo-jobs
   const allJobs = React.useMemo(() => {
     const seen = new Set<string>();
-    const jobs: string[] = [];
+    for (const p of allPhases)
+      for (const sc of p.skillCols) {
+        const abbr = JOB_DISPLAY_NAMES[sc.job];
+        if (abbr && JOB_ICON_URL[abbr]) seen.add(sc.job);
+      }
+    const canonicalOrder = Object.keys(JOB_ICON_URL).map(
+      (abbr) => Object.entries(JOB_DISPLAY_NAMES).find(([, v]) => v === abbr)?.[0]
+    ).filter((j): j is string => !!j);
+    return canonicalOrder.filter((j) => seen.has(j));
+  }, [allPhases]);
+
+  // Job crystal icons from XIVAPI, keyed by JP job name
+  const jobIconMap = React.useMemo(() => {
+    const map = new Map<string, string>();
     for (const p of allPhases)
       for (const sc of p.skillCols)
-        if (!seen.has(sc.job)) { seen.add(sc.job); jobs.push(sc.job); }
-    return jobs;
+        if (!map.has(sc.job)) {
+          const abbr = JOB_DISPLAY_NAMES[sc.job];
+          const url = abbr ? JOB_ICON_URL[abbr] : undefined;
+          if (url) map.set(sc.job, url);
+        }
+    return map;
   }, [allPhases]);
 
   // Only show actions that have a name
@@ -465,10 +482,6 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills }: P
         />
       )}
 
-      {pipHandle && (
-        <PipPortal handle={pipHandle} allPhases={allPhases} skills={skills} onClose={() => setPipHandle(null)} />
-      )}
-
       {showJobPipSelector && (
         <div style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
@@ -487,23 +500,29 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills }: P
             <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
               Opens a floating window showing when to use mitigations for the selected job.
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
               {allJobs.map((jobJP) => {
                 const abbr = JOB_DISPLAY_NAMES[jobJP] ?? jobJP;
+                const iconUrl = jobIconMap.get(jobJP);
                 return (
                   <button
                     key={jobJP}
+                    title={abbr}
                     onClick={() => {
                       setShowJobPipSelector(false);
-                      openPipWindow(jobJP, abbr).then((h) => { if (h) setPipHandle(h); });
+                      openPipWindow(jobJP, abbr).then((h) => { if (h) onOpenPip(h); });
                     }}
                     style={{
-                      padding: '6px 14px', borderRadius: '6px',
+                      width: '44px', height: '44px', borderRadius: '8px',
                       border: '1px solid var(--border)', background: 'var(--surface2)',
-                      color: 'var(--text)', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      padding: 0, overflow: 'hidden',
                     }}
                   >
-                    {abbr}
+                    {iconUrl
+                      ? <img src={iconUrl} alt={abbr} width={40} height={40} style={{ display: 'block', imageRendering: 'auto' }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; (e.currentTarget.parentElement!).textContent = abbr; }} />
+                      : <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text)' }}>{abbr}</span>
+                    }
                   </button>
                 );
               })}

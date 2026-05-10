@@ -10,6 +10,7 @@ import EncounterDialog from "./components/EncounterDialog";
 import Oobe from "./components/Oobe";
 import SkillDatabase from "./components/SkillDatabase";
 import MitigationGrid from "./components/MitigationGrid";
+import { PipPortal, type PipWindowHandle } from "./components/JobPipWindow";
 import { SharePasswordSetup, JoinPasswordPrompt } from "./components/SessionPasswordDialog";
 import { useStore } from "./store";
 import { pushPlan, subscribePlan, generateShareId, getSessionMeta, validateSessionPassword } from "./lib/planSync";
@@ -54,6 +55,7 @@ export default function App() {
   const [joinPasswordChecking, setJoinPasswordChecking] = useState(false);
   const [joinPasswordError, setJoinPasswordError] = useState(false);
   const [waitingForHost, setWaitingForHost] = useState(false);
+  const [pipHandle, setPipHandle] = useState<PipWindowHandle | null>(null);
 
   // On mount: check URL for ?join=XXXXXX, or start share setup
   useEffect(() => {
@@ -226,6 +228,7 @@ export default function App() {
             phase={activePhase}
             allPhases={allPhases}
             skills={skills}
+            onOpenPip={setPipHandle}
           />
         )}
         {tab === "planner" && !activePhase && (
@@ -236,6 +239,10 @@ export default function App() {
         )}
         {tab === "skills" && <SkillDatabase skills={skills} />}
       </main>
+
+      {pipHandle && (
+        <PipPortal handle={pipHandle} allPhases={allPhases} skills={skills} onClose={() => setPipHandle(null)} />
+      )}
 
       {showAddPhase && (
         <EncounterDialog
