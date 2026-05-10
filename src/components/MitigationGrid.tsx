@@ -59,8 +59,8 @@ const DAMAGE_TYPE_ICONS: Record<string, string> = {
 };
 
 export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
-  const { language, toggleMit, initPhase, showJobs, setShowJobs, maxHP, tankHP, toggleHideRow, clearHiddenRows, encounterLevel, addCustomAction, removeCustomAction, clearPhase, clearPlan, clearAllPlans } = useStore();
-  const { mitGrid, actionOverrides, hiddenRows, customActions, name: planName } = useStore((s) => s.plans[s.activePlanId]);
+  const { language, toggleMit, initPhase, showJobs, setShowJobs, maxHP, tankHP, toggleHideRow, clearHiddenRows, encounterLevel, addCustomAction, removeCustomAction, clearPhase, clearPlan, clearAllPlans, clearPlanActions, restoreBaseActions } = useStore();
+  const { mitGrid, actionOverrides, hiddenRows, customActions, name: planName, baseActionsCleared } = useStore((s) => s.plans[s.activePlanId]);
 
   const [showClearModal, setShowClearModal] = React.useState(false);
 
@@ -192,7 +192,7 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
     roleStartCols.has(colId) ? 'role-boundary' : jobStartCols.has(colId) ? 'job-boundary' : '';
 
   // Only show actions that have a name
-  const actions = phase.actions.filter((a) => a.name);
+  const actions = baseActionsCleared ? [] : phase.actions.filter((a) => a.name);
 
   // Custom actions for this phase (row IDs >= 1_000_000)
   const phaseCustomActions = customActions[phaseIdx] ?? [];
@@ -393,6 +393,16 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
         <button className="add-action-btn" onClick={handleAddAction} title={t('btnAddAction', language)}>
           {t('btnAddAction', language)}
         </button>
+        {baseActionsCleared && (
+          <button
+            className="add-action-btn"
+            style={{ color: '#86efac', borderColor: '#14532d' }}
+            onClick={() => restoreBaseActions()}
+            title="Restore encounter data"
+          >
+            Restore encounter data
+          </button>
+        )}
         <button className="add-action-btn" style={{ color: '#f87171', borderColor: '#7f1d1d' }} onClick={() => setShowClearModal(true)} title={t('btnClear', language)}>
           {t('btnClear', language)}
         </button>
@@ -405,6 +415,7 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
           onClearPhase={() => { clearPhase(phaseIdx); setShowClearModal(false); }}
           onClearPlan={() => { clearPlan(); setShowClearModal(false); }}
           onClearAll={() => { clearAllPlans(); setShowClearModal(false); }}
+          onClearActions={() => { clearPlanActions(); setShowClearModal(false); }}
           onCancel={() => setShowClearModal(false)}
         />
       )}

@@ -27,10 +27,11 @@ export interface PlanData {
   actionOverrides: Record<number, Record<number, ActionOverride>>;
   hiddenRows: Record<number, Set<number>>;
   customActions: Record<number, Action[]>;
+  baseActionsCleared: boolean;
 }
 
 function makePlan(id: string, name: string): PlanData {
-  return { id, name, activePhaseIdx: 0, hiddenPhases: new Set(), customPhases: [], mitGrid: {}, actionOverrides: {}, hiddenRows: {}, customActions: {} };
+  return { id, name, activePhaseIdx: 0, hiddenPhases: new Set(), customPhases: [], mitGrid: {}, actionOverrides: {}, hiddenRows: {}, customActions: {}, baseActionsCleared: false };
 }
 
 const INIT_ID = 'plan-1';
@@ -63,6 +64,8 @@ interface PlannerState {
   clearPhase: (phaseIdx: number) => void;
   clearPlan: () => void;
   clearAllPlans: () => void;
+  clearPlanActions: () => void;
+  restoreBaseActions: () => void;
   addCustomAction: (phaseIdx: number, action: Action) => void;
   removeCustomAction: (phaseIdx: number, row: number) => void;
   addPlan: (encounterName: string) => void;
@@ -208,6 +211,18 @@ export const useStore = create<PlannerState>()(
           Object.entries(s.plans).map(([id, plan]) => [id, { ...plan, mitGrid: {} }])
         ),
       })),
+
+      clearPlanActions: () => set((s) => patchActive(s, () => ({
+        mitGrid: {},
+        actionOverrides: {},
+        customActions: {},
+        hiddenRows: {},
+        baseActionsCleared: true,
+      }))),
+
+      restoreBaseActions: () => set((s) => patchActive(s, () => ({
+        baseActionsCleared: false,
+      }))),
 
       addCustomAction: (phaseIdx, action) => set((s) => patchActive(s, (plan) => ({
         customActions: {

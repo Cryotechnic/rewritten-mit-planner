@@ -69,6 +69,11 @@ const translations = {
   clearPlanLabel:   { JP: 'このエンカウンター', EN: 'This encounter',   DE: 'Dieser Kampf',         FR: 'Cette rencontre',     KO: '이 공략',         CN: '当前副本' },
   clearAllLabel:    { JP: '全エンカウンター', EN: 'All encounters',     DE: 'Alle Kämpfe',          FR: 'Toutes les rencontres', KO: '모든 공략',      CN: '所有副本' },
   clearAllDesc:     { JP: '全てのプラン',     EN: 'every plan',         DE: 'alle Pläne',           FR: 'tous les plans',      KO: '모든 플랜',       CN: '所有计划' },
+  clearActionsLabel:{ JP: 'アクションをクリア', EN: 'Clear Actions',     DE: 'Aktionen löschen',     FR: 'Effacer les actions', KO: '행동 지우기',      CN: '清除行动' },
+  clearActionsDesc: { JP: '名前編集・追加アクション', EN: 'Custom edits & added actions', DE: 'Benutzerdefinierte Bearbeitungen & Aktionen', FR: 'Éditions perso. & actions ajoutées', KO: '커스텀 편집 및 추가 행동', CN: '自定义编辑和添加的行动' },
+  clearActionsPrompt: { JP: '確認のためエンカウンター名を入力:', EN: 'Type the encounter name to confirm:', DE: 'Kampfnamen zur Bestätigung eingeben:', FR: 'Saisissez le nom de la rencontre pour confirmer :', KO: '확인을 위해 공략 이름을 입력하세요:', CN: '请输入副本名称以确认:' },
+  clearActionsConfirm: { JP: '削除する',      EN: 'Delete',             DE: 'Löschen',              FR: 'Supprimer',           KO: '삭제',           CN: '删除' },
+  clearActionsBack: { JP: '← 戻る',          EN: '← Back',             DE: '← Zurück',             FR: '← Retour',            KO: '← 뒤로',          CN: '← 返回' },
 
   // Regen modal
   regenTitle:       { JP: '⚠ セッション更新?', EN: '⚠ Refresh Session?', DE: '⚠ Sitzung erneuern?', FR: '⚠ Renouveler session ?', KO: '⚠ 세션 갱신?',  CN: '⚠ 刷新会话?' },
