@@ -4,12 +4,15 @@ import type { Phase, Skill, Language, Action } from '../types';
 import { computeMitigation, computeBarrier, computeHealBuff, formatTime, applyMitigations } from '../calc';
 import EditActionModal from './EditActionModal';
 import ClearAllModal from './ClearAllModal';
+import MacroExportModal from './MacroExportModal';
+import { openPipWindow, PipPortal, type PipWindowHandle } from './JobPipWindow';
 import { t, tFmt } from '../i18n';
 import { getSkillLevelReq } from '../data/skillLevels';
 
 interface Props {
   phaseIdx: number;
   phase: Phase;
+  allPhases: Phase[];
   skills: Skill[];
 }
 
@@ -58,11 +61,14 @@ const DAMAGE_TYPE_ICONS: Record<string, string> = {
   Unique:   'https://xivapi.com/i/060000/060013.png',
 };
 
-export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
+export default function MitigationGrid({ phaseIdx, phase, allPhases, skills }: Props) {
   const { language, toggleMit, initPhase, showJobs, setShowJobs, maxHP, tankHP, toggleHideRow, clearHiddenRows, encounterLevel, addCustomAction, removeCustomAction, clearPhase, clearPlan, clearAllPlans, clearPlanActions, restoreBaseActions } = useStore();
   const { mitGrid, actionOverrides, hiddenRows, customActions, name: planName, baseActionsCleared } = useStore((s) => s.plans[s.activePlanId]);
 
   const [showClearModal, setShowClearModal] = React.useState(false);
+  const [showMacroModal, setShowMacroModal] = React.useState(false);
+  const [showJobPipSelector, setShowJobPipSelector] = React.useState(false);
+  const [pipHandle, setPipHandle] = React.useState<PipWindowHandle | null>(null);
 
   const [editingRow, setEditingRow] = React.useState<number | null>(null);
   const [showHidden, setShowHidden] = React.useState(true);
@@ -190,6 +196,16 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
 
   const colBoundaryClass = (colId: string) =>
     roleStartCols.has(colId) ? 'role-boundary' : jobStartCols.has(colId) ? 'job-boundary' : '';
+
+  // Unique jobs across all phases (for PIP selector)
+  const allJobs = React.useMemo(() => {
+    const seen = new Set<string>();
+    const jobs: string[] = [];
+    for (const p of allPhases)
+      for (const sc of p.skillCols)
+        if (!seen.has(sc.job)) { seen.add(sc.job); jobs.push(sc.job); }
+    return jobs;
+  }, [allPhases]);
 
   // Only show actions that have a name
   const actions = baseActionsCleared ? [] : phase.actions.filter((a) => a.name);
@@ -393,6 +409,22 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
         <button className="add-action-btn" onClick={handleAddAction} title={t('btnAddAction', language)}>
           {t('btnAddAction', language)}
         </button>
+        <button
+          className="add-action-btn"
+          style={{ color: '#a78bfa', borderColor: '#4c1d95' }}
+          onClick={() => setShowMacroModal(true)}
+          title="Export macros"
+        >
+          Export macros
+        </button>
+        <button
+          className="add-action-btn"
+          style={{ color: '#67e8f9', borderColor: '#164e63' }}
+          onClick={() => setShowJobPipSelector(true)}
+          title="Open Job PIP"
+        >
+          Job PIP
+        </button>
         {baseActionsCleared && (
           <button
             className="add-action-btn"
@@ -418,6 +450,66 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
           onClearActions={() => { clearPlanActions(); setShowClearModal(false); }}
           onCancel={() => setShowClearModal(false)}
         />
+      )}
+
+      {showMacroModal && (
+        <MacroExportModal
+          phases={allPhases}
+          skills={skills}
+          language={language}
+          mitGrid={mitGrid}
+          actionOverrides={actionOverrides}
+          customActions={customActions}
+          baseActionsCleared={baseActionsCleared ?? false}
+          onClose={() => setShowMacroModal(false)}
+        />
+      )}
+
+      {pipHandle && (
+        <PipPortal handle={pipHandle} allPhases={allPhases} skills={skills} onClose={() => setPipHandle(null)} />
+      )}
+
+      {showJobPipSelector && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200,
+        }}>
+          <div style={{
+            background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '10px',
+            padding: '24px', minWidth: '320px', maxWidth: '90vw',
+            display: 'flex', flexDirection: 'column', gap: '16px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ fontWeight: 700, fontSize: '15px', color: 'var(--text)' }}>Select job for PIP</div>
+              <button onClick={() => setShowJobPipSelector(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '18px' }}>✕</button>
+            </div>
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+              Opens a floating window showing when to use mitigations for the selected job.
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              {allJobs.map((jobJP) => {
+                const abbr = JOB_DISPLAY_NAMES[jobJP] ?? jobJP;
+                return (
+                  <button
+                    key={jobJP}
+                    onClick={() => {
+                      setShowJobPipSelector(false);
+                      openPipWindow(jobJP, abbr).then((h) => { if (h) setPipHandle(h); });
+                    }}
+                    style={{
+                      padding: '6px 14px', borderRadius: '6px',
+                      border: '1px solid var(--border)', background: 'var(--surface2)',
+                      color: 'var(--text)', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+                    }}
+                  >
+                    {abbr}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       )}
 
       <div className="mit-table-container">

@@ -224,6 +224,7 @@ export default function App() {
             key={`${activePlanId}-${activePhaseIdx}`}
             phaseIdx={activePhaseIdx}
             phase={activePhase}
+            allPhases={allPhases}
             skills={skills}
           />
         )}
