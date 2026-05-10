@@ -28,10 +28,12 @@ export interface PlanData {
   hiddenRows: Record<number, Set<number>>;
   customActions: Record<number, Action[]>;
   baseActionsCleared: boolean;
+  // phaseIdx → row → note text
+  actionNotes: Record<number, Record<number, string>>;
 }
 
 function makePlan(id: string, name: string): PlanData {
-  return { id, name, activePhaseIdx: 0, hiddenPhases: new Set(), customPhases: [], mitGrid: {}, actionOverrides: {}, hiddenRows: {}, customActions: {}, baseActionsCleared: false };
+  return { id, name, activePhaseIdx: 0, hiddenPhases: new Set(), customPhases: [], mitGrid: {}, actionOverrides: {}, hiddenRows: {}, customActions: {}, baseActionsCleared: false, actionNotes: {} };
 }
 
 const INIT_ID = 'plan-1';
@@ -68,6 +70,8 @@ interface PlannerState {
   restoreBaseActions: () => void;
   addCustomAction: (phaseIdx: number, action: Action) => void;
   removeCustomAction: (phaseIdx: number, row: number) => void;
+  setCustomActionsForPhase: (phaseIdx: number, actions: Action[], clearBase?: boolean) => void;
+  replaceAllCustomActions: (customActions: Record<number, Action[]>) => void;
   addPlan: (encounterName: string) => void;
   removePlan: (id: string) => void;
   renamePlan: (id: string, name: string) => void;
@@ -77,6 +81,7 @@ interface PlannerState {
   removeCustomPhase: (phaseIdx: number, dataPhaseCount: number) => void;
   renameCustomPhase: (phaseIdx: number, name: string, dataPhaseCount: number) => void;
   initPhase: (phaseIdx: number, phase: Phase) => void;
+  setActionNote: (phaseIdx: number, row: number, note: string) => void;
   setShareId: (id: string | null) => void;
   applyRemotePlan: (plans: Record<string, PlanData>, activePlanId: string, settings?: { maxHP?: number; tankHP?: number; encounterLevel?: number }) => void;
 }
@@ -238,6 +243,18 @@ export const useStore = create<PlannerState>()(
         },
       }))),
 
+      setCustomActionsForPhase: (phaseIdx, actions, clearBase) => set((s) => patchActive(s, (plan) => ({
+        customActions: { ...plan.customActions, [phaseIdx]: actions },
+        ...(clearBase ? { baseActionsCleared: true, actionOverrides: {}, mitGrid: {} } : {}),
+      }))),
+
+      replaceAllCustomActions: (newCustomActions) => set((s) => patchActive(s, () => ({
+        customActions: newCustomActions,
+        baseActionsCleared: true,
+        actionOverrides: {},
+        mitGrid: {},
+      }))),
+
       addPlan: (encounterName) => set((s) => {
         const id = `plan-${Date.now()}`;
         return {
@@ -308,6 +325,13 @@ export const useStore = create<PlannerState>()(
         }
         return { hiddenPhases: next };
       })),
+
+      setActionNote: (phaseIdx, row, note) => set((s) => patchActive(s, (plan) => ({
+        actionNotes: {
+          ...plan.actionNotes,
+          [phaseIdx]: { ...(plan.actionNotes[phaseIdx] ?? {}), [row]: note },
+        },
+      }))),
 
       setShareId: (id) => set({ shareId: id }),
 

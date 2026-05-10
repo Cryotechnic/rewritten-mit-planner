@@ -802,6 +802,51 @@ body {
 .custom-row td { background: color-mix(in srgb, var(--accent2) 6%, var(--surface)); }
 .custom-row td.sticky-col { background: color-mix(in srgb, var(--accent2) 6%, var(--surface)); }
 
+/* Insert-between row — zero height, triggered by hovering the action row above */
+.insert-action-row { height: 0; line-height: 0; font-size: 0; }
+.insert-action-row td {
+  height: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  overflow: visible;
+  position: relative;
+  line-height: 0;
+}
+/* Full-width accent line on hover: recolor the existing cell border, no layout impact, no gaps */
+.action-row:hover td {
+  border-bottom-color: var(--accent) !important;
+}
+.insert-action-btn {
+  display: block;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  left: 120px;
+  top: 0;
+  transform: translate(-50%, -50%);
+  z-index: 50;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  line-height: 16px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.6);
+  transition: opacity 0.15s;
+}
+/* Show button when hovering the action row above OR the insert row itself */
+.action-row:hover + .insert-action-row .insert-action-btn,
+.insert-action-row:hover .insert-action-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .mit-table-container {
   flex: 1;
   overflow: auto;
@@ -812,15 +857,16 @@ body {
   border-spacing: 0;
   table-layout: fixed;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .mit-table th, .mit-table td {
   border-left: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
-  padding: 0 4px;
+  padding: 0 3px;
   text-align: center;
-  height: 28px;
+  height: 22px;
+  background: var(--surface);
 }
 
 .mit-table tr > th:last-child,
@@ -833,7 +879,7 @@ body {
   position: sticky;
   top: 0;
   z-index: 30;
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-muted);
 }
 
@@ -845,15 +891,42 @@ body {
 
 thead .sticky-col { z-index: 60 !important; }
 
-.time-col { left: 0; min-width: 54px; }
-.action-col { left: 54px; min-width: 180px; text-align: left !important; }
-.type-col { left: 234px; min-width: 70px; }
-.dmg-col { left: 304px; min-width: 80px; }
+.time-col { left: 0; min-width: 46px; }
+.action-col { left: 46px; min-width: 160px; text-align: left !important; }
+.type-col { left: 206px; min-width: 28px; }
+.dmg-col { left: 234px; min-width: 68px; }
 
 .time-cell { left: 0; color: var(--text-muted); font-family: monospace; }
-.action-cell { left: 54px; text-align: left !important; font-weight: 500; padding: 0 8px !important; }
-.type-cell { left: 234px; }
-.dmg-cell { left: 304px; font-family: monospace; color: var(--text-muted); }
+.action-cell { left: 46px; text-align: left !important; font-weight: 500; padding: 0 6px !important; }
+.type-cell { left: 206px; }
+.dmg-cell { left: 234px; font-family: monospace; color: var(--text-muted); }
+
+.notes-col { min-width: 160px; max-width: 160px; }
+.notes-cell {
+  min-width: 160px;
+  max-width: 160px;
+  overflow: hidden;
+  text-align: left !important;
+  padding: 0 !important;
+}
+.note-input {
+  display: block;
+  width: 100%;
+  height: 18px;
+  line-height: 18px;
+  padding: 0 4px;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #fbbf24;
+  font-size: 11px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+.note-input::placeholder { color: transparent; }
+.notes-cell:hover .note-input::placeholder,
+.note-input:focus::placeholder { color: var(--text-muted); opacity: 0.35; font-style: italic; }
+.note-input:focus { background: rgba(251,191,36,0.08); box-shadow: inset 0 0 0 1px #92400e; }
 
 .type-badge {
   display: inline-block;
@@ -866,7 +939,7 @@ thead .sticky-col { z-index: 60 !important; }
 }
 
 .calc-col {
-  min-width: 80px;
+  min-width: 60px;
   background: var(--surface2) !important;
 }
 
@@ -916,12 +989,12 @@ thead .sticky-col { z-index: 60 !important; }
 .job-pct, .job-ピクトマンサー { color: #ffaa66; }
 
 .skill-col-header {
-  min-width: 32px;
-  max-width: 40px;
-  padding: 2px !important;
+  min-width: 28px;
+  max-width: 34px;
+  padding: 1px !important;
 }
 
-.skill-col-header img { display: block; margin: auto; border-radius: 3px; }
+.skill-col-header img { display: block; margin: auto; border-radius: 2px; }
 .skill-short { font-size: 9px; }
 
 .icon-wrap {
@@ -956,20 +1029,22 @@ thead .sticky-col { z-index: 60 !important; }
 .barrierbuff-badge { color: var(--barrier); font-weight: 700; }
 
 .skill-recast-header {
-  font-size: 9px;
+  font-size: 8px;
   color: var(--text-muted);
-  height: 18px !important;
+  height: 12px !important;
+  line-height: 12px !important;
 }
 
 .skill-info-row th {
-  height: 16px !important;
+  height: 12px !important;
+  line-height: 12px !important;
 }
 
 /* Action rows */
-.action-row:hover td { background: rgba(91, 125, 255, 0.07) !important; }
-.action-row:hover td.sticky-col { background: color-mix(in srgb, rgb(91, 125, 255) 7%, var(--surface)) !important; }
-.action-row:nth-child(even) td { background: rgba(255,255,255,0.02); }
-.action-row:nth-child(even) td.sticky-col { background: color-mix(in srgb, #fff 2%, var(--surface)) !important; }
+.action-row { line-height: 18px; }
+.action-row:hover td { background: color-mix(in srgb, rgb(91, 125, 255) 7%, var(--surface)) !important; }
+/* nth-child(even) alternation is disabled — insert-action-rows occupy all odd positions,
+   making every action-row even, so no alternation actually occurs. Rows use var(--surface) uniformly. */
 .hide-row { display: none; }
 
 /* Skill cells */
@@ -1287,7 +1362,7 @@ thead .sticky-col { z-index: 60 !important; }
 
 .mit-cell { color: var(--heal); font-weight: 600; }
 
-.notes-cell { display: flex; gap: 4px; flex-wrap: wrap; }
+.skill-table .notes-cell { display: flex; gap: 4px; flex-wrap: wrap; }
 
 .badge {
   display: inline-block;

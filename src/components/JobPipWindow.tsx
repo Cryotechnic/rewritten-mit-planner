@@ -46,6 +46,7 @@ export interface PipAction {
   timeSec: number | null;
   duration: number | null;
   skills: PipSkill[];
+  note: string;
 }
 
 export interface PipPhaseData {
@@ -100,6 +101,7 @@ function pipBuildPhases(
   actionOverrides: Record<number, Record<number, Partial<Action>>>,
   customActions: Record<number, Action[]>,
   baseActionsCleared: boolean,
+  actionNotes: Record<number, Record<number, string>>,
 ): PipPhaseData[] {
   return allPhases.map((phase, pi) => {
     const jobCols = phase.skillCols.filter((sc) => sc.job === jobJP);
@@ -121,7 +123,8 @@ function pipBuildPhases(
         if (sc.effectTime == null) return max;
         return max === null ? sc.effectTime : Math.max(max, sc.effectTime);
       }, null);
-      return [{ actionName: action.name ?? '(unnamed)', timeSec: action.timeSec, duration: maxDuration, skills: checkedSkills }];
+      const note = actionNotes[pi]?.[action.row] ?? '';
+      return [{ actionName: action.name ?? '(unnamed)', timeSec: action.timeSec, duration: maxDuration, skills: checkedSkills, note }];
     });
 
     return { phaseName: phase.name, actions };
@@ -138,19 +141,20 @@ interface PipContentProps {
 }
 
 export function PipContent({ jobJP, jobName, allPhases, skills }: PipContentProps) {
-  const { mitGrid, actionOverrides, customActions, baseActionsCleared } = useStore((s) => s.plans[s.activePlanId]);
+  const { mitGrid, actionOverrides, customActions, baseActionsCleared, actionNotes } = useStore((s) => s.plans[s.activePlanId]);
   const language = useStore((s) => s.language);
 
   const jobIconUrl = JOB_ICON_URL[jobName] ?? null;
 
   const phases = useMemo(
-    () => pipBuildPhases(jobJP, allPhases, skills, language, mitGrid, actionOverrides, customActions, baseActionsCleared ?? false),
-    [jobJP, allPhases, skills, language, mitGrid, actionOverrides, customActions, baseActionsCleared],
+    () => pipBuildPhases(jobJP, allPhases, skills, language, mitGrid, actionOverrides, customActions, baseActionsCleared ?? false, actionNotes ?? {}),
+    [jobJP, allPhases, skills, language, mitGrid, actionOverrides, customActions, baseActionsCleared, actionNotes],
   );
 
   const [baseElapsed, setBaseElapsed] = useState(0);
   const [runStart, setRunStart] = useState<number | null>(null);
   const [now, setNow] = useState(Date.now());
+  const [showNotes, setShowNotes] = useState(false);
 
   const running = runStart !== null;
   const elapsed = running ? baseElapsed + (now - runStart) / 1000 : baseElapsed;
@@ -266,6 +270,11 @@ export function PipContent({ jobJP, jobName, allPhases, skills }: PipContentProp
                       ))}
                     </div>
                   )}
+                  {showNotes && action.note && (
+                    <div style={{ fontSize: '11px', color: '#fbbf24', marginTop: '3px', fontStyle: 'italic', lineHeight: 1.4, borderLeft: '2px solid #92400e', paddingLeft: '6px' }}>
+                      {action.note}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -278,6 +287,13 @@ export function PipContent({ jobJP, jobName, allPhases, skills }: PipContentProp
         </button>
         <button onClick={handleReset} style={{ padding: '8px 14px', borderRadius: '6px', border: '1px solid #2d3154', background: 'transparent', color: '#64748b', fontSize: '13px', cursor: 'pointer' }}>
           Reset
+        </button>
+        <button
+          onClick={() => setShowNotes((v) => !v)}
+          style={{ padding: '8px 10px', borderRadius: '6px', border: `1px solid ${showNotes ? '#92400e' : '#2d3154'}`, background: showNotes ? 'rgba(146,64,14,0.2)' : 'transparent', color: showNotes ? '#fbbf24' : '#64748b', fontSize: '13px', cursor: 'pointer' }}
+          title="Toggle notes"
+        >
+          Notes
         </button>
       </div>
     </div>
