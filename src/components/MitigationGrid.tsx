@@ -576,7 +576,7 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
                     }
 
                     const coverage = getCoverage(sc.col, action.row);
-                    const cellBlocked = isRowHidden;
+                    const cellBlocked = isRowHidden || coverage != null;
 
                     return (
                       <td
