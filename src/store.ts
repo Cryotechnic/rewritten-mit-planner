@@ -43,6 +43,9 @@ interface PlannerState {
   encounterLevel: number;
   plans: Record<string, PlanData>;
   activePlanId: string;
+  // Sync state (not persisted)
+  shareId: string | null;
+  clientId: string;
 
   setActivePhase: (idx: number) => void;
   setLanguage: (lang: Language) => void;
@@ -68,6 +71,8 @@ interface PlannerState {
   removeCustomPhase: (phaseIdx: number, dataPhaseCount: number) => void;
   renameCustomPhase: (phaseIdx: number, name: string, dataPhaseCount: number) => void;
   initPhase: (phaseIdx: number, phase: Phase) => void;
+  setShareId: (id: string | null) => void;
+  applyRemotePlan: (planData: PlanData) => void;
 }
 
 function patchActive(s: PlannerState, fn: (p: PlanData) => Partial<PlanData>): Partial<PlannerState> {
@@ -114,6 +119,8 @@ export const useStore = create<PlannerState>()(
       encounterLevel: 70,
       plans: { [INIT_ID]: makePlan(INIT_ID, '') },
       activePlanId: INIT_ID,
+      shareId: null,
+      clientId: Math.random().toString(36).slice(2),
 
       setActivePhase: (idx) => set((s) => patchActive(s, () => ({ activePhaseIdx: idx }))),
 
@@ -268,6 +275,12 @@ export const useStore = create<PlannerState>()(
           }
         }
         return { hiddenPhases: next };
+      })),
+
+      setShareId: (id) => set({ shareId: id }),
+
+      applyRemotePlan: (planData) => set((s) => ({
+        plans: { ...s.plans, [s.activePlanId]: { ...planData, id: s.activePlanId } },
       })),
 
       initPhase: (phaseIdx, phase) => {

@@ -1,7 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import commitHash from 'virtual:git-hash';
 import ucobData from "./data/ucob_data.json";
 import type { UcobData, Phase } from "./types";
+import type { PlanData } from "./store";
 import Header from "./components/Header";
 import PlanTabBar from "./components/PlanTabBar";
 import EncounterDialog from "./components/EncounterDialog";
@@ -9,6 +10,8 @@ import Oobe from "./components/Oobe";
 import SkillDatabase from "./components/SkillDatabase";
 import MitigationGrid from "./components/MitigationGrid";
 import { useStore } from "./store";
+import { pushPlan, subscribePlan } from "./lib/planSync";
+import type { Unsubscribe } from "firebase/firestore";
 import "./App.css";
 
 const data = ucobData as unknown as UcobData;
@@ -28,9 +31,45 @@ const allSkillCols = (() => {
 type Tab = "planner" | "skills";
 
 export default function App() {
-  const { plans, activePlanId, renamePlan, addCustomPhase } = useStore();
+  const { plans, activePlanId, renamePlan, addCustomPhase, shareId, clientId, setShareId, applyRemotePlan } = useStore();
   const [tab, setTab] = useState<Tab>("planner");
   const [showAddPhase, setShowAddPhase] = useState(false);
+  const unsubRef = useRef<Unsubscribe | null>(null);
+  const pushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // On mount: check URL for ?join=XXXXXX
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const joinId = params.get('join');
+    if (joinId) {
+      setShareId(joinId.toUpperCase());
+      // Clean URL without reloading
+      const url = new URL(window.location.href);
+      url.searchParams.delete('join');
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, []);
+
+  // Subscribe / unsubscribe when shareId changes
+  useEffect(() => {
+    if (unsubRef.current) { unsubRef.current(); unsubRef.current = null; }
+    if (!shareId) return;
+    unsubRef.current = subscribePlan(shareId, clientId, (planData) => {
+      applyRemotePlan(planData as PlanData);
+    });
+    return () => { unsubRef.current?.(); unsubRef.current = null; };
+  }, [shareId, clientId]);
+
+  // Push local plan changes to Firestore (debounced 600ms)
+  const activePlanForSync = plans[activePlanId];
+  useEffect(() => {
+    if (!shareId) return;
+    if (pushTimerRef.current) clearTimeout(pushTimerRef.current);
+    pushTimerRef.current = setTimeout(() => {
+      pushPlan(shareId, activePlanForSync, clientId).catch(console.error);
+    }, 600);
+    return () => { if (pushTimerRef.current) clearTimeout(pushTimerRef.current); };
+  }, [shareId, clientId, activePlanForSync]);
 
   const activePhaseIdx = plans[activePlanId].activePhaseIdx;
   const activePlan = plans[activePlanId];

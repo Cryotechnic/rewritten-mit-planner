@@ -611,6 +611,66 @@ body {
 }
 .plan-tab-add:hover { color: var(--accent); border-color: var(--accent); }
 
+/* ========== Sync controls ========== */
+.sync-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding-right: 4px;
+}
+.sync-btn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius);
+  padding: 3px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+}
+.sync-btn:hover { border-color: var(--accent); color: var(--accent); }
+.sync-btn-stop { color: var(--text-muted); }
+.sync-btn-stop:hover { border-color: #ff4757; color: #ff4757; }
+.sync-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: monospace;
+  color: var(--heal, #5dcc8a);
+  padding: 2px 8px;
+  border-radius: var(--radius);
+  border: 1px solid var(--heal, #5dcc8a);
+  background: rgba(93, 204, 138, 0.08);
+}
+.sync-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--heal, #5dcc8a);
+  animation: sync-pulse 1.5s ease-in-out infinite;
+}
+@keyframes sync-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.sync-join-input {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius);
+  padding: 3px 8px;
+  font-size: 13px;
+  font-family: monospace;
+  width: 110px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+.sync-join-input:focus { outline: none; border-color: var(--accent); }
+
 /* ========== Tab bar ========== */
 .tab-bar {
   display: flex;
