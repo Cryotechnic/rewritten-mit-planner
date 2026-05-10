@@ -41,10 +41,11 @@ export function generateShareId(): string {
 
 export async function pushPlan(
   shareId: string,
-  planData: object,
+  plans: object,
+  activePlanId: string,
   clientId: string,
 ): Promise<void> {
-  const json = JSON.stringify(planData, replacer);
+  const json = JSON.stringify({ plans, activePlanId }, replacer);
   await setDoc(doc(db, COLLECTION, shareId), {
     json,
     clientId,
@@ -55,16 +56,15 @@ export async function pushPlan(
 export function subscribePlan(
   shareId: string,
   clientId: string,
-  onUpdate: (planData: unknown) => void,
+  onUpdate: (plans: unknown, activePlanId: string) => void,
 ): Unsubscribe {
   return onSnapshot(doc(db, COLLECTION, shareId), (snap) => {
     if (!snap.exists()) return;
     const data = snap.data();
-    // Suppress echo — skip updates we wrote ourselves
     if (data.clientId === clientId) return;
     try {
-      const planData = JSON.parse(data.json, reviver);
-      onUpdate(planData);
+      const parsed = JSON.parse(data.json, reviver);
+      onUpdate(parsed.plans, parsed.activePlanId);
     } catch {
       // Malformed doc — ignore
     }

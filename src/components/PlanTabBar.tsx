@@ -33,7 +33,7 @@ export default function PlanTabBar() {
 
   const handleShare = async () => {
     const id = generateShareId();
-    await pushPlan(id, plans[activePlanId], clientId);
+    await pushPlan(id, plans, activePlanId, clientId);
     setShareId(id);
   };
 

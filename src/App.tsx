@@ -36,16 +36,18 @@ export default function App() {
   const [showAddPhase, setShowAddPhase] = useState(false);
   const unsubRef = useRef<Unsubscribe | null>(null);
   const pushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Set to true after applying a remote update — prevents echoing it back to Firestore
+  // Suppress echo after applying a remote update
   const skipNextPushRef = useRef(false);
+  // Suppress initial push when joining (so we don't overwrite the sharer's data)
+  const awaitingFirstSyncRef = useRef(false);
 
   // On mount: check URL for ?join=XXXXXX
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const joinId = params.get('join');
     if (joinId) {
+      awaitingFirstSyncRef.current = true; // joiner: wait for first remote before pushing
       setShareId(joinId.toUpperCase());
-      // Clean URL without reloading
       const url = new URL(window.location.href);
       url.searchParams.delete('join');
       window.history.replaceState({}, '', url.toString());
@@ -56,28 +58,30 @@ export default function App() {
   useEffect(() => {
     if (unsubRef.current) { unsubRef.current(); unsubRef.current = null; }
     if (!shareId) return;
-    unsubRef.current = subscribePlan(shareId, clientId, (planData) => {
+    unsubRef.current = subscribePlan(shareId, clientId, (remotePlans, remoteActivePlanId) => {
+      awaitingFirstSyncRef.current = false;
       skipNextPushRef.current = true;
-      applyRemotePlan(planData as PlanData);
+      applyRemotePlan(remotePlans as Record<string, PlanData>, remoteActivePlanId);
     });
     return () => { unsubRef.current?.(); unsubRef.current = null; };
   }, [shareId, clientId]);
 
-  // Push local plan changes to Firestore (debounced 600ms).
-  // Skipped when the change came from a remote update to prevent echo loops.
+  // Push full plans snapshot to Firestore (debounced 600ms).
+  // Skipped on echo or while waiting for the first remote update (join flow).
   const activePlanForSync = plans[activePlanId];
   useEffect(() => {
     if (!shareId) return;
+    if (awaitingFirstSyncRef.current) return;
     if (skipNextPushRef.current) {
       skipNextPushRef.current = false;
       return;
     }
     if (pushTimerRef.current) clearTimeout(pushTimerRef.current);
     pushTimerRef.current = setTimeout(() => {
-      pushPlan(shareId, activePlanForSync, clientId).catch(console.error);
+      pushPlan(shareId, plans, activePlanId, clientId).catch(console.error);
     }, 600);
     return () => { if (pushTimerRef.current) clearTimeout(pushTimerRef.current); };
-  }, [shareId, clientId, activePlanForSync]);
+  }, [shareId, clientId, activePlanForSync, plans, activePlanId]);
 
   const activePhaseIdx = plans[activePlanId].activePhaseIdx;
   const activePlan = plans[activePlanId];
