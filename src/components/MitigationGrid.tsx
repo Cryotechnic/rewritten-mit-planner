@@ -66,7 +66,6 @@ const DAMAGE_TYPE_ICONS: Record<string, string> = {
 
 // Stable fallbacks so React.memo sees the same reference when a phase has no entries
 const EMPTY_MIT_GRID: Record<number, Record<string, boolean>> = {};
-const EMPTY_OVERRIDES: Record<number, import('../store').ActionOverride> = {};
 const EMPTY_HIDDEN = new Set<number>();
 const EMPTY_ACTIONS: Action[] = [];
 
@@ -81,7 +80,7 @@ interface TableBodyProps {
   cellCoverage: Map<string, 'effect' | 'cooldown'>;
   hiddenSet: Set<number>;
   showHidden: boolean;
-  actionOverridesForPhase: Record<number, import('../store').ActionOverride>;
+  _actionOverridesForPhase?: Record<number, import('../store').ActionOverride>;
   phaseIdx: number;
   maxHP: number;
   tankHP: number;
@@ -121,7 +120,7 @@ function NoteCell({ phaseIdx, row, note, setActionNote }: { phaseIdx: number; ro
 
 const MitigationTableBody = React.memo(function MitigationTableBody({
   mergedActions, customRowIds, allVisibleCols, mitGridForPhase, cellCoverage,
-  hiddenSet, showHidden, actionOverridesForPhase, phaseIdx, maxHP, tankHP,
+  hiddenSet, showHidden, phaseIdx, maxHP, tankHP,
   roleStartCols, jobStartCols, toggleMit, setEditingRow, removeCustomAction, toggleHideRow, insertAfterRow,
   showNotes, actionNotes, setActionNote, rowTagsForPhase,
 }: TableBodyProps) {
@@ -883,7 +882,7 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
             cellCoverage={cellCoverage}
             hiddenSet={hiddenSet}
             showHidden={showHidden}
-            actionOverridesForPhase={actionOverrides[phaseIdx] ?? EMPTY_OVERRIDES}
+
             phaseIdx={phaseIdx}
             maxHP={maxHP}
             tankHP={tankHP}
