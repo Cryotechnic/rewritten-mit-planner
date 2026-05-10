@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, startTransition } from 'react';
 import { useStore } from '../store';
 import type { EncounterData, Phase } from '../types';
 import { t } from '../i18n';
@@ -42,7 +42,7 @@ export default function Header({ data, allPhases, onAddPhase }: Props) {
               <div key={idx} className="phase-tab-wrap">
                 <button
                   className={`phase-tab ${activePhaseIdx === idx ? 'active' : ''} ${isCustom ? 'phase-tab-custom' : ''}`}
-                  onClick={() => setActivePhase(idx)}
+                  onClick={() => startTransition(() => setActivePhase(idx))}
                 >
                   {phase.name}
                 </button>

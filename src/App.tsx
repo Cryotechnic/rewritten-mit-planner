@@ -223,7 +223,7 @@ export default function App() {
       <main className="main">
         {tab === "planner" && activePhase && (
           <MitigationGrid
-            key={`${activePlanId}-${activePhaseIdx}`}
+            key={activePlanId}
             phaseIdx={activePhaseIdx}
             phase={activePhase}
             allPhases={allPhases}

@@ -118,154 +118,238 @@ function NoteCell({ phaseIdx, row, note, setActionNote }: { phaseIdx: number; ro
   );
 }
 
+const EMPTY_CHECKED: Record<string, boolean> = {};
+
+interface ActionRowProps {
+  action: Action;
+  phaseIdx: number;
+  isCustom: boolean;
+  checked: Record<string, boolean>;
+  cellCoverage: Map<string, 'effect' | 'cooldown'>;
+  isRowHidden: boolean;
+  allVisibleCols: Phase['skillCols'];
+  roleStartCols: Set<string>;
+  jobStartCols: Set<string>;
+  maxHP: number;
+  tankHP: number;
+  showNotes: boolean;
+  note: string;
+  tag: 'tank' | 'heal' | 'dps' | 'note' | undefined;
+  fixedColCount: number;
+  toggleMit: (phaseIdx: number, row: number, col: string) => void;
+  setEditingRow: (row: number | null) => void;
+  removeCustomAction: (phaseIdx: number, row: number) => void;
+  toggleHideRow: (phaseIdx: number, row: number) => void;
+  insertAfterRow: (action: Action | null, allVisible: Phase['skillCols']) => void;
+  setActionNote: (phaseIdx: number, row: number, note: string) => void;
+}
+
+function actionRowPropsEqual(prev: ActionRowProps, next: ActionRowProps): boolean {
+  if (prev.action !== next.action) return false;
+  if (prev.checked !== next.checked) return false;
+  if (prev.isRowHidden !== next.isRowHidden) return false;
+  if (prev.isCustom !== next.isCustom) return false;
+  if (prev.allVisibleCols !== next.allVisibleCols) return false;
+  if (prev.roleStartCols !== next.roleStartCols) return false;
+  if (prev.jobStartCols !== next.jobStartCols) return false;
+  if (prev.maxHP !== next.maxHP) return false;
+  if (prev.tankHP !== next.tankHP) return false;
+  if (prev.showNotes !== next.showNotes) return false;
+  if (prev.note !== next.note) return false;
+  if (prev.tag !== next.tag) return false;
+  if (prev.fixedColCount !== next.fixedColCount) return false;
+  // Only check coverage entries relevant to this specific row
+  if (prev.cellCoverage !== next.cellCoverage) {
+    const row = next.action.row;
+    for (const sc of next.allVisibleCols) {
+      const key = `${sc.col}:${row}`;
+      if (prev.cellCoverage.get(key) !== next.cellCoverage.get(key)) return false;
+    }
+  }
+  return true;
+}
+
+const ActionRow = React.memo(function ActionRow({
+  action, phaseIdx, isCustom, checked, cellCoverage,
+  isRowHidden, allVisibleCols, roleStartCols, jobStartCols,
+  maxHP, tankHP, showNotes, note, tag, fixedColCount,
+  toggleMit, setEditingRow, removeCustomAction, toggleHideRow, insertAfterRow, setActionNote,
+}: ActionRowProps) {
+  const colBoundaryClass = (colId: string) =>
+    roleStartCols.has(colId) ? 'role-boundary' : jobStartCols.has(colId) ? 'job-boundary' : '';
+
+  const damageType = (action.type ?? 'Magic') as 'Magic' | 'Physical' | 'Unique';
+  const mit = computeMitigation(action, allVisibleCols, checked, damageType === 'Physical' ? 'Physical' : 'Magic');
+  const baseDamage = action.damageHit ?? 0;
+  const mitigatedDamage = baseDamage > 0
+    ? applyMitigations(baseDamage, action, allVisibleCols, checked, damageType)
+    : 0;
+  const hp = damageType === 'Physical' ? tankHP : maxHP;
+  const barrier = computeBarrier(allVisibleCols, checked, hp, computeHealBuff(allVisibleCols, checked));
+  const mitPct = baseDamage > 0 ? Math.round((1 - mit) * 100) : null;
+  const typeColor = DAMAGE_TYPE_COLORS[action.type ?? ''] ?? '#aaa';
+
+  return (
+    <>
+      <tr className={`action-row ${action.type === 'hide' ? 'hide-row' : ''} ${isRowHidden ? 'row-hidden-dim' : ''} ${isCustom ? 'custom-row' : ''} ${tag ? `tagged-row tagged-row-${tag}` : ''}`}>
+        <td className="sticky-col time-cell editable-cell" onClick={() => setEditingRow(action.row)}>
+          {formatTime(action.timeSec)}
+        </td>
+        <td className="sticky-col action-cell" onDoubleClick={() => setEditingRow(action.row)}>
+          {tag && (
+            <span className={`row-tag row-tag-${tag}`}>
+              {{ tank: 'Tank', heal: 'Heal', dps: 'DPS', note: 'Note' }[tag]}
+            </span>
+          )}
+          <span className="action-name">{action.name}</span>
+          <button className="edit-action-btn" onClick={() => setEditingRow(action.row)} title="Edit action">✎</button>
+          {isCustom ? (
+            <button
+              className="hide-row-btn hide-row-btn-on"
+              onClick={(e) => { e.stopPropagation(); removeCustomAction(phaseIdx, action.row); }}
+              title="Delete this action"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+              </svg>
+            </button>
+          ) : (
+            <button
+              className={`hide-row-btn ${isRowHidden ? 'hide-row-btn-on' : ''}`}
+              onClick={(e) => { e.stopPropagation(); toggleHideRow(phaseIdx, action.row); }}
+              title={isRowHidden ? 'Unhide row' : 'Hide row'}
+            >{isRowHidden ? (
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                  <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                  <line x1="1" y1="1" x2="23" y2="23"/>
+                </svg>
+              ) : (
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              )}</button>
+          )}
+        </td>
+        <td className="sticky-col type-cell editable-cell" onDoubleClick={() => setEditingRow(action.row)}>
+          {action.type && DAMAGE_TYPE_ICONS[action.type] ? (
+            <img src={DAMAGE_TYPE_ICONS[action.type]} alt={action.type} title={action.type} width={20} height={20} style={{ display: 'block', margin: 'auto' }} />
+          ) : action.type ? (
+            <span className="type-badge" style={{ backgroundColor: typeColor }}>{action.type}</span>
+          ) : null}
+        </td>
+        <td className="sticky-col dmg-cell editable-cell" onDoubleClick={() => setEditingRow(action.row)}>
+          {baseDamage > 0 ? baseDamage.toLocaleString() : ''}
+        </td>
+        {showNotes && (
+          <NoteCell
+            phaseIdx={phaseIdx}
+            row={action.row}
+            note={note}
+            setActionNote={setActionNote}
+          />
+        )}
+        <td className="calc-col mit-pct-cell">
+          {mitPct !== null ? (
+            <span className={`mit-pct ${mitPct >= 40 ? 'high' : mitPct >= 20 ? 'med' : 'low'}`}>{mitPct}%</span>
+          ) : ''}
+        </td>
+        <td className="calc-col mitigated-cell">
+          {baseDamage > 0 ? <HPBar damage={mitigatedDamage} barrier={barrier} maxHP={hp} /> : ''}
+        </td>
+        <td className="calc-col barrier-cell">
+          {barrier > 0 ? barrier.toLocaleString() : ''}
+        </td>
+        {allVisibleCols.map((sc) => {
+          const rawState = action.mitStates[sc.col];
+          const isSingleTarget = sc.assign === 'SINGLE_PARTY' || sc.assign === 'SINGLE_ENEMY';
+          const effectivelyUnavailable =
+            rawState === '-' ||
+            (isCustom && rawState === undefined && isSingleTarget);
+          const isChecked = checked[sc.col] ?? false;
+
+          if (effectivelyUnavailable) {
+            return (
+              <td key={sc.col} className={`skill-cell unavailable ${colBoundaryClass(sc.col)}`}>
+                <span className="unavail-mark">—</span>
+              </td>
+            );
+          }
+
+          const coverage = cellCoverage.get(`${sc.col}:${action.row}`) ?? null;
+          const cellBlocked = isRowHidden || coverage != null;
+
+          return (
+            <td
+              key={sc.col}
+              className={`skill-cell ${isChecked ? 'checked' : ''} ${coverage ? `coverage-${coverage}` : ''} ${colBoundaryClass(sc.col)}`}
+              title={
+                isRowHidden ? 'Row is marked hidden' :
+                coverage === 'cooldown' ? 'On cooldown' :
+                coverage === 'effect' ? 'Buff active' : undefined
+              }
+              onClick={() => {
+                if (!effectivelyUnavailable && !cellBlocked) toggleMit(phaseIdx, action.row, sc.col);
+              }}
+            >
+              <input type="checkbox" checked={isChecked} readOnly tabIndex={-1} />
+            </td>
+          );
+        })}
+      </tr>
+      <tr className="insert-action-row" onClick={() => insertAfterRow(action, allVisibleCols)}>
+        <td colSpan={fixedColCount + allVisibleCols.length}>
+          <span className="insert-action-btn">+</span>
+        </td>
+      </tr>
+    </>
+  );
+}, actionRowPropsEqual);
+
 const MitigationTableBody = React.memo(function MitigationTableBody({
   mergedActions, customRowIds, allVisibleCols, mitGridForPhase, cellCoverage,
   hiddenSet, showHidden, phaseIdx, maxHP, tankHP,
   roleStartCols, jobStartCols, toggleMit, setEditingRow, removeCustomAction, toggleHideRow, insertAfterRow,
   showNotes, actionNotes, setActionNote, rowTagsForPhase,
 }: TableBodyProps) {
-  const colBoundaryClass = (colId: string) =>
-    roleStartCols.has(colId) ? 'role-boundary' : jobStartCols.has(colId) ? 'job-boundary' : '';
-
-  const FIXED_COL_COUNT = 7 + (showNotes ? 1 : 0);
-  const insertRow = (afterAction: Action | null) => (
-    <tr className="insert-action-row" onClick={() => insertAfterRow(afterAction, allVisibleCols)}>
-      <td colSpan={FIXED_COL_COUNT + allVisibleCols.length}>
-        <span className="insert-action-btn">+</span>
-      </td>
-    </tr>
-  );
+  const fixedColCount = 7 + (showNotes ? 1 : 0);
 
   return (
     <tbody>
-      {insertRow(null)}
+      <tr className="insert-action-row" onClick={() => insertAfterRow(null, allVisibleCols)}>
+        <td colSpan={fixedColCount + allVisibleCols.length}>
+          <span className="insert-action-btn">+</span>
+        </td>
+      </tr>
       {mergedActions.map((action) => {
         const isRowHidden = hiddenSet.has(action.row);
         if (isRowHidden && !showHidden) return null;
-
-        const checked: Record<string, boolean> = mitGridForPhase[action.row] ?? {};
-        const damageType = (action.type ?? 'Magic') as 'Magic' | 'Physical' | 'Unique';
-        const mit = computeMitigation(action, allVisibleCols, checked, damageType === 'Physical' ? 'Physical' : 'Magic');
-        const baseDamage = action.damageHit ?? 0;
-        const mitigatedDamage = baseDamage > 0
-          ? applyMitigations(baseDamage, action, allVisibleCols, checked, damageType)
-          : 0;
-        const hp = damageType === 'Physical' ? tankHP : maxHP;
-        const barrier = computeBarrier(allVisibleCols, checked, hp, computeHealBuff(allVisibleCols, checked));
-        const mitPct = baseDamage > 0 ? Math.round((1 - mit) * 100) : null;
-        const typeColor = DAMAGE_TYPE_COLORS[action.type ?? ''] ?? '#aaa';
-
         return (
-          <React.Fragment key={action.row}>
-          <tr className={`action-row ${action.type === 'hide' ? 'hide-row' : ''} ${isRowHidden ? 'row-hidden-dim' : ''} ${customRowIds.has(action.row) ? 'custom-row' : ''} ${rowTagsForPhase[action.row] ? `tagged-row tagged-row-${rowTagsForPhase[action.row]}` : ''}`}>
-            <td className="sticky-col time-cell editable-cell" onClick={() => setEditingRow(action.row)}>
-              {formatTime(action.timeSec)}
-            </td>
-            <td className="sticky-col action-cell" onDoubleClick={() => setEditingRow(action.row)}>
-              {rowTagsForPhase[action.row] && (
-                <span className={`row-tag row-tag-${rowTagsForPhase[action.row]}`}>
-                  {{ tank: 'Tank', heal: 'Heal', dps: 'DPS', note: 'Note' }[rowTagsForPhase[action.row]]}
-                </span>
-              )}
-              <span className="action-name">{action.name}</span>
-              <button className="edit-action-btn" onClick={() => setEditingRow(action.row)} title="Edit action">✎</button>
-              {customRowIds.has(action.row) ? (
-                <button
-                  className="hide-row-btn hide-row-btn-on"
-                  onClick={(e) => { e.stopPropagation(); removeCustomAction(phaseIdx, action.row); }}
-                  title="Delete this action"
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-                  </svg>
-                </button>
-              ) : (
-                <button
-                  className={`hide-row-btn ${isRowHidden ? 'hide-row-btn-on' : ''}`}
-                  onClick={(e) => { e.stopPropagation(); toggleHideRow(phaseIdx, action.row); }}
-                  title={isRowHidden ? 'Unhide row' : 'Hide row'}
-                >{isRowHidden ? (
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-                      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-                      <line x1="1" y1="1" x2="23" y2="23"/>
-                    </svg>
-                  ) : (
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                      <circle cx="12" cy="12" r="3"/>
-                    </svg>
-                  )}</button>
-              )}
-            </td>
-            <td className="sticky-col type-cell editable-cell" onDoubleClick={() => setEditingRow(action.row)}>
-              {action.type && DAMAGE_TYPE_ICONS[action.type] ? (
-                <img src={DAMAGE_TYPE_ICONS[action.type]} alt={action.type} title={action.type} width={20} height={20} style={{ display: 'block', margin: 'auto' }} />
-              ) : action.type ? (
-                <span className="type-badge" style={{ backgroundColor: typeColor }}>{action.type}</span>
-              ) : null}
-            </td>
-            <td className="sticky-col dmg-cell editable-cell" onDoubleClick={() => setEditingRow(action.row)}>
-              {baseDamage > 0 ? baseDamage.toLocaleString() : ''}
-            </td>
-            {showNotes && (
-              <NoteCell
-                phaseIdx={phaseIdx}
-                row={action.row}
-                note={actionNotes[action.row] ?? ''}
-                setActionNote={setActionNote}
-              />
-            )}
-            <td className="calc-col mit-pct-cell">
-              {mitPct !== null ? (
-                <span className={`mit-pct ${mitPct >= 40 ? 'high' : mitPct >= 20 ? 'med' : 'low'}`}>{mitPct}%</span>
-              ) : ''}
-            </td>
-            <td className="calc-col mitigated-cell">
-              {baseDamage > 0 ? <HPBar damage={mitigatedDamage} barrier={barrier} maxHP={hp} /> : ''}
-            </td>
-            <td className="calc-col barrier-cell">
-              {barrier > 0 ? barrier.toLocaleString() : ''}
-            </td>
-            {allVisibleCols.map((sc) => {
-              const rawState = action.mitStates[sc.col];
-              const isSingleTarget = sc.assign === 'SINGLE_PARTY' || sc.assign === 'SINGLE_ENEMY';
-              const effectivelyUnavailable =
-                rawState === '-' ||
-                (customRowIds.has(action.row) && rawState === undefined && isSingleTarget);
-              const isChecked = checked[sc.col] ?? false;
-
-              if (effectivelyUnavailable) {
-                return (
-                  <td key={sc.col} className={`skill-cell unavailable ${colBoundaryClass(sc.col)}`}>
-                    <span className="unavail-mark">—</span>
-                  </td>
-                );
-              }
-
-              const coverage = cellCoverage.get(`${sc.col}:${action.row}`) ?? null;
-              const cellBlocked = isRowHidden || coverage != null;
-
-              return (
-                <td
-                  key={sc.col}
-                  className={`skill-cell ${isChecked ? 'checked' : ''} ${coverage ? `coverage-${coverage}` : ''} ${colBoundaryClass(sc.col)}`}
-                  title={
-                    isRowHidden ? 'Row is marked hidden' :
-                    coverage === 'cooldown' ? 'On cooldown' :
-                    coverage === 'effect' ? 'Buff active' : undefined
-                  }
-                  onClick={() => {
-                    if (!effectivelyUnavailable && !cellBlocked) toggleMit(phaseIdx, action.row, sc.col);
-                  }}
-                >
-                  <input type="checkbox" checked={isChecked} readOnly tabIndex={-1} />
-                </td>
-              );
-            })}
-          </tr>
-          {insertRow(action)}
-          </React.Fragment>
+          <ActionRow
+            key={action.row}
+            action={action}
+            phaseIdx={phaseIdx}
+            isCustom={customRowIds.has(action.row)}
+            checked={mitGridForPhase[action.row] ?? EMPTY_CHECKED}
+            cellCoverage={cellCoverage}
+            isRowHidden={isRowHidden}
+            allVisibleCols={allVisibleCols}
+            roleStartCols={roleStartCols}
+            jobStartCols={jobStartCols}
+            maxHP={maxHP}
+            tankHP={tankHP}
+            showNotes={showNotes}
+            note={actionNotes[action.row] ?? ''}
+            tag={rowTagsForPhase[action.row]}
+            fixedColCount={fixedColCount}
+            toggleMit={toggleMit}
+            setEditingRow={setEditingRow}
+            removeCustomAction={removeCustomAction}
+            toggleHideRow={toggleHideRow}
+            insertAfterRow={insertAfterRow}
+            setActionNote={setActionNote}
+          />
         );
       })}
     </tbody>
@@ -288,9 +372,10 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
   const hiddenSet = hiddenRows[phaseIdx] ?? EMPTY_HIDDEN;
   const hiddenCount = hiddenSet.size;
 
-  // Init on mount
+  // Init on mount and on phase change
   React.useEffect(() => {
     initPhase(phaseIdx, phase);
+    setEditingRow(null);
   }, [phaseIdx, phase]);
 
   // Build a nameJP → nameEN lookup for level-requirement checks
