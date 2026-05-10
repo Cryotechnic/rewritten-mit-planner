@@ -564,11 +564,11 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
                     // Custom rows have no mitStates — single-target skills are unavailable by default
                     const isSingleTarget = sc.assign === 'SINGLE_PARTY' || sc.assign === 'SINGLE_ENEMY';
                     const effectivelyUnavailable =
-                      rawState === '-' || rawState === false ||
+                      rawState === '-' ||
                       (customRowIds.has(action.row) && rawState === undefined && isSingleTarget);
                     const isChecked = checked[sc.col] ?? false;
 
-                    if (effectivelyUnavailable && (rawState === '-' || (customRowIds.has(action.row) && isSingleTarget))) {
+                    if (effectivelyUnavailable) {
                       return (
                         <td key={sc.col} className={`skill-cell unavailable ${colBoundaryClass(sc.col)}`}>
                           <span className="unavail-mark">—</span>
@@ -577,7 +577,7 @@ export default function MitigationGrid({ phaseIdx, phase, skills }: Props) {
                     }
 
                     const coverage = getCoverage(sc.col, action.row);
-                    const cellBlocked = isRowHidden || coverage != null;
+                    const cellBlocked = isRowHidden;
 
                     return (
                       <td
