@@ -4,7 +4,7 @@ import EncounterDialog from './EncounterDialog';
 import { generateShareId, pushPlan } from '../lib/planSync';
 
 export default function PlanTabBar() {
-  const { plans, activePlanId, setActivePlan, addPlan, removePlan, renamePlan, shareId, clientId, setShareId } = useStore();
+  const { plans, activePlanId, setActivePlan, addPlan, removePlan, renamePlan, shareId, clientId, setShareId, maxHP, tankHP, encounterLevel } = useStore();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [showDialog, setShowDialog] = useState(false);
@@ -34,7 +34,7 @@ export default function PlanTabBar() {
 
   const handleShare = async () => {
     const id = generateShareId();
-    await pushPlan(id, plans, activePlanId, clientId);
+    await pushPlan(id, plans, activePlanId, clientId, { maxHP, tankHP, encounterLevel });
     setShareId(id);
   };
 
@@ -45,7 +45,7 @@ export default function PlanTabBar() {
 
   const handleRegen = async () => {
     const id = generateShareId();
-    await pushPlan(id, plans, activePlanId, clientId);
+    await pushPlan(id, plans, activePlanId, clientId, { maxHP, tankHP, encounterLevel });
     setShareId(id);
     setShowRegenConfirm(false);
   };

@@ -72,7 +72,7 @@ interface PlannerState {
   renameCustomPhase: (phaseIdx: number, name: string, dataPhaseCount: number) => void;
   initPhase: (phaseIdx: number, phase: Phase) => void;
   setShareId: (id: string | null) => void;
-  applyRemotePlan: (plans: Record<string, PlanData>, activePlanId: string) => void;
+  applyRemotePlan: (plans: Record<string, PlanData>, activePlanId: string, settings?: { maxHP?: number; tankHP?: number; encounterLevel?: number }) => void;
 }
 
 function patchActive(s: PlannerState, fn: (p: PlanData) => Partial<PlanData>): Partial<PlannerState> {
@@ -279,7 +279,13 @@ export const useStore = create<PlannerState>()(
 
       setShareId: (id) => set({ shareId: id }),
 
-      applyRemotePlan: (plans, activePlanId) => set({ plans, activePlanId }),
+      applyRemotePlan: (plans, activePlanId, settings) => set({
+        plans,
+        activePlanId,
+        ...(settings?.maxHP !== undefined && { maxHP: settings.maxHP }),
+        ...(settings?.tankHP !== undefined && { tankHP: settings.tankHP }),
+        ...(settings?.encounterLevel !== undefined && { encounterLevel: settings.encounterLevel }),
+      }),
 
       initPhase: (phaseIdx, phase) => {
         // Check before calling set() — returning {} from set() still triggers a re-render

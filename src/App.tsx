@@ -31,7 +31,7 @@ const allSkillCols = (() => {
 type Tab = "planner" | "skills";
 
 export default function App() {
-  const { plans, activePlanId, renamePlan, addCustomPhase, shareId, clientId, setShareId, applyRemotePlan } = useStore();
+  const { plans, activePlanId, renamePlan, addCustomPhase, shareId, clientId, setShareId, applyRemotePlan, maxHP, tankHP, encounterLevel } = useStore();
   const [tab, setTab] = useState<Tab>("planner");
   const [showAddPhase, setShowAddPhase] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
@@ -55,8 +55,8 @@ export default function App() {
     } else if (!shareId) {
       const id = generateShareId();
       setShareId(id);
-      const { plans: p, activePlanId: aid } = useStore.getState();
-      pushPlan(id, p, aid, clientId).catch((err) => {
+      const { plans: p, activePlanId: aid, maxHP: mhp, tankHP: thp, encounterLevel: el } = useStore.getState();
+      pushPlan(id, p, aid, clientId, { maxHP: mhp, tankHP: thp, encounterLevel: el }).catch((err) => {
         console.error('Failed to create session:', err);
         setShareError('Could not create a sync session. Check your Firebase config or Firestore rules.');
       });
@@ -67,10 +67,10 @@ export default function App() {
   useEffect(() => {
     if (unsubRef.current) { unsubRef.current(); unsubRef.current = null; }
     if (!shareId) return;
-    unsubRef.current = subscribePlan(shareId, clientId, (remotePlans, remoteActivePlanId) => {
+    unsubRef.current = subscribePlan(shareId, clientId, (remotePlans, remoteActivePlanId, remoteSettings) => {
       awaitingFirstSyncRef.current = false;
       skipNextPushRef.current = true;
-      applyRemotePlan(remotePlans as Record<string, PlanData>, remoteActivePlanId);
+      applyRemotePlan(remotePlans as Record<string, PlanData>, remoteActivePlanId, remoteSettings);
     });
     return () => { unsubRef.current?.(); unsubRef.current = null; };
   }, [shareId, clientId]);
@@ -87,10 +87,10 @@ export default function App() {
     }
     if (pushTimerRef.current) clearTimeout(pushTimerRef.current);
     pushTimerRef.current = setTimeout(() => {
-      pushPlan(shareId, plans, activePlanId, clientId).catch(console.error);
+      pushPlan(shareId, plans, activePlanId, clientId, { maxHP, tankHP, encounterLevel }).catch(console.error);
     }, 600);
     return () => { if (pushTimerRef.current) clearTimeout(pushTimerRef.current); };
-  }, [shareId, clientId, activePlanForSync, plans, activePlanId]);
+  }, [shareId, clientId, activePlanForSync, plans, activePlanId, maxHP, tankHP, encounterLevel]);
 
   const activePhaseIdx = plans[activePlanId].activePhaseIdx;
   const activePlan = plans[activePlanId];

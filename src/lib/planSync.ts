@@ -39,13 +39,20 @@ export function generateShareId(): string {
   return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
 }
 
+export interface GlobalSettings {
+  maxHP: number;
+  tankHP: number;
+  encounterLevel: number;
+}
+
 export async function pushPlan(
   shareId: string,
   plans: object,
   activePlanId: string,
   clientId: string,
+  settings: GlobalSettings,
 ): Promise<void> {
-  const json = JSON.stringify({ plans, activePlanId }, replacer);
+  const json = JSON.stringify({ plans, activePlanId, settings }, replacer);
   await setDoc(doc(db, COLLECTION, shareId), {
     json,
     clientId,
@@ -56,7 +63,7 @@ export async function pushPlan(
 export function subscribePlan(
   shareId: string,
   clientId: string,
-  onUpdate: (plans: unknown, activePlanId: string) => void,
+  onUpdate: (plans: unknown, activePlanId: string, settings: GlobalSettings | undefined) => void,
 ): Unsubscribe {
   return onSnapshot(doc(db, COLLECTION, shareId), (snap) => {
     if (!snap.exists()) return;
@@ -64,7 +71,7 @@ export function subscribePlan(
     if (data.clientId === clientId) return;
     try {
       const parsed = JSON.parse(data.json, reviver);
-      onUpdate(parsed.plans, parsed.activePlanId);
+      onUpdate(parsed.plans, parsed.activePlanId, parsed.settings);
     } catch {
       // Malformed doc — ignore
     }
