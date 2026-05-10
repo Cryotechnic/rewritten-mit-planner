@@ -144,7 +144,6 @@ const MitigationTableBody = React.memo(function MitigationTableBody({
         const isRowHidden = hiddenSet.has(action.row);
         if (isRowHidden && !showHidden) return null;
 
-        const isOverridden = !!actionOverridesForPhase[action.row];
         const checked: Record<string, boolean> = mitGridForPhase[action.row] ?? {};
         const damageType = (action.type ?? 'Magic') as 'Magic' | 'Physical' | 'Unique';
         const mit = computeMitigation(action, allVisibleCols, checked, damageType === 'Physical' ? 'Physical' : 'Magic');
