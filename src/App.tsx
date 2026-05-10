@@ -10,6 +10,7 @@ import EncounterDialog from "./components/EncounterDialog";
 import Oobe from "./components/Oobe";
 import SkillDatabase from "./components/SkillDatabase";
 import MitigationGrid from "./components/MitigationGrid";
+import PasscodeGate from "./components/PasscodeGate";
 import { useStore } from "./store";
 import { pushPlan, subscribePlan, generateShareId } from "./lib/planSync";
 import type { Unsubscribe } from "firebase/firestore";
@@ -111,10 +112,15 @@ export default function App() {
   const activePhase = !hiddenPhases.has(activePhaseIdx) ? allPhases[activePhaseIdx] : undefined;
 
   if (!activePlan.name) {
-    return <Oobe onConfirm={(encounterName) => renamePlan(activePlanId, encounterName)} />;
+    return (
+      <PasscodeGate>
+        <Oobe onConfirm={(encounterName) => renamePlan(activePlanId, encounterName)} />
+      </PasscodeGate>
+    );
   }
 
   return (
+    <PasscodeGate>
     <div className="app">
       <Header data={data} allPhases={allPhases} onAddPhase={() => setShowAddPhase(true)} />
       <PlanTabBar />
@@ -175,5 +181,6 @@ export default function App() {
         </div>
       )}
     </div>
+    </PasscodeGate>
   );
 }
