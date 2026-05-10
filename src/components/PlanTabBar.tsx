@@ -50,8 +50,6 @@ export default function PlanTabBar() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleStop = () => setShareId(null);
-
   return (
     <div className="plan-tab-bar">
       {Object.values(plans).map((plan) => (
@@ -105,7 +103,7 @@ export default function PlanTabBar() {
             <button className="sync-btn" onClick={handleCopy} title="Copy join link">
               {copied ? '✓ Copied' : 'Copy link'}
             </button>
-            <button className="sync-btn sync-btn-stop" onClick={handleStop} title="Stop syncing">Stop</button>
+
           </>
         ) : showJoinInput ? (
           <>

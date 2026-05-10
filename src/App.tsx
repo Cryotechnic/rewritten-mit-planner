@@ -10,7 +10,7 @@ import Oobe from "./components/Oobe";
 import SkillDatabase from "./components/SkillDatabase";
 import MitigationGrid from "./components/MitigationGrid";
 import { useStore } from "./store";
-import { pushPlan, subscribePlan } from "./lib/planSync";
+import { pushPlan, subscribePlan, generateShareId } from "./lib/planSync";
 import type { Unsubscribe } from "firebase/firestore";
 import "./App.css";
 
@@ -41,7 +41,7 @@ export default function App() {
   // Suppress initial push when joining (so we don't overwrite the sharer's data)
   const awaitingFirstSyncRef = useRef(false);
 
-  // On mount: check URL for ?join=XXXXXX
+  // On mount: check URL for ?join=XXXXXX, or auto-share if not already sharing
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const joinId = params.get('join');
@@ -51,6 +51,11 @@ export default function App() {
       const url = new URL(window.location.href);
       url.searchParams.delete('join');
       window.history.replaceState({}, '', url.toString());
+    } else if (!shareId) {
+      const id = generateShareId();
+      setShareId(id);
+      const { plans: p, activePlanId: aid } = useStore.getState();
+      pushPlan(id, p, aid, clientId).catch(console.error);
     }
   }, []);
 
