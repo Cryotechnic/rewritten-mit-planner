@@ -36,6 +36,8 @@ export default function App() {
   const [showAddPhase, setShowAddPhase] = useState(false);
   const unsubRef = useRef<Unsubscribe | null>(null);
   const pushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Set to true after applying a remote update — prevents echoing it back to Firestore
+  const skipNextPushRef = useRef(false);
 
   // On mount: check URL for ?join=XXXXXX
   useEffect(() => {
@@ -55,15 +57,21 @@ export default function App() {
     if (unsubRef.current) { unsubRef.current(); unsubRef.current = null; }
     if (!shareId) return;
     unsubRef.current = subscribePlan(shareId, clientId, (planData) => {
+      skipNextPushRef.current = true;
       applyRemotePlan(planData as PlanData);
     });
     return () => { unsubRef.current?.(); unsubRef.current = null; };
   }, [shareId, clientId]);
 
-  // Push local plan changes to Firestore (debounced 600ms)
+  // Push local plan changes to Firestore (debounced 600ms).
+  // Skipped when the change came from a remote update to prevent echo loops.
   const activePlanForSync = plans[activePlanId];
   useEffect(() => {
     if (!shareId) return;
+    if (skipNextPushRef.current) {
+      skipNextPushRef.current = false;
+      return;
+    }
     if (pushTimerRef.current) clearTimeout(pushTimerRef.current);
     pushTimerRef.current = setTimeout(() => {
       pushPlan(shareId, activePlanForSync, clientId).catch(console.error);
