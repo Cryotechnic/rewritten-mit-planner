@@ -44,6 +44,7 @@ export interface PipSkill {
 export interface PipAction {
   actionName: string;
   timeSec: number | null;
+  duration: number | null;
   skills: PipSkill[];
 }
 
@@ -113,11 +114,14 @@ function pipBuildPhases(
       .sort((a, b) => (a.timeSec ?? Infinity) - (b.timeSec ?? Infinity));
 
     const actions: PipAction[] = merged.flatMap((action) => {
-      const checkedSkills = jobCols
-        .filter((sc) => mitGrid[pi]?.[action.row]?.[sc.col] === true)
-        .map((sc) => pipGetSkill(sc.skill, skills, language));
-      if (checkedSkills.length === 0) return [];
-      return [{ actionName: action.name ?? '(unnamed)', timeSec: action.timeSec, skills: checkedSkills }];
+      const checkedCols = jobCols.filter((sc) => mitGrid[pi]?.[action.row]?.[sc.col] === true);
+      if (checkedCols.length === 0) return [];
+      const checkedSkills = checkedCols.map((sc) => pipGetSkill(sc.skill, skills, language));
+      const maxDuration = checkedCols.reduce<number | null>((max, sc) => {
+        if (sc.effectTime == null) return max;
+        return max === null ? sc.effectTime : Math.max(max, sc.effectTime);
+      }, null);
+      return [{ actionName: action.name ?? '(unnamed)', timeSec: action.timeSec, duration: maxDuration, skills: checkedSkills }];
     });
 
     return { phaseName: phase.name, actions };
@@ -164,6 +168,8 @@ export function PipContent({ jobJP, jobName, allPhases, skills }: PipContentProp
   }
   function handleReset() { setRunStart(null); setBaseElapsed(0); setNow(Date.now()); }
 
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+
   const allFlat = phases.flatMap((p, pi) =>
     p.actions.map((a, ai) => ({ ...a, key: `${pi}-${ai}` }))
   );
@@ -182,6 +188,18 @@ export function PipContent({ jobJP, jobName, allPhases, skills }: PipContentProp
     if (!started || t > elapsed) { nextKey = a.key; break; }
   }
 
+  // Auto-scroll to keep the next action centered whenever it changes
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container || !nextKey) return;
+    const el = container.querySelector<HTMLElement>(`[data-key="${nextKey}"]`);
+    if (!el) return;
+    const elTop = el.offsetTop;
+    const elHeight = el.offsetHeight;
+    const target = elTop - container.clientHeight / 2 + elHeight / 2;
+    container.scrollTo({ top: target, behavior: 'smooth' });
+  }, [nextKey]);
+
   return (
     <div style={{ fontFamily: 'system-ui, sans-serif', background: '#0f1117', color: '#e2e8f0', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <div style={{ background: '#181c2e', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #2d3154', flexShrink: 0 }}>
@@ -193,7 +211,7 @@ export function PipContent({ jobJP, jobName, allPhases, skills }: PipContentProp
           {pipFormatElapsed(elapsed)}
         </span>
       </div>
-      <div style={{ flex: 1, overflowY: 'auto' }}>
+      <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto' }}>
         {phases.map((phase, pi) => (
           <React.Fragment key={pi}>
             <div style={{ padding: '4px 14px', fontSize: '10px', fontWeight: 700, color: '#475569', letterSpacing: '0.08em', textTransform: 'uppercase', background: '#0d1020', borderTop: pi > 0 ? '1px solid #1e2235' : 'none', borderBottom: '1px solid #1e2235', position: 'sticky', top: 0 }}>
@@ -206,17 +224,28 @@ export function PipContent({ jobJP, jobName, allPhases, skills }: PipContentProp
               const key = `${pi}-${ai}`;
               const isCurrent = key === currentKey;
               const isNext = key === nextKey;
-              const isPast = started && action.timeSec !== null && action.timeSec <= elapsed && !isCurrent;
+              const sinceAction = isCurrent && action.timeSec !== null ? elapsed - action.timeSec : Infinity;
+              const isNow = isCurrent && sinceAction < (action.duration ?? 3);
+              const isPast = started && action.timeSec !== null && action.timeSec <= elapsed && !isNow;
               const countdown = started && action.timeSec !== null ? action.timeSec - elapsed : null;
               const countdownColor = countdown === null ? '#64748b'
                 : countdown <= 5 ? '#f87171' : countdown <= 15 ? '#fbbf24' : '#86efac';
               return (
-                <div key={ai} style={{ padding: '6px 14px 5px', background: isCurrent ? 'rgba(124,159,255,0.12)' : isNext ? 'rgba(134,239,172,0.06)' : 'transparent', borderLeft: isCurrent ? '3px solid #7c9fff' : isNext ? '3px solid #86efac' : '3px solid transparent', opacity: isPast ? 0.3 : 1, transition: 'opacity 0.3s, background 0.2s' }}>
+                <div key={ai} data-key={`${pi}-${ai}`} style={{ padding: '6px 14px 5px', background: isNow ? 'rgba(124,159,255,0.12)' : isNext ? 'rgba(134,239,172,0.06)' : 'transparent', borderLeft: isNow ? '3px solid #7c9fff' : isNext ? '3px solid #86efac' : '3px solid transparent', opacity: isPast ? 0.3 : 1, transition: 'opacity 0.3s, background 0.2s' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px' }}>
-                    <span style={{ fontSize: '13px', fontWeight: isCurrent || isNext ? 600 : 400, color: isCurrent ? '#e2e8f0' : isNext ? '#cbd5e1' : '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: '13px', fontWeight: isNow || isNext ? 600 : 400, color: isNow ? '#e2e8f0' : isNext ? '#cbd5e1' : '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {action.actionName}
                     </span>
-                    {countdown !== null && !isPast && (
+                    {isNow && (
+                      <span style={{ fontSize: '12px', fontFamily: 'monospace', color: '#f87171', whiteSpace: 'nowrap', fontWeight: 700, flexShrink: 0 }}>
+                        NOW{action.duration !== null && (
+                          <span style={{ fontWeight: 400, color: '#475569', marginLeft: '4px' }}>
+                            ({(action.duration - sinceAction).toFixed(1)}s)
+                          </span>
+                        )}
+                      </span>
+                    )}
+                    {!isNow && countdown !== null && !isPast && (
                       <span style={{ fontSize: '12px', fontFamily: 'monospace', color: countdownColor, whiteSpace: 'nowrap', fontWeight: 700, flexShrink: 0 }}>
                         {pipFormatCountdown(countdown)}
                       </span>
