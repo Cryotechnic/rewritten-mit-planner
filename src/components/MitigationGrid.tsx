@@ -71,6 +71,8 @@ const EMPTY_HIDDEN = new Set<number>();
 const EMPTY_ACTIONS: Action[] = [];
 const EMPTY_JOB_NOTES: Record<string, string> = {};
 const EMPTY_JOB_NOTES_PHASE: Record<number, Record<string, string>> = {};
+// eslint-disable-next-line @typescript-eslint/no-empty-function
+const noop = (..._args: unknown[]) => {};
 
 // ─── Memoized table body ──────────────────────────────────────────────────────
 // Kept outside MitigationGrid so that local modal-state changes in the parent
@@ -101,6 +103,7 @@ interface TableBodyProps {
   jobNotesForPhase: Record<number, Record<string, string>>;
   visibleJobs: string[];
   setJobNote: (phaseIdx: number, row: number, jobJP: string, note: string) => void;
+  viewerMode: boolean;
 }
 
 function JobNoteRow({ jobJP, note, phaseIdx, row, setJobNote }: {
@@ -255,6 +258,7 @@ interface ActionRowProps {
   jobNotesForRow: Record<string, string>;
   visibleJobs: string[];
   setJobNote: (phaseIdx: number, row: number, jobJP: string, note: string) => void;
+  viewerMode: boolean;
 }
 
 function actionRowPropsEqual(prev: ActionRowProps, next: ActionRowProps): boolean {
@@ -273,6 +277,7 @@ function actionRowPropsEqual(prev: ActionRowProps, next: ActionRowProps): boolea
   if (prev.fixedColCount !== next.fixedColCount) return false;
   if (prev.jobNotesForRow !== next.jobNotesForRow) return false;
   if (prev.visibleJobs !== next.visibleJobs) return false;
+  if (prev.viewerMode !== next.viewerMode) return false;
   // Only check coverage entries relevant to this specific row
   if (prev.cellCoverage !== next.cellCoverage) {
     const row = next.action.row;
@@ -289,7 +294,7 @@ const ActionRow = React.memo(function ActionRow({
   isRowHidden, allVisibleCols, roleStartCols, jobStartCols,
   maxHP, tankHP, showNotes, note, tag, fixedColCount,
   toggleMit, setEditingRow, removeCustomAction, toggleHideRow, insertAfterRow, setActionNote,
-  jobNotesForRow, visibleJobs, setJobNote,
+  jobNotesForRow, visibleJobs, setJobNote, viewerMode,
 }: ActionRowProps) {
   const colBoundaryClass = (colId: string) =>
     roleStartCols.has(colId) ? 'role-boundary' : jobStartCols.has(colId) ? 'job-boundary' : '';
@@ -318,8 +323,8 @@ const ActionRow = React.memo(function ActionRow({
             </span>
           )}
           <span className="action-name">{action.name}</span>
-          <button className="edit-action-btn" onClick={() => setEditingRow(action.row)} title="Edit action">✎</button>
-          {isCustom ? (
+          {!viewerMode && <button className="edit-action-btn" onClick={() => setEditingRow(action.row)} title="Edit action">✎</button>}
+          {!viewerMode && (isCustom ? (
             <button
               className="hide-row-btn hide-row-btn-on"
               onClick={(e) => { e.stopPropagation(); removeCustomAction(phaseIdx, action.row); }}
@@ -346,7 +351,7 @@ const ActionRow = React.memo(function ActionRow({
                   <circle cx="12" cy="12" r="3"/>
                 </svg>
               )}</button>
-          )}
+          ))}
         </td>
         <td className="sticky-col type-cell editable-cell" onDoubleClick={() => setEditingRow(action.row)}>
           {action.type && DAMAGE_TYPE_ICONS[action.type] ? (
@@ -417,11 +422,13 @@ const ActionRow = React.memo(function ActionRow({
           );
         })}
       </tr>
-      <tr className="insert-action-row" onClick={() => insertAfterRow(action, allVisibleCols)}>
-        <td colSpan={fixedColCount + allVisibleCols.length}>
-          <span className="insert-action-btn">+</span>
-        </td>
-      </tr>
+      {!viewerMode && (
+        <tr className="insert-action-row" onClick={() => insertAfterRow(action, allVisibleCols)}>
+          <td colSpan={fixedColCount + allVisibleCols.length}>
+            <span className="insert-action-btn">+</span>
+          </td>
+        </tr>
+      )}
     </>
   );
 }, actionRowPropsEqual);
@@ -430,17 +437,19 @@ const MitigationTableBody = React.memo(function MitigationTableBody({
   mergedActions, customRowIds, allVisibleCols, mitGridForPhase, cellCoverage,
   hiddenSet, showHidden, phaseIdx, maxHP, tankHP,
   roleStartCols, jobStartCols, toggleMit, setEditingRow, removeCustomAction, toggleHideRow, insertAfterRow,
-  showNotes, actionNotes, setActionNote, rowTagsForPhase, jobNotesForPhase, visibleJobs, setJobNote,
+  showNotes, actionNotes, setActionNote, rowTagsForPhase, jobNotesForPhase, visibleJobs, setJobNote, viewerMode,
 }: TableBodyProps) {
   const fixedColCount = 7 + (showNotes ? 1 : 0);
 
   return (
     <tbody>
-      <tr className="insert-action-row" onClick={() => insertAfterRow(null, allVisibleCols)}>
-        <td colSpan={fixedColCount + allVisibleCols.length}>
-          <span className="insert-action-btn">+</span>
-        </td>
-      </tr>
+      {!viewerMode && (
+        <tr className="insert-action-row" onClick={() => insertAfterRow(null, allVisibleCols)}>
+          <td colSpan={fixedColCount + allVisibleCols.length}>
+            <span className="insert-action-btn">+</span>
+          </td>
+        </tr>
+      )}
       {mergedActions.map((action) => {
         const isRowHidden = hiddenSet.has(action.row);
         if (isRowHidden && !showHidden) return null;
@@ -471,6 +480,7 @@ const MitigationTableBody = React.memo(function MitigationTableBody({
             jobNotesForRow={jobNotesForPhase[action.row] ?? EMPTY_JOB_NOTES}
             visibleJobs={visibleJobs}
             setJobNote={setJobNote}
+            viewerMode={viewerMode}
           />
         );
       })}
@@ -479,7 +489,7 @@ const MitigationTableBody = React.memo(function MitigationTableBody({
 });
 
 export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onOpenPip }: Props) {
-  const { language, toggleMit, initPhase, showJobs, setShowJobs, maxHP, tankHP, toggleHideRow, clearHiddenRows, encounterLevel, addCustomAction, removeCustomAction, clearPhase, clearPlan, clearAllPlans, clearPlanActions, restoreBaseActions, setActionNote, setJobNote } = useStore();
+  const { language, toggleMit, initPhase, showJobs, setShowJobs, maxHP, tankHP, toggleHideRow, clearHiddenRows, encounterLevel, addCustomAction, removeCustomAction, clearPhase, clearPlan, clearAllPlans, clearPlanActions, restoreBaseActions, setActionNote, setJobNote, viewerMode, toggleViewerMode } = useStore();
   const { mitGrid, actionOverrides, hiddenRows, customActions, name: planName, baseActionsCleared, actionNotes, rowTags, jobNotes: jobNotesRaw } = useStore((s) => s.plans[s.activePlanId]);
   const jobNotes = jobNotesRaw ?? {};
 
@@ -871,25 +881,31 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
       </div>
 
       <div className="mit-toolbar">
-        <button className="add-action-btn" onClick={handleAddAction} title={t('btnAddAction', language)}>
-          {t('btnAddAction', language)}
-        </button>
-        <button
-          className="add-action-btn"
-          style={{ color: '#a78bfa', borderColor: '#4c1d95' }}
-          onClick={() => setShowMacroModal(true)}
-          title="Export macros"
-        >
-          Export macros
-        </button>
-        <button
-          className="add-action-btn"
-          style={{ color: '#fbbf24', borderColor: '#713f12' }}
-          onClick={() => setShowFFlogsModal(true)}
-          title="Import from FFLogs"
-        >
-          FFLogs
-        </button>
+        {!viewerMode && (
+          <button className="add-action-btn" onClick={handleAddAction} title={t('btnAddAction', language)}>
+            {t('btnAddAction', language)}
+          </button>
+        )}
+        {!viewerMode && (
+          <button
+            className="add-action-btn"
+            style={{ color: '#a78bfa', borderColor: '#4c1d95' }}
+            onClick={() => setShowMacroModal(true)}
+            title="Export macros"
+          >
+            Export macros
+          </button>
+        )}
+        {!viewerMode && (
+          <button
+            className="add-action-btn"
+            style={{ color: '#fbbf24', borderColor: '#713f12' }}
+            onClick={() => setShowFFlogsModal(true)}
+            title="Import from FFLogs"
+          >
+            FFLogs
+          </button>
+        )}
         <button
           className="add-action-btn"
           style={{ color: '#67e8f9', borderColor: '#164e63' }}
@@ -899,7 +915,7 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
           Cheat Sheet
         </button>
 
-        {baseActionsCleared && (
+        {!viewerMode && baseActionsCleared && (
           <button
             className="add-action-btn"
             style={{ color: '#86efac', borderColor: '#14532d' }}
@@ -909,8 +925,21 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
             Restore encounter data
           </button>
         )}
-        <button className="add-action-btn" style={{ color: '#f87171', borderColor: '#7f1d1d' }} onClick={() => setShowClearModal(true)} title={t('btnClear', language)}>
-          {t('btnClear', language)}
+        {!viewerMode && (
+          <button className="add-action-btn" style={{ color: '#f87171', borderColor: '#7f1d1d' }} onClick={() => setShowClearModal(true)} title={t('btnClear', language)}>
+            {t('btnClear', language)}
+          </button>
+        )}
+        <span style={{ flex: 1 }} />
+        <button
+          className={`add-action-btn${viewerMode ? ' viewer-mode-active' : ''}`}
+          style={viewerMode
+            ? { color: '#fbbf24', borderColor: '#92400e', background: 'rgba(251,191,36,0.1)' }
+            : { color: 'var(--text-muted)', borderColor: 'var(--border)' }}
+          onClick={toggleViewerMode}
+          title={viewerMode ? 'Exit viewer mode' : 'Enter viewer mode (notes only)'}
+        >
+          {viewerMode ? '👁 Viewer' : '👁'}
         </button>
       </div>
 
@@ -1094,11 +1123,11 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
             tankHP={tankHP}
             roleStartCols={roleStartCols}
             jobStartCols={jobStartCols}
-            toggleMit={toggleMit}
-            setEditingRow={setEditingRow}
-            removeCustomAction={removeCustomAction}
-            toggleHideRow={toggleHideRow}
-            insertAfterRow={handleInsertAfterRow}
+            toggleMit={viewerMode ? noop : toggleMit}
+            setEditingRow={viewerMode ? noop : setEditingRow}
+            removeCustomAction={viewerMode ? noop : removeCustomAction}
+            toggleHideRow={viewerMode ? noop : toggleHideRow}
+            insertAfterRow={viewerMode ? noop : handleInsertAfterRow}
             showNotes={showNotes}
             actionNotes={(actionNotes ?? {})[phaseIdx] ?? {}}
             setActionNote={setActionNote}
@@ -1106,6 +1135,7 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
             jobNotesForPhase={jobNotes[phaseIdx] ?? EMPTY_JOB_NOTES_PHASE}
             visibleJobs={visibleJobs}
             setJobNote={setJobNote}
+            viewerMode={viewerMode}
           />
         </table>
       </div>

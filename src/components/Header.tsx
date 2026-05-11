@@ -13,7 +13,7 @@ const LANGS = ['JP', 'EN', 'DE', 'FR', 'KO', 'CN'] as const;
 const ENCOUNTER_LEVELS = [50, 60, 70, 80, 90, 100] as const;
 
 export default function Header({ data, allPhases, onAddPhase }: Props) {
-  const { setActivePhase, language, setLanguage, maxHP, tankHP, setMaxHP, setTankHP, encounterLevel, setEncounterLevel, plans, activePlanId, toggleHidePhase, removeCustomPhase } = useStore();
+  const { setActivePhase, language, setLanguage, maxHP, tankHP, setMaxHP, setTankHP, encounterLevel, setEncounterLevel, plans, activePlanId, toggleHidePhase, removeCustomPhase, viewerMode } = useStore();
   const activePlan = plans[activePlanId];
   const activePhaseIdx = activePlan.activePhaseIdx;
   const hiddenPhases = activePlan.hiddenPhases ?? new Set<number>();
@@ -118,6 +118,7 @@ export default function Header({ data, allPhases, onAddPhase }: Props) {
             value={maxHP}
             onChange={(e) => setMaxHP(Number(e.target.value))}
             step={1000}
+            disabled={viewerMode}
           />
         </div>
         <div className="control-group">
@@ -128,6 +129,7 @@ export default function Header({ data, allPhases, onAddPhase }: Props) {
             value={tankHP}
             onChange={(e) => setTankHP(Number(e.target.value))}
             step={1000}
+            disabled={viewerMode}
           />
         </div>
         <div className="control-group">
@@ -138,6 +140,7 @@ export default function Header({ data, allPhases, onAddPhase }: Props) {
                 key={lv}
                 className={`lang-btn ${encounterLevel === lv ? 'active' : ''}`}
                 onClick={() => setEncounterLevel(lv)}
+                disabled={viewerMode}
               >
                 {lv}
               </button>

@@ -787,6 +787,11 @@ body {
   border-bottom: 1px solid var(--border);
 }
 
+/* Viewer mode: amber left border on toolbar to signal read-only state */
+.mit-toolbar:has(.viewer-mode-active) {
+  border-left: 3px solid #92400e;
+}
+
 .add-action-btn {
   padding: 3px 10px;
   border-radius: var(--radius);

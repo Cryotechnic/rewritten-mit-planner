@@ -53,6 +53,7 @@ interface PlannerState {
   // Sync state (not persisted)
   shareId: string | null;
   clientId: string;
+  viewerMode: boolean;
 
   setActivePhase: (idx: number) => void;
   setLanguage: (lang: Language) => void;
@@ -89,6 +90,7 @@ interface PlannerState {
   setJobNote: (phaseIdx: number, row: number, jobJP: string, note: string) => void;
   setRowTag: (phaseIdx: number, row: number, tag: 'tank' | 'heal' | 'dps' | 'note' | null) => void;
   setShareId: (id: string | null) => void;
+  toggleViewerMode: () => void;
   applyRemotePlan: (plans: Record<string, PlanData>, activePlanId: string, settings?: { maxHP?: number; tankHP?: number; encounterLevel?: number }) => void;
 }
 
@@ -138,6 +140,7 @@ export const useStore = create<PlannerState>()(
       activePlanId: INIT_ID,
       shareId: null,
       clientId: Math.random().toString(36).slice(2),
+      viewerMode: false,
 
       setActivePhase: (idx) => set((s) => patchActive(s, () => ({ activePhaseIdx: idx }))),
 
@@ -358,6 +361,7 @@ export const useStore = create<PlannerState>()(
       })),
 
       setShareId: (id) => set({ shareId: id }),
+      toggleViewerMode: () => set((s) => ({ viewerMode: !s.viewerMode })),
 
       applyRemotePlan: (plans, activePlanId, settings) => set({
         plans,
