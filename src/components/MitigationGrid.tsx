@@ -233,6 +233,13 @@ function NoteCell({ phaseIdx, row, note, setActionNote, jobNotesForRow, visibleJ
 
 const EMPTY_CHECKED: Record<string, boolean> = {};
 
+// Skills listed here are always checkable even if mitStates has "-" in the data.
+// Add Japanese skill names to enable them globally across all actions/phases.
+const FORCE_CHECKABLE_SKILLS = new Set<string>([
+  'ブラックナイト',  // The Blackest Night
+  'オブレーション',  // Oblation
+]);
+
 interface ActionRowProps {
   action: Action;
   phaseIdx: number;
@@ -387,13 +394,9 @@ const ActionRow = React.memo(function ActionRow({
         </td>
         {allVisibleCols.map((sc) => {
           const rawState = action.mitStates[sc.col];
-          const isSingleTarget = sc.assign === 'SINGLE_PARTY';
-          const effectivelyUnavailable =
-            rawState === '-' ||
-            (isCustom && rawState === undefined && isSingleTarget);
           const isChecked = checked[sc.col] ?? false;
 
-          if (effectivelyUnavailable) {
+          if (rawState === '-' && !FORCE_CHECKABLE_SKILLS.has(sc.skill)) {
             return (
               <td key={sc.col} className={`skill-cell unavailable ${colBoundaryClass(sc.col)}`}>
                 <span className="unavail-mark">—</span>
@@ -414,7 +417,7 @@ const ActionRow = React.memo(function ActionRow({
                 coverage === 'effect' ? 'Buff active' : undefined
               }
               onClick={() => {
-                if (!effectivelyUnavailable && !cellBlocked) toggleMit(phaseIdx, action.row, sc.col);
+                if (!cellBlocked) toggleMit(phaseIdx, action.row, sc.col);
               }}
             >
               <input type="checkbox" checked={isChecked} readOnly tabIndex={-1} />
@@ -757,8 +760,8 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
         if (T == null) continue;
         // Source rows handle their own display
         if (mitGrid[phaseIdx]?.[target.row]?.[sc.col] === true) continue;
-        // Already marked '-' in the spreadsheet — don't override
-        if (target.mitStates[sc.col] === '-') continue;
+        // Already marked '-' in the spreadsheet — don't override (unless force-checkable)
+        if (target.mitStates[sc.col] === '-' && !FORCE_CHECKABLE_SKILLS.has(sc.skill)) continue;
 
         // Is this row within any source's effect window?
         const inEffect =
