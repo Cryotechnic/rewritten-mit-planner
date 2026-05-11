@@ -126,6 +126,8 @@ export function PipContent({ jobJP, jobName, allPhases, skills }: PipContentProp
   const baseActionsCleared = plan?.baseActionsCleared ?? false;
   const actionNotesRaw = useStore((s) => s.plans[s.activePlanId]?.actionNotes);
   const actionNotes = actionNotesRaw ?? {};
+  const jobNotesRaw = useStore((s) => s.plans[s.activePlanId]?.jobNotes);
+  const jobNotes = jobNotesRaw ?? {};
   const language = useStore((s) => s.language);
 
   const jobIconUrl = JOB_ICON_URL[jobName] ?? null;
@@ -257,6 +259,11 @@ export function PipContent({ jobJP, jobName, allPhases, skills }: PipContentProp
                   {showNotes && (() => { const liveNote = actionNotes[action.phaseIdx]?.[action.row] ?? ''; return liveNote ? (
                     <div style={{ fontSize: '11px', color: '#fbbf24', marginTop: '3px', fontStyle: 'italic', lineHeight: 1.4, borderLeft: '2px solid #92400e', paddingLeft: '6px' }}>
                       {liveNote}
+                    </div>
+                  ) : null; })()}
+                  {showNotes && (() => { const jobNote = jobNotes[action.phaseIdx]?.[action.row]?.[jobJP] ?? ''; return jobNote ? (
+                    <div style={{ fontSize: '11px', color: '#67e8f9', marginTop: '3px', fontStyle: 'italic', lineHeight: 1.4, borderLeft: '2px solid #164e63', paddingLeft: '6px' }}>
+                      {jobNote}
                     </div>
                   ) : null; })()}
                 </div>

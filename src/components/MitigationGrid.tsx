@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { useStore, JOB_DISPLAY_NAMES } from '../store';
 import type { Phase, Skill, Language, Action } from '../types';
 import { computeMitigation, computeBarrier, computeHealBuff, formatTime, applyMitigations } from '../calc';
@@ -68,6 +69,8 @@ const DAMAGE_TYPE_ICONS: Record<string, string> = {
 const EMPTY_MIT_GRID: Record<number, Record<string, boolean>> = {};
 const EMPTY_HIDDEN = new Set<number>();
 const EMPTY_ACTIONS: Action[] = [];
+const EMPTY_JOB_NOTES: Record<string, string> = {};
+const EMPTY_JOB_NOTES_PHASE: Record<number, Record<string, string>> = {};
 
 // ─── Memoized table body ──────────────────────────────────────────────────────
 // Kept outside MitigationGrid so that local modal-state changes in the parent
@@ -95,25 +98,132 @@ interface TableBodyProps {
   actionNotes: Record<number, string>;
   setActionNote: (phaseIdx: number, row: number, note: string) => void;
   rowTagsForPhase: Record<number, 'tank' | 'heal' | 'dps' | 'note'>;
+  jobNotesForPhase: Record<number, Record<string, string>>;
+  visibleJobs: string[];
+  setJobNote: (phaseIdx: number, row: number, jobJP: string, note: string) => void;
 }
 
-function NoteCell({ phaseIdx, row, note, setActionNote }: { phaseIdx: number; row: number; note: string; setActionNote: (p: number, r: number, n: string) => void }) {
+function JobNoteRow({ jobJP, note, phaseIdx, row, setJobNote }: {
+  jobJP: string; note: string; phaseIdx: number; row: number;
+  setJobNote: (phaseIdx: number, row: number, jobJP: string, note: string) => void;
+}) {
   const [draft, setDraft] = React.useState(note);
   React.useEffect(() => { setDraft(note); }, [note]);
+  const abbr = JOB_DISPLAY_NAMES[jobJP] ?? jobJP;
   return (
-    <td className="notes-cell" onClick={(e) => e.stopPropagation()}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+      <span style={{ minWidth: '30px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textAlign: 'right', flexShrink: 0 }}>{abbr}</span>
       <input
-        className="note-input"
         type="text"
         value={draft}
-        placeholder="Add note…"
+        placeholder="note…"
         onChange={(e) => setDraft(e.target.value)}
-        onBlur={() => setActionNote(phaseIdx, row, draft.trim())}
+        onBlur={() => setJobNote(phaseIdx, row, jobJP, draft.trim())}
         onKeyDown={(e) => {
           if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
           if (e.key === 'Escape') { setDraft(note); (e.target as HTMLInputElement).blur(); }
         }}
+        style={{
+          flex: 1, height: '18px', lineHeight: '18px', padding: '0 4px',
+          background: 'var(--surface2, #1e2235)', border: '1px solid var(--border, #2d3154)',
+          borderRadius: '3px', color: '#67e8f9', fontSize: '11px',
+          fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
+        }}
       />
+    </div>
+  );
+}
+
+function JobNotesPopover({ pos, visibleJobs, jobNotesForRow, phaseIdx, row, setJobNote, onClose }: {
+  pos: { x: number; y: number }; visibleJobs: string[];
+  jobNotesForRow: Record<string, string>; phaseIdx: number; row: number;
+  setJobNote: (phaseIdx: number, row: number, jobJP: string, note: string) => void;
+  onClose: () => void;
+}) {
+  React.useEffect(() => {
+    function handleKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose(); }
+    function handleClick() { onClose(); }
+    document.addEventListener('keydown', handleKey);
+    document.addEventListener('mousedown', handleClick);
+    return () => { document.removeEventListener('keydown', handleKey); document.removeEventListener('mousedown', handleClick); };
+  }, [onClose]);
+
+  return createPortal(
+    <div
+      style={{
+        position: 'fixed', left: pos.x, top: pos.y, zIndex: 2000,
+        background: 'var(--surface, #111827)', border: '1px solid var(--border, #2d3154)',
+        borderRadius: '6px', padding: '8px', minWidth: '220px',
+        maxHeight: '260px', overflowY: 'auto',
+        boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
+        display: 'flex', flexDirection: 'column', gap: '4px',
+      }}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      <div style={{ fontSize: '10px', color: 'var(--text-muted, #64748b)', marginBottom: '2px', fontWeight: 600, userSelect: 'none' }}>Per-job notes</div>
+      {visibleJobs.map((jobJP) => (
+        <JobNoteRow
+          key={jobJP} jobJP={jobJP} note={jobNotesForRow[jobJP] ?? ''}
+          phaseIdx={phaseIdx} row={row} setJobNote={setJobNote}
+        />
+      ))}
+    </div>,
+    document.body,
+  );
+}
+
+function NoteCell({ phaseIdx, row, note, setActionNote, jobNotesForRow, visibleJobs, setJobNote }: {
+  phaseIdx: number; row: number; note: string;
+  setActionNote: (p: number, r: number, n: string) => void;
+  jobNotesForRow: Record<string, string>; visibleJobs: string[];
+  setJobNote: (phaseIdx: number, row: number, jobJP: string, note: string) => void;
+}) {
+  const [draft, setDraft] = React.useState(note);
+  const [showPopover, setShowPopover] = React.useState(false);
+  const [popoverPos, setPopoverPos] = React.useState({ x: 0, y: 0 });
+  const cellRef = React.useRef<HTMLTableCellElement>(null);
+  React.useEffect(() => { setDraft(note); }, [note]);
+  const jobNoteCount = visibleJobs.filter((j) => jobNotesForRow[j]).length;
+
+  function openPopover(e: React.MouseEvent) {
+    e.stopPropagation();
+    const rect = cellRef.current?.getBoundingClientRect();
+    if (rect) { setPopoverPos({ x: rect.left, y: rect.bottom + 2 }); setShowPopover((v) => !v); }
+  }
+
+  return (
+    <td ref={cellRef} className="notes-cell" onClick={(e) => e.stopPropagation()}>
+      <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+        <input
+          className="note-input"
+          type="text"
+          value={draft}
+          placeholder="Add note…"
+          style={{ flex: 1, minWidth: 0, width: 'auto' }}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => setActionNote(phaseIdx, row, draft.trim())}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+            if (e.key === 'Escape') { setDraft(note); (e.target as HTMLInputElement).blur(); }
+          }}
+        />
+        {visibleJobs.length > 0 && (
+          <button
+            className={`job-note-btn${jobNoteCount > 0 ? ' job-note-btn-active' : ''}`}
+            onClick={openPopover}
+            title="Per-job notes"
+          >
+            {jobNoteCount > 0 ? jobNoteCount : 'j'}
+          </button>
+        )}
+      </div>
+      {showPopover && (
+        <JobNotesPopover
+          pos={popoverPos} visibleJobs={visibleJobs} jobNotesForRow={jobNotesForRow}
+          phaseIdx={phaseIdx} row={row} setJobNote={setJobNote}
+          onClose={() => setShowPopover(false)}
+        />
+      )}
     </td>
   );
 }
@@ -142,6 +252,9 @@ interface ActionRowProps {
   toggleHideRow: (phaseIdx: number, row: number) => void;
   insertAfterRow: (action: Action | null, allVisible: Phase['skillCols']) => void;
   setActionNote: (phaseIdx: number, row: number, note: string) => void;
+  jobNotesForRow: Record<string, string>;
+  visibleJobs: string[];
+  setJobNote: (phaseIdx: number, row: number, jobJP: string, note: string) => void;
 }
 
 function actionRowPropsEqual(prev: ActionRowProps, next: ActionRowProps): boolean {
@@ -158,6 +271,8 @@ function actionRowPropsEqual(prev: ActionRowProps, next: ActionRowProps): boolea
   if (prev.note !== next.note) return false;
   if (prev.tag !== next.tag) return false;
   if (prev.fixedColCount !== next.fixedColCount) return false;
+  if (prev.jobNotesForRow !== next.jobNotesForRow) return false;
+  if (prev.visibleJobs !== next.visibleJobs) return false;
   // Only check coverage entries relevant to this specific row
   if (prev.cellCoverage !== next.cellCoverage) {
     const row = next.action.row;
@@ -174,6 +289,7 @@ const ActionRow = React.memo(function ActionRow({
   isRowHidden, allVisibleCols, roleStartCols, jobStartCols,
   maxHP, tankHP, showNotes, note, tag, fixedColCount,
   toggleMit, setEditingRow, removeCustomAction, toggleHideRow, insertAfterRow, setActionNote,
+  jobNotesForRow, visibleJobs, setJobNote,
 }: ActionRowProps) {
   const colBoundaryClass = (colId: string) =>
     roleStartCols.has(colId) ? 'role-boundary' : jobStartCols.has(colId) ? 'job-boundary' : '';
@@ -248,6 +364,9 @@ const ActionRow = React.memo(function ActionRow({
             row={action.row}
             note={note}
             setActionNote={setActionNote}
+            jobNotesForRow={jobNotesForRow}
+            visibleJobs={visibleJobs}
+            setJobNote={setJobNote}
           />
         )}
         <td className="calc-col mit-pct-cell">
@@ -311,7 +430,7 @@ const MitigationTableBody = React.memo(function MitigationTableBody({
   mergedActions, customRowIds, allVisibleCols, mitGridForPhase, cellCoverage,
   hiddenSet, showHidden, phaseIdx, maxHP, tankHP,
   roleStartCols, jobStartCols, toggleMit, setEditingRow, removeCustomAction, toggleHideRow, insertAfterRow,
-  showNotes, actionNotes, setActionNote, rowTagsForPhase,
+  showNotes, actionNotes, setActionNote, rowTagsForPhase, jobNotesForPhase, visibleJobs, setJobNote,
 }: TableBodyProps) {
   const fixedColCount = 7 + (showNotes ? 1 : 0);
 
@@ -349,6 +468,9 @@ const MitigationTableBody = React.memo(function MitigationTableBody({
             toggleHideRow={toggleHideRow}
             insertAfterRow={insertAfterRow}
             setActionNote={setActionNote}
+            jobNotesForRow={jobNotesForPhase[action.row] ?? EMPTY_JOB_NOTES}
+            visibleJobs={visibleJobs}
+            setJobNote={setJobNote}
           />
         );
       })}
@@ -357,8 +479,9 @@ const MitigationTableBody = React.memo(function MitigationTableBody({
 });
 
 export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onOpenPip }: Props) {
-  const { language, toggleMit, initPhase, showJobs, setShowJobs, maxHP, tankHP, toggleHideRow, clearHiddenRows, encounterLevel, addCustomAction, removeCustomAction, clearPhase, clearPlan, clearAllPlans, clearPlanActions, restoreBaseActions, setActionNote } = useStore();
-  const { mitGrid, actionOverrides, hiddenRows, customActions, name: planName, baseActionsCleared, actionNotes, rowTags } = useStore((s) => s.plans[s.activePlanId]);
+  const { language, toggleMit, initPhase, showJobs, setShowJobs, maxHP, tankHP, toggleHideRow, clearHiddenRows, encounterLevel, addCustomAction, removeCustomAction, clearPhase, clearPlan, clearAllPlans, clearPlanActions, restoreBaseActions, setActionNote, setJobNote } = useStore();
+  const { mitGrid, actionOverrides, hiddenRows, customActions, name: planName, baseActionsCleared, actionNotes, rowTags, jobNotes: jobNotesRaw } = useStore((s) => s.plans[s.activePlanId]);
+  const jobNotes = jobNotesRaw ?? {};
 
   const [showClearModal, setShowClearModal] = React.useState(false);
   const [showMacroModal, setShowMacroModal] = React.useState(false);
@@ -467,6 +590,11 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
   const allVisibleCols = React.useMemo(
     () => visibleGroups.flatMap((g) => g.cols),
     [visibleGroups]
+  );
+
+  const visibleJobs = React.useMemo(
+    () => visibleGroups.map((g) => g.job),
+    [visibleGroups],
   );
 
   // Sets for fast boundary lookup by col id
@@ -975,6 +1103,9 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
             actionNotes={(actionNotes ?? {})[phaseIdx] ?? {}}
             setActionNote={setActionNote}
             rowTagsForPhase={(rowTags ?? {})[phaseIdx] ?? {}}
+            jobNotesForPhase={jobNotes[phaseIdx] ?? EMPTY_JOB_NOTES_PHASE}
+            visibleJobs={visibleJobs}
+            setJobNote={setJobNote}
           />
         </table>
       </div>

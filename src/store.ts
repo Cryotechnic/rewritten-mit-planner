@@ -32,10 +32,12 @@ export interface PlanData {
   actionNotes: Record<number, Record<number, string>>;
   // phaseIdx → row → tag
   rowTags: Record<number, Record<number, 'tank' | 'heal' | 'dps' | 'note'>>;
+  // phaseIdx → row → jobJP → note
+  jobNotes: Record<number, Record<number, Record<string, string>>>;
 }
 
 function makePlan(id: string, name: string): PlanData {
-  return { id, name, activePhaseIdx: 0, hiddenPhases: new Set(), customPhases: [], mitGrid: {}, actionOverrides: {}, hiddenRows: {}, customActions: {}, baseActionsCleared: false, actionNotes: {}, rowTags: {} };
+  return { id, name, activePhaseIdx: 0, hiddenPhases: new Set(), customPhases: [], mitGrid: {}, actionOverrides: {}, hiddenRows: {}, customActions: {}, baseActionsCleared: false, actionNotes: {}, rowTags: {}, jobNotes: {} };
 }
 
 const INIT_ID = 'plan-1';
@@ -84,6 +86,7 @@ interface PlannerState {
   renameCustomPhase: (phaseIdx: number, name: string, dataPhaseCount: number) => void;
   initPhase: (phaseIdx: number, phase: Phase) => void;
   setActionNote: (phaseIdx: number, row: number, note: string) => void;
+  setJobNote: (phaseIdx: number, row: number, jobJP: string, note: string) => void;
   setRowTag: (phaseIdx: number, row: number, tag: 'tank' | 'heal' | 'dps' | 'note' | null) => void;
   setShareId: (id: string | null) => void;
   applyRemotePlan: (plans: Record<string, PlanData>, activePlanId: string, settings?: { maxHP?: number; tankHP?: number; encounterLevel?: number }) => void;
@@ -335,6 +338,18 @@ export const useStore = create<PlannerState>()(
           [phaseIdx]: { ...((plan.actionNotes ?? {})[phaseIdx] ?? {}), [row]: note },
         },
       }))),
+
+      setJobNote: (phaseIdx, row, jobJP, note) => set((s) => patchActive(s, (plan) => {
+        const phaseJN = (plan.jobNotes ?? {})[phaseIdx] ?? {};
+        const rowJN = phaseJN[row] ?? {};
+        const nextRowJN = note ? { ...rowJN, [jobJP]: note } : (() => { const n = { ...rowJN }; delete n[jobJP]; return n; })();
+        return {
+          jobNotes: {
+            ...(plan.jobNotes ?? {}),
+            [phaseIdx]: { ...phaseJN, [row]: nextRowJN },
+          },
+        };
+      })),
 
       setRowTag: (phaseIdx, row, tag) => set((s) => patchActive(s, (plan) => {
         const phase = { ...((plan.rowTags ?? {})[phaseIdx] ?? {}) };
