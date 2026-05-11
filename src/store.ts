@@ -280,8 +280,10 @@ export const useStore = create<PlannerState>()(
 
       addPlan: (encounterName) => set((s) => {
         const id = `plan-${Date.now()}`;
+        const plan = makePlan(id, encounterName);
+        plan.baseActionsCleared = true;
         return {
-          plans: { ...s.plans, [id]: makePlan(id, encounterName) },
+          plans: { ...s.plans, [id]: plan },
           activePlanId: id,
         };
       }),
