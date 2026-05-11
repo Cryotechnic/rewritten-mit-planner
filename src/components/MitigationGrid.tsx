@@ -387,7 +387,7 @@ const ActionRow = React.memo(function ActionRow({
         </td>
         {allVisibleCols.map((sc) => {
           const rawState = action.mitStates[sc.col];
-          const isSingleTarget = sc.assign === 'SINGLE_PARTY' || sc.assign === 'SINGLE_ENEMY';
+          const isSingleTarget = sc.assign === 'SINGLE_PARTY';
           const effectivelyUnavailable =
             rawState === '-' ||
             (isCustom && rawState === undefined && isSingleTarget);
