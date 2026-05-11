@@ -292,6 +292,9 @@ export default function App() {
 
       <footer className="app-footer">
         <span>Rewritten Mitigation Planner</span>
+        <span className="footer-divider">·</span>
+        <span>© {new Date().getFullYear() > 2026 ? `2026–${new Date().getFullYear()}` : '2026'} Aya Flowis @ Famfrit. All rights reserved.</span>
+        <span className="footer-divider">·</span>
         <span className="footer-version">{commitHash}</span>
       </footer>
       {shareError && (

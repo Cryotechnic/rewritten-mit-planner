@@ -77,6 +77,8 @@ body {
   margin-top: auto;
 }
 
+.footer-divider { opacity: 0.4; }
+
 .share-error-banner {
   position: fixed;
   bottom: 48px;
