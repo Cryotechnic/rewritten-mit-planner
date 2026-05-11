@@ -33,6 +33,7 @@ type Channel = typeof CHANNELS[number];
 interface PhaseExportData {
   phaseName: string;
   macros: string[][];  // array of macros, each macro is an array of lines
+  startBeforeEngage: number; // seconds before engage to press the macro
 }
 
 function getSkillDisplayName(nameJP: string, skills: Skill[], lang: Language): string {
@@ -48,6 +49,26 @@ function getSkillDisplayName(nameJP: string, skills: Skill[], lang: Language): s
   }
 }
 
+// Default seconds before a mechanic the announcement fires (overridable in UI)
+const DEFAULT_ANNOUNCE_BEFORE_SEC = 5;
+
+// FFXIV caps <wait.X> at 60s. The content line always fires first, then chained
+// /echo filler lines consume any remaining wait so timing stays accurate.
+function pushWithWait(lines: string[], line: string, waitSec: number | null): void {
+  const MAX = 60;
+  if (waitSec == null || waitSec <= MAX) {
+    lines.push(waitSec != null ? `${line} <wait.${waitSec}>` : line);
+    return;
+  }
+  lines.push(`${line} <wait.${MAX}>`);
+  let remaining = waitSec - MAX;
+  while (remaining > MAX) {
+    lines.push(`/echo . <wait.${MAX}>`);
+    remaining -= MAX;
+  }
+  lines.push(`/echo . <wait.${remaining}>`);
+}
+
 function buildPhaseMacros(
   phase: Phase,
   phaseIdx: number,
@@ -58,7 +79,8 @@ function buildPhaseMacros(
   skills: Skill[],
   language: Language,
   channel: string,
-): string[][] {
+  announceBefore: number,
+): { macros: string[][], startBeforeEngage: number } {
   // Build merged, sorted action list (same logic as MitigationGrid)
   const baseActions = baseActionsCleared ? [] : phase.actions.filter((a) => a.name);
   const phaseCustomActions = customActions[phaseIdx] ?? [];
@@ -82,20 +104,28 @@ function buildPhaseMacros(
     skillColMap.set(sc.col, sc.skill);
   }
 
+  // Only include actions at t≥0 (pre-pull countdowns are excluded — press at engage instead).
+  const combatActions = mergedActions.filter((a) => a.timeSec == null || a.timeSec >= 0);
+
   const lines: string[] = [];
 
-  for (let i = 0; i < mergedActions.length; i++) {
-    const action = mergedActions[i];
-    const checked = mitGrid[phaseIdx]?.[action.row] ?? {};
+  // Initial wait = time until first announcement (mechanic.timeSec - announceBefore).
+  const firstTimeSec = combatActions.find((a) => a.timeSec != null)?.timeSec ?? 0;
+  const initialWait = Math.max(0, Math.round(firstTimeSec - announceBefore));
+  const echoLine = `/echo Press at engage — announces ${announceBefore}s before each mechanic`;
+  pushWithWait(lines, echoLine, initialWait > 0 ? initialWait : null);
 
-    // Group checked mitigations by job
+  for (let i = 0; i < combatActions.length; i++) {
+    const action = combatActions[i];
+
+    // Build mitigations for this action
+    const checked = mitGrid[phaseIdx]?.[action.row] ?? {};
     const byJob = new Map<string, string[]>();
     for (const [col, isChecked] of Object.entries(checked)) {
       if (!isChecked) continue;
       const skillNameJP = skillColMap.get(col);
       if (!skillNameJP) continue;
 
-      // Find the SkillCol to get the job
       const sc = phase.skillCols.find((s) => s.col === col);
       if (!sc) continue;
 
@@ -112,14 +142,13 @@ function buildPhaseMacros(
 
     const actionName = action.name ?? '(unnamed)';
 
-    // Calculate wait time to next action
-    const next = mergedActions[i + 1];
+    // Wait = gap between consecutive mechanic times (announceBefore cancels out).
+    const next = combatActions[i + 1];
     const waitSec = (next?.timeSec != null && action.timeSec != null)
       ? Math.max(1, Math.round(next.timeSec - action.timeSec))
       : null;
 
-    const waitSuffix = waitSec != null ? ` <wait.${waitSec}>` : '';
-    lines.push(`${channel} ${actionName}${mitigationStr}${waitSuffix}`);
+    pushWithWait(lines, `${channel} ${actionName}${mitigationStr}`, waitSec);
   }
 
   // Split into macros of MAX_LINES_PER_MACRO lines each
@@ -127,8 +156,8 @@ function buildPhaseMacros(
   for (let i = 0; i < lines.length; i += MAX_LINES_PER_MACRO) {
     macros.push(lines.slice(i, i + MAX_LINES_PER_MACRO));
   }
-  if (macros.length === 0) macros.push([`${channel} (No actions with mitigations in this phase)`]);
-  return macros;
+  if (macros.length === 0) macros.push([`${channel} (No actions in this phase)`]);
+  return { macros, startBeforeEngage: 0 };
 }
 
 interface Props {
@@ -149,14 +178,15 @@ export default function MacroExportModal({
   const [activePhaseTab, setActivePhaseTab] = useState(0);
   const [activeMacroTab, setActiveMacroTab] = useState<number[]>(() => phases.map(() => 0));
   const [copied, setCopied] = useState(false);
+  const [announceBefore, setAnnounceBefore] = useState(DEFAULT_ANNOUNCE_BEFORE_SEC);
 
-  const phaseExports = useMemo<PhaseExportData[]>(() => phases.map((phase, phaseIdx) => ({
-    phaseName: phase.name,
-    macros: buildPhaseMacros(
+  const phaseExports = useMemo<PhaseExportData[]>(() => phases.map((phase, phaseIdx) => {
+    const { macros, startBeforeEngage } = buildPhaseMacros(
       phase, phaseIdx, mitGrid[phaseIdx] ?? {}, actionOverrides, customActions,
-      baseActionsCleared, skills, language, selectedChannel.cmd,
-    ),
-  })), [phases, mitGrid, actionOverrides, customActions, baseActionsCleared, skills, language, selectedChannel]);
+      baseActionsCleared, skills, language, selectedChannel.cmd, announceBefore,
+    );
+    return { phaseName: phase.name, macros, startBeforeEngage };
+  }), [phases, mitGrid, actionOverrides, customActions, baseActionsCleared, skills, language, selectedChannel, announceBefore]);
 
   const currentPhaseData = phaseExports[activePhaseTab];
   const currentMacroIdx = activeMacroTab[activePhaseTab] ?? 0;
@@ -195,24 +225,41 @@ export default function MacroExportModal({
           }}>✕</button>
         </div>
 
-        {/* Channel selector */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '13px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Chat channel:</span>
-          <select
-            value={selectedChannel.cmd}
-            onChange={(e) => {
-              const ch = CHANNELS.find((c) => c.cmd === e.target.value) ?? CHANNELS[0];
-              setSelectedChannel(ch);
-            }}
-            style={{
-              background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: '5px',
-              color: 'var(--text)', fontSize: '13px', padding: '4px 8px', cursor: 'pointer',
-            }}
-          >
-            {CHANNELS.map((ch) => (
-              <option key={ch.cmd} value={ch.cmd}>{ch.label} ({ch.cmd})</option>
-            ))}
-          </select>
+        {/* Channel selector + announce delay */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '13px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Chat channel:</span>
+            <select
+              value={selectedChannel.cmd}
+              onChange={(e) => {
+                const ch = CHANNELS.find((c) => c.cmd === e.target.value) ?? CHANNELS[0];
+                setSelectedChannel(ch);
+              }}
+              style={{
+                background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: '5px',
+                color: 'var(--text)', fontSize: '13px', padding: '4px 8px', cursor: 'pointer',
+              }}
+            >
+              {CHANNELS.map((ch) => (
+                <option key={ch.cmd} value={ch.cmd}>{ch.label} ({ch.cmd})</option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '13px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Announce</span>
+            <input
+              type="number"
+              min={0}
+              max={30}
+              value={announceBefore}
+              onChange={(e) => setAnnounceBefore(Math.max(0, Math.min(30, Number(e.target.value))))}
+              style={{
+                width: '52px', background: 'var(--surface2)', border: '1px solid var(--border)',
+                borderRadius: '5px', color: 'var(--text)', fontSize: '13px', padding: '4px 6px',
+              }}
+            />
+            <span style={{ fontSize: '13px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>s before</span>
+          </div>
         </div>
 
         {/* Phase tabs */}
