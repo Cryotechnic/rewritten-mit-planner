@@ -962,14 +962,37 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
         <button
           className={`add-action-btn${viewerMode ? ' viewer-mode-active' : ''}`}
           style={viewerMode
-            ? { color: '#fbbf24', borderColor: '#92400e', background: 'rgba(251,191,36,0.1)' }
+            ? { color: '#fbbf24', borderColor: '#92400e', background: 'rgba(251,191,36,0.15)', fontWeight: 700 }
             : { color: 'var(--text-muted)', borderColor: 'var(--border)' }}
           onClick={toggleViewerMode}
           title={viewerMode ? 'Exit viewer mode' : 'Enter viewer mode (notes only)'}
         >
-          {viewerMode ? '👁 Viewer' : '👁'}
+          {viewerMode ? '👁 Viewing — click to edit' : '👁'}
         </button>
       </div>
+
+      {viewerMode && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '10px',
+          padding: '5px 14px',
+          background: 'rgba(146,64,14,0.18)',
+          borderBottom: '1px solid #92400e',
+          fontSize: '12px', color: '#fbbf24', fontWeight: 600,
+          userSelect: 'none',
+        }}>
+          <span>👁 Viewer mode — checkboxes and edits are disabled.</span>
+          <button
+            onClick={toggleViewerMode}
+            style={{
+              marginLeft: 'auto', padding: '2px 10px', borderRadius: 4,
+              border: '1px solid #92400e', background: 'transparent',
+              color: '#fbbf24', cursor: 'pointer', fontSize: '11px', fontWeight: 700,
+            }}
+          >
+            Switch to Edit
+          </button>
+        </div>
+      )}
 
       {showClearModal && (
         <ClearAllModal

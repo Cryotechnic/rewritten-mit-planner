@@ -40,6 +40,11 @@ export default function App() {
   const [showAddPhase, setShowAddPhase] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
   const unsubRef = useRef<Unsubscribe | null>(null);
+
+  useEffect(() => {
+    const base = 'Rewritten Mitigation Planner';
+    document.title = viewerMode ? `[VIEW-ONLY] ${base}` : base;
+  }, [viewerMode]);
   const pushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Suppress echo after applying a remote update
   const skipNextPushRef = useRef(false);
