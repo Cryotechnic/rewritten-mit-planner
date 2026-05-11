@@ -379,7 +379,7 @@ export const useStore = create<PlannerState>()(
       toggleViewerMode: () => set((s) => ({ viewerMode: !s.viewerMode })),
 
       applyRemotePlan: (plans, activePlanId, settings) => set((s) => ({
-        plans,
+        plans: { ...s.plans, ...(plans as Record<string, PlanData>) },
         activePlanId,
         ...(settings?.maxHP !== undefined && { maxHP: settings.maxHP }),
         ...(settings?.tankHP !== undefined && { tankHP: settings.tankHP }),
