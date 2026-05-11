@@ -54,6 +54,7 @@ interface PlannerState {
   shareId: string | null;
   clientId: string;
   viewerMode: boolean;
+  writeToken: string | null;
 
   setActivePhase: (idx: number) => void;
   setLanguage: (lang: Language) => void;
@@ -90,6 +91,7 @@ interface PlannerState {
   setJobNote: (phaseIdx: number, row: number, jobJP: string, note: string) => void;
   setRowTag: (phaseIdx: number, row: number, tag: 'tank' | 'heal' | 'dps' | 'note' | null) => void;
   setShareId: (id: string | null) => void;
+  setWriteToken: (token: string | null) => void;
   toggleViewerMode: () => void;
   applyRemotePlan: (plans: Record<string, PlanData>, activePlanId: string, settings?: { maxHP?: number; tankHP?: number; encounterLevel?: number }) => void;
 }
@@ -141,6 +143,7 @@ export const useStore = create<PlannerState>()(
       shareId: null,
       clientId: Math.random().toString(36).slice(2),
       viewerMode: false,
+      writeToken: null,
 
       setActivePhase: (idx) => set((s) => patchActive(s, () => ({ activePhaseIdx: idx }))),
 
@@ -361,6 +364,7 @@ export const useStore = create<PlannerState>()(
       })),
 
       setShareId: (id) => set({ shareId: id }),
+      setWriteToken: (token) => set({ writeToken: token }),
       toggleViewerMode: () => set((s) => ({ viewerMode: !s.viewerMode })),
 
       applyRemotePlan: (plans, activePlanId, settings) => set({

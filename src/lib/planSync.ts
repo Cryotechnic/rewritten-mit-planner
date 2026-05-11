@@ -41,6 +41,13 @@ export function generateShareId(): string {
   return Array.from(bytes, (b) => chars[b % chars.length]).join('');
 }
 
+/** 24-char URL-safe write token embedded in the edit link hash. */
+export function generateWriteToken(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const bytes = crypto.getRandomValues(new Uint8Array(24));
+  return Array.from(bytes, (b) => chars[b % chars.length]).join('');
+}
+
 // ── Encryption helpers ──────────────────────────────────────────────────────
 
 function toBase64(buf: ArrayBuffer | Uint8Array): string {
@@ -116,13 +123,15 @@ export async function pushPlan(
   clientId: string,
   settings: GlobalSettings,
   password?: string,
+  writeToken?: string,
 ): Promise<void> {
   const json = JSON.stringify({ plans, activePlanId, settings }, replacer);
+  const base = { clientId, updatedAt: Date.now(), ...(writeToken ? { writeToken } : {}) };
   if (password) {
     const { ciphertext, iv, salt } = await encryptJson(json, password);
-    await setDoc(doc(db, COLLECTION, shareId), { ciphertext, iv, salt, clientId, updatedAt: Date.now() });
+    await setDoc(doc(db, COLLECTION, shareId), { ciphertext, iv, salt, ...base });
   } else {
-    await setDoc(doc(db, COLLECTION, shareId), { json, clientId, updatedAt: Date.now() });
+    await setDoc(doc(db, COLLECTION, shareId), { json, ...base });
   }
 }
 

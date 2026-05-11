@@ -19,14 +19,14 @@ service cloud.firestore {
 
       function isPlain() {
         let d = request.resource.data;
-        return d.keys().hasOnly(['json', 'clientId', 'updatedAt'])
+        return d.keys().hasOnly(['json', 'clientId', 'updatedAt', 'writeToken'])
           && d.json is string
           && d.json.size() < 2097152;
       }
 
       function isEncrypted() {
         let d = request.resource.data;
-        return d.keys().hasOnly(['ciphertext', 'iv', 'salt', 'clientId', 'updatedAt'])
+        return d.keys().hasOnly(['ciphertext', 'iv', 'salt', 'clientId', 'updatedAt', 'writeToken'])
           && d.ciphertext is string
           && d.ciphertext.size() < 2097152
           && d.iv is string
@@ -40,8 +40,16 @@ service cloud.firestore {
           && request.resource.data.updatedAt < request.time.toMillis() + 5000;
       }
 
+      function hasWriteAccess() {
+        // Creating a new doc is always allowed (the token gets set in that first write).
+        // Updating an existing doc: if it has a writeToken, the incoming request must match it.
+        return !exists(/databases/$(database)/documents/sessions/$(shareId))
+          || !('writeToken' in resource.data)
+          || request.resource.data.writeToken == resource.data.writeToken;
+      }
+
       allow read: if validShareId();
-      allow write: if validShareId() && validBase() && (isPlain() || isEncrypted()) && freshTimestamp();
+      allow write: if validShareId() && validBase() && (isPlain() || isEncrypted()) && freshTimestamp() && hasWriteAccess();
     }
   }
 }

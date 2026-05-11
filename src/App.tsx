@@ -13,7 +13,7 @@ import MitigationGrid from "./components/MitigationGrid";
 import { PipPortal, type PipWindowHandle } from "./components/JobPipWindow";
 import { SharePasswordSetup, JoinPasswordPrompt } from "./components/SessionPasswordDialog";
 import { useStore } from "./store";
-import { pushPlan, subscribePlan, generateShareId, getSessionMeta, validateSessionPassword } from "./lib/planSync";
+import { pushPlan, subscribePlan, generateShareId, generateWriteToken, getSessionMeta, validateSessionPassword } from "./lib/planSync";
 import type { Unsubscribe } from "firebase/firestore";
 import { t } from "./i18n";
 
@@ -35,7 +35,7 @@ const allSkillCols = (() => {
 type Tab = "planner" | "skills";
 
 export default function App() {
-  const { plans, activePlanId, renamePlan, addCustomPhase, shareId, clientId, setShareId, applyRemotePlan, maxHP, tankHP, encounterLevel, language } = useStore();
+  const { plans, activePlanId, renamePlan, addCustomPhase, shareId, clientId, setShareId, applyRemotePlan, maxHP, tankHP, encounterLevel, language, viewerMode, toggleViewerMode, setWriteToken } = useStore();
   const [tab, setTab] = useState<Tab>("planner");
   const [showAddPhase, setShowAddPhase] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
@@ -48,6 +48,7 @@ export default function App() {
 
   // Per-session encryption
   const pendingShareIdRef = useRef<string | null>(null);
+  const writeTokenRef = useRef<string | null>(null);
   const initDoneRef = useRef(false);
   const [sessionPassword, setSessionPassword] = useState<string | null>(null);
   const [showPasswordSetup, setShowPasswordSetup] = useState(false);
@@ -63,13 +64,32 @@ export default function App() {
     initDoneRef.current = true;
     const params = new URLSearchParams(window.location.search);
     const joinId = params.get('join');
-    if (joinId) {
+    const viewId = params.get('view');
+    if (viewId) {
+      // View-only link: subscribe read-only, enable viewer mode
+      const id = viewId.toUpperCase();
+      awaitingFirstSyncRef.current = true;
+      setShareId(id);
+      if (!viewerMode) toggleViewerMode();
+      const url = new URL(window.location.href);
+      url.searchParams.delete('view');
+      window.history.replaceState({}, '', url.toString());
+      getSessionMeta(id).then(({ encrypted }) => {
+        if (encrypted) setNeedJoinPassword(true);
+      }).catch(() => {
+        setShareError('Could not reach the sync session. Check your connection.');
+      });
+    } else if (joinId) {
       const id = joinId.toUpperCase();
       awaitingFirstSyncRef.current = true;
+      // Parse write token from URL hash (#t=TOKEN)
+      const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+      const token = hashParams.get('t');
+      if (token) { writeTokenRef.current = token; setWriteToken(token); }
       setShareId(id);
       const url = new URL(window.location.href);
       url.searchParams.delete('join');
-      window.history.replaceState({}, '', url.toString());
+      window.history.replaceState({}, '', url.pathname + url.search); // strip hash too
       // Use getSessionMeta only as a quick early signal for the encrypted case.
       // The subscription's onWaiting callback handles the doc-doesn't-exist case.
       getSessionMeta(id).then(({ encrypted }) => {
@@ -78,9 +98,12 @@ export default function App() {
         setShareError('Could not reach the sync session. Check your connection.');
       });
     } else if (!shareId) {
-      // Sharer: generate ID but prompt for password before pushing
+      // Sharer: generate ID + write token, prompt for optional password
       const id = generateShareId();
+      const token = generateWriteToken();
       pendingShareIdRef.current = id;
+      writeTokenRef.current = token;
+      setWriteToken(token);
       setShowPasswordSetup(true);
     }
   }, []);
@@ -91,7 +114,7 @@ export default function App() {
     setShowPasswordSetup(false);
     setShareId(id); // triggers subscribe effect
     const { plans: p, activePlanId: aid, maxHP: mhp, tankHP: thp, encounterLevel: el } = useStore.getState();
-    pushPlan(id, p, aid, clientId, { maxHP: mhp, tankHP: thp, encounterLevel: el }, password ?? undefined).catch((err) => {
+    pushPlan(id, p, aid, clientId, { maxHP: mhp, tankHP: thp, encounterLevel: el }, password ?? undefined, writeTokenRef.current ?? undefined).catch((err) => {
       console.error('Failed to create session:', err);
       setShareError('Could not create a sync session. Check your Firebase config or Firestore rules.');
     });
@@ -137,7 +160,7 @@ export default function App() {
   // Skipped on echo or while waiting for the first remote update (join flow).
   const activePlanForSync = plans[activePlanId];
   useEffect(() => {
-    if (!shareId || needJoinPassword) return;
+    if (!shareId || needJoinPassword || viewerMode) return;
     if (awaitingFirstSyncRef.current) return;
     if (skipNextPushRef.current) {
       skipNextPushRef.current = false;
@@ -145,10 +168,10 @@ export default function App() {
     }
     if (pushTimerRef.current) clearTimeout(pushTimerRef.current);
     pushTimerRef.current = setTimeout(() => {
-      pushPlan(shareId, plans, activePlanId, clientId, { maxHP, tankHP, encounterLevel }, sessionPassword ?? undefined).catch(console.error);
+      pushPlan(shareId, plans, activePlanId, clientId, { maxHP, tankHP, encounterLevel }, sessionPassword ?? undefined, writeTokenRef.current ?? undefined).catch(console.error);
     }, 600);
     return () => { if (pushTimerRef.current) clearTimeout(pushTimerRef.current); };
-  }, [shareId, clientId, needJoinPassword, sessionPassword, activePlanForSync, plans, activePlanId, maxHP, tankHP, encounterLevel]);
+  }, [shareId, clientId, needJoinPassword, sessionPassword, viewerMode, activePlanForSync, plans, activePlanId, maxHP, tankHP, encounterLevel]);
 
   const activePhaseIdx = plans[activePlanId].activePhaseIdx;
   const activePlan = plans[activePlanId];
@@ -167,8 +190,12 @@ export default function App() {
   const activePhase = !hiddenPhases.has(activePhaseIdx) ? allPhases[activePhaseIdx] : undefined;
 
   if (showPasswordSetup && pendingShareIdRef.current) {
-    const shareUrl = `${window.location.origin}${window.location.pathname}?join=${pendingShareIdRef.current}`;
-    return <SharePasswordSetup shareUrl={shareUrl} onConfirm={handleSharerPasswordConfirm} />;
+    const id = pendingShareIdRef.current;
+    const token = writeTokenRef.current;
+    const base = `${window.location.origin}${window.location.pathname}`;
+    const shareUrl = token ? `${base}?join=${id}#t=${token}` : `${base}?join=${id}`;
+    const viewUrl = `${base}?view=${id}`;
+    return <SharePasswordSetup shareUrl={shareUrl} viewUrl={viewUrl} onConfirm={handleSharerPasswordConfirm} />;
   }
 
   if (waitingForHost && shareId) {

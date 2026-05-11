@@ -5,12 +5,13 @@ import { generateShareId, pushPlan } from '../lib/planSync';
 import { t } from '../i18n';
 
 export default function PlanTabBar() {
-  const { plans, activePlanId, setActivePlan, addPlan, removePlan, renamePlan, shareId, clientId, setShareId, maxHP, tankHP, encounterLevel, language } = useStore();
+  const { plans, activePlanId, setActivePlan, addPlan, removePlan, renamePlan, shareId, clientId, setShareId, maxHP, tankHP, encounterLevel, language, writeToken } = useStore();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [showDialog, setShowDialog] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copiedView, setCopiedView] = useState(false);
   const [joinInput, setJoinInput] = useState('');
   const [showJoinInput, setShowJoinInput] = useState(false);
   const [showRegenConfirm, setShowRegenConfirm] = useState(false);
@@ -54,9 +55,18 @@ export default function PlanTabBar() {
   const handleCopy = () => {
     const url = new URL(window.location.href);
     url.searchParams.set('join', shareId!);
-    navigator.clipboard.writeText(url.toString());
+    const href = writeToken ? `${url.toString()}#t=${writeToken}` : url.toString();
+    navigator.clipboard.writeText(href);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCopyView = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('view', shareId!);
+    navigator.clipboard.writeText(url.toString());
+    setCopiedView(true);
+    setTimeout(() => setCopiedView(false), 2000);
   };
 
   return (
@@ -111,6 +121,9 @@ export default function PlanTabBar() {
             </span>
           <button className="sync-btn" onClick={handleCopy} title={t('btnCopyLink', language)}>
               {copied ? t('btnCopied', language) : t('btnCopyLink', language)}
+            </button>
+            <button className="sync-btn" style={{ color: '#67e8f9' }} onClick={handleCopyView} title="Copy view-only link">
+              {copiedView ? 'Copied!' : 'View-only link'}
             </button>
             <button className="sync-btn" onClick={() => setShowRegenConfirm(true)} title={t('btnRegen', language)}>{t('btnRegen', language)}</button>
 

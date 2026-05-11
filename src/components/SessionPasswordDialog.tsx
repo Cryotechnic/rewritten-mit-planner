@@ -49,10 +49,11 @@ const btnStyle = (primary: boolean, disabled = false): React.CSSProperties => ({
 
 interface SetupProps {
   shareUrl: string;
+  viewUrl: string;
   onConfirm: (password: string | null) => void;
 }
 
-export function SharePasswordSetup({ shareUrl, onConfirm }: SetupProps) {
+export function SharePasswordSetup({ shareUrl, viewUrl, onConfirm }: SetupProps) {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const mismatch = confirm.length > 0 && password !== confirm;
@@ -67,12 +68,26 @@ export function SharePasswordSetup({ shareUrl, onConfirm }: SetupProps) {
           Share this URL with your team. Optionally set a password — anyone joining the link will need to enter it.
         </div>
 
-        <div style={{
-          background: 'var(--surface2)', borderRadius: '6px',
-          padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px',
-          color: 'var(--accent)', wordBreak: 'break-all', userSelect: 'all',
-        }}>
-          {shareUrl}
+        <div>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 600 }}>EDIT LINK</div>
+          <div style={{
+            background: 'var(--surface2)', borderRadius: '6px',
+            padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px',
+            color: 'var(--accent)', wordBreak: 'break-all', userSelect: 'all',
+          }}>
+            {shareUrl}
+          </div>
+        </div>
+
+        <div>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 600 }}>VIEW-ONLY LINK</div>
+          <div style={{
+            background: 'var(--surface2)', borderRadius: '6px',
+            padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px',
+            color: '#67e8f9', wordBreak: 'break-all', userSelect: 'all',
+          }}>
+            {viewUrl}
+          </div>
         </div>
 
         <input
