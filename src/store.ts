@@ -56,6 +56,7 @@ interface PlannerState {
   clientId: string;
   viewerMode: boolean;
   writeToken: string | null;
+  allowCooldownOverride: boolean;
 
   setActivePhase: (idx: number) => void;
   setLanguage: (lang: Language) => void;
@@ -94,7 +95,8 @@ interface PlannerState {
   setShareId: (id: string | null) => void;
   setWriteToken: (token: string | null) => void;
   toggleViewerMode: () => void;
-  applyRemotePlan: (plans: Record<string, PlanData>, activePlanId: string, settings?: { maxHP?: number; tankHP?: number; encounterLevel?: number }) => void;
+  toggleAllowCooldownOverride: () => void;
+  applyRemotePlan: (plans: Record<string, PlanData>, activePlanId: string, settings?: { maxHP?: number; tankHP?: number; encounterLevel?: number; allowCooldownOverride?: boolean }) => void;
 }
 
 function patchActive(s: PlannerState, fn: (p: PlanData) => Partial<PlanData>): Partial<PlannerState> {
@@ -146,6 +148,7 @@ export const useStore = create<PlannerState>()(
       clientId: Math.random().toString(36).slice(2),
       viewerMode: false,
       writeToken: null,
+      allowCooldownOverride: false,
 
       setActivePhase: (idx) => set((s) => patchActive(s, () => ({ activePhaseIdx: idx }))),
 
@@ -379,6 +382,7 @@ export const useStore = create<PlannerState>()(
       setShareId: (id) => set({ shareId: id }),
       setWriteToken: (token) => set({ writeToken: token }),
       toggleViewerMode: () => set((s) => ({ viewerMode: !s.viewerMode })),
+      toggleAllowCooldownOverride: () => set((s) => ({ allowCooldownOverride: !s.allowCooldownOverride })),
 
       applyRemotePlan: (plans, activePlanId, settings) => set((s) => ({
         plans: { ...s.plans, ...(plans as Record<string, PlanData>) },
@@ -386,6 +390,7 @@ export const useStore = create<PlannerState>()(
         ...(settings?.maxHP !== undefined && { maxHP: settings.maxHP }),
         ...(settings?.tankHP !== undefined && { tankHP: settings.tankHP }),
         ...(settings?.encounterLevel !== undefined && { encounterLevel: settings.encounterLevel }),
+        ...(settings?.allowCooldownOverride !== undefined && { allowCooldownOverride: settings.allowCooldownOverride }),
         syncVersion: s.syncVersion + 1,
       })),
 

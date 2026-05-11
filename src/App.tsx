@@ -35,7 +35,7 @@ const allSkillCols = (() => {
 type Tab = "planner" | "skills";
 
 export default function App() {
-  const { plans, activePlanId, renamePlan, addCustomPhase, shareId, clientId, setShareId, applyRemotePlan, maxHP, tankHP, encounterLevel, language, viewerMode, toggleViewerMode, setWriteToken, clearPlanActions } = useStore();
+  const { plans, activePlanId, renamePlan, addCustomPhase, shareId, clientId, setShareId, applyRemotePlan, maxHP, tankHP, encounterLevel, language, viewerMode, toggleViewerMode, setWriteToken, clearPlanActions, allowCooldownOverride } = useStore();
   const [tab, setTab] = useState<Tab>("planner");
   const [showAddPhase, setShowAddPhase] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
@@ -116,7 +116,7 @@ export default function App() {
     setShowPasswordSetup(false);
     setShareId(id); // triggers subscribe effect
     const { plans: p, activePlanId: aid, maxHP: mhp, tankHP: thp, encounterLevel: el } = useStore.getState();
-    pushPlan(id, p, aid, clientId, { maxHP: mhp, tankHP: thp, encounterLevel: el }, password ?? undefined, writeTokenRef.current ?? undefined).catch((err) => {
+    pushPlan(id, p, aid, clientId, { maxHP: mhp, tankHP: thp, encounterLevel: el, allowCooldownOverride: useStore.getState().allowCooldownOverride }, password ?? undefined, writeTokenRef.current ?? undefined).catch((err) => {
       console.error('Failed to create session:', err);
       setShareError('Could not create a sync session. Check your Firebase config or Firestore rules.');
     });
@@ -170,10 +170,10 @@ export default function App() {
     }
     if (pushTimerRef.current) clearTimeout(pushTimerRef.current);
     pushTimerRef.current = setTimeout(() => {
-      pushPlan(shareId, plans, activePlanId, clientId, { maxHP, tankHP, encounterLevel }, sessionPassword ?? undefined, writeTokenRef.current ?? undefined).catch(console.error);
+      pushPlan(shareId, plans, activePlanId, clientId, { maxHP, tankHP, encounterLevel, allowCooldownOverride }, sessionPassword ?? undefined, writeTokenRef.current ?? undefined).catch(console.error);
     }, 600);
     return () => { if (pushTimerRef.current) clearTimeout(pushTimerRef.current); };
-  }, [shareId, clientId, needJoinPassword, sessionPassword, viewerMode, activePlanForSync, plans, activePlanId, maxHP, tankHP, encounterLevel]);
+}, [shareId, clientId, needJoinPassword, sessionPassword, viewerMode, activePlanForSync, plans, activePlanId, maxHP, tankHP, encounterLevel, allowCooldownOverride]);
 
   const activePhaseIdx = plans[activePlanId].activePhaseIdx;
   const activePlan = plans[activePlanId];

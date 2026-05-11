@@ -104,6 +104,7 @@ interface TableBodyProps {
   visibleJobs: string[];
   setJobNote: (phaseIdx: number, row: number, jobJP: string, note: string) => void;
   viewerMode: boolean;
+  allowCooldownOverride: boolean;
 }
 
 function JobNoteRow({ jobJP, note, phaseIdx, row, setJobNote }: {
@@ -266,6 +267,7 @@ interface ActionRowProps {
   visibleJobs: string[];
   setJobNote: (phaseIdx: number, row: number, jobJP: string, note: string) => void;
   viewerMode: boolean;
+  allowCooldownOverride: boolean;
 }
 
 function actionRowPropsEqual(prev: ActionRowProps, next: ActionRowProps): boolean {
@@ -285,6 +287,7 @@ function actionRowPropsEqual(prev: ActionRowProps, next: ActionRowProps): boolea
   if (prev.jobNotesForRow !== next.jobNotesForRow) return false;
   if (prev.visibleJobs !== next.visibleJobs) return false;
   if (prev.viewerMode !== next.viewerMode) return false;
+  if (prev.allowCooldownOverride !== next.allowCooldownOverride) return false;
   // Only check coverage entries relevant to this specific row
   if (prev.cellCoverage !== next.cellCoverage) {
     const row = next.action.row;
@@ -301,7 +304,7 @@ const ActionRow = React.memo(function ActionRow({
   isRowHidden, allVisibleCols, roleStartCols, jobStartCols,
   maxHP, tankHP, showNotes, note, tag, fixedColCount,
   toggleMit, setEditingRow, removeCustomAction, toggleHideRow, insertAfterRow, setActionNote,
-  jobNotesForRow, visibleJobs, setJobNote, viewerMode,
+  jobNotesForRow, visibleJobs, setJobNote, viewerMode, allowCooldownOverride,
 }: ActionRowProps) {
   const colBoundaryClass = (colId: string) =>
     roleStartCols.has(colId) ? 'role-boundary' : jobStartCols.has(colId) ? 'job-boundary' : '';
@@ -405,15 +408,15 @@ const ActionRow = React.memo(function ActionRow({
           }
 
           const coverage = cellCoverage.get(`${sc.col}:${action.row}`) ?? null;
-          const cellBlocked = isRowHidden || coverage != null;
+          const cellBlocked = isRowHidden || coverage === 'effect' || (coverage === 'cooldown' && !allowCooldownOverride);
 
           return (
             <td
               key={sc.col}
-              className={`skill-cell ${isChecked ? 'checked' : ''} ${coverage ? `coverage-${coverage}` : ''} ${colBoundaryClass(sc.col)}`}
+              className={`skill-cell ${isChecked ? 'checked' : ''} ${coverage ? `coverage-${coverage}` : ''} ${coverage === 'cooldown' && allowCooldownOverride ? 'cd-override' : ''} ${colBoundaryClass(sc.col)}`}
               title={
                 isRowHidden ? 'Row is marked hidden' :
-                coverage === 'cooldown' ? 'On cooldown' :
+                coverage === 'cooldown' ? (allowCooldownOverride ? 'On cooldown (warning — override allowed)' : 'On cooldown') :
                 coverage === 'effect' ? 'Buff active' : undefined
               }
               onClick={() => {
@@ -440,7 +443,7 @@ const MitigationTableBody = React.memo(function MitigationTableBody({
   mergedActions, customRowIds, allVisibleCols, mitGridForPhase, cellCoverage,
   hiddenSet, showHidden, phaseIdx, maxHP, tankHP,
   roleStartCols, jobStartCols, toggleMit, setEditingRow, removeCustomAction, toggleHideRow, insertAfterRow,
-  showNotes, actionNotes, setActionNote, rowTagsForPhase, jobNotesForPhase, visibleJobs, setJobNote, viewerMode,
+  showNotes, actionNotes, setActionNote, rowTagsForPhase, jobNotesForPhase, visibleJobs, setJobNote, viewerMode, allowCooldownOverride,
 }: TableBodyProps) {
   const fixedColCount = 7 + (showNotes ? 1 : 0);
 
@@ -484,6 +487,7 @@ const MitigationTableBody = React.memo(function MitigationTableBody({
             visibleJobs={visibleJobs}
             setJobNote={setJobNote}
             viewerMode={viewerMode}
+            allowCooldownOverride={allowCooldownOverride}
           />
         );
       })}
@@ -492,7 +496,7 @@ const MitigationTableBody = React.memo(function MitigationTableBody({
 });
 
 export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onOpenPip }: Props) {
-  const { language, toggleMit, initPhase, showJobs, setShowJobs, maxHP, tankHP, toggleHideRow, clearHiddenRows, encounterLevel, syncVersion, addCustomAction, removeCustomAction, clearPhase, clearPlan, clearAllPlans, clearPlanActions, restoreBaseActions, setActionNote, setJobNote, viewerMode, toggleViewerMode } = useStore();
+  const { language, toggleMit, initPhase, showJobs, setShowJobs, maxHP, tankHP, toggleHideRow, clearHiddenRows, encounterLevel, syncVersion, addCustomAction, removeCustomAction, clearPhase, clearPlan, clearAllPlans, clearPlanActions, restoreBaseActions, setActionNote, setJobNote, viewerMode, toggleViewerMode, allowCooldownOverride, toggleAllowCooldownOverride } = useStore();
   const { mitGrid, actionOverrides, hiddenRows, customActions, name: planName, baseActionsCleared, actionNotes, rowTags, jobNotes: jobNotesRaw } = useStore((s) => s.plans[s.activePlanId]);
   const jobNotes = jobNotesRaw ?? {};
 
@@ -500,6 +504,8 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
   const [showMacroModal, setShowMacroModal] = React.useState(false);
   const [showJobPipSelector, setShowJobPipSelector] = React.useState(false);
   const [showFFlogsModal, setShowFFlogsModal] = React.useState(false);
+  const [showCDOverrideConfirm, setShowCDOverrideConfirm] = React.useState(false);
+  const [cdOverrideInput, setCDOverrideInput] = React.useState('');
 
   const [editingRow, setEditingRow] = React.useState<number | null>(null);
   const [showHidden, setShowHidden] = React.useState(true);
@@ -935,6 +941,25 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
         )}
         <span style={{ flex: 1 }} />
         <button
+          className="add-action-btn"
+          style={allowCooldownOverride
+            ? { color: '#fb923c', borderColor: '#7c2d12', background: 'rgba(251,146,60,0.1)' }
+            : { color: 'var(--text-muted)', borderColor: 'var(--border)' }}
+          onClick={() => {
+            if (!allowCooldownOverride) {
+              setCDOverrideInput('');
+              setShowCDOverrideConfirm(true);
+            } else {
+              toggleAllowCooldownOverride();
+            }
+          }}
+          title={allowCooldownOverride
+            ? 'CD conflicts allowed (click to block)'
+            : 'CD conflicts blocked (click to allow)'}
+        >
+          {allowCooldownOverride ? '⚠ CD Override' : '⚠'}
+        </button>
+        <button
           className={`add-action-btn${viewerMode ? ' viewer-mode-active' : ''}`}
           style={viewerMode
             ? { color: '#fbbf24', borderColor: '#92400e', background: 'rgba(251,191,36,0.1)' }
@@ -976,6 +1001,70 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
           allPhases={allPhases}
           onClose={() => setShowFFlogsModal(false)}
         />
+      )}
+
+      {showCDOverrideConfirm && (
+        <div className="encounter-dialog-overlay" onClick={() => setShowCDOverrideConfirm(false)}>
+          <div className="encounter-dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 380 }}>
+            <h2 className="encounter-dialog-title" style={{ color: '#fb923c' }}>⚠ Enable CD Override?</h2>
+            <p style={{ margin: '0 0 16px', color: 'var(--text-dim, #9ca3af)', fontSize: 13, lineHeight: 1.5 }}>
+              Allows skills to be checked even when their cooldown hasn't resolved. Cooldown cells will stay highlighted as a reminder, but won't block input.
+              {' '}<strong style={{ color: '#fca5a5' }}>Only use this if you know the cooldown tracking is wrong for your situation.</strong>
+            </p>
+            <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--text)' }}>
+              Type <strong style={{ color: '#fb923c' }}>confirm</strong> to proceed:
+            </p>
+            <input
+              type="text"
+              value={cdOverrideInput}
+              onChange={(e) => setCDOverrideInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && cdOverrideInput === 'confirm') {
+                  toggleAllowCooldownOverride();
+                  setShowCDOverrideConfirm(false);
+                } else if (e.key === 'Escape') {
+                  setShowCDOverrideConfirm(false);
+                }
+              }}
+              placeholder="confirm"
+              autoFocus
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                padding: '8px 10px', borderRadius: 6,
+                border: '1px solid var(--border)', background: 'var(--surface2, #1e2235)',
+                color: 'var(--text)', fontSize: 13, fontFamily: 'inherit',
+                outline: 'none', marginBottom: 16,
+              }}
+            />
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setShowCDOverrideConfirm(false)}
+                style={{
+                  padding: '7px 16px', borderRadius: 6, border: '1px solid var(--border)',
+                  background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                disabled={cdOverrideInput !== 'confirm'}
+                onClick={() => {
+                  toggleAllowCooldownOverride();
+                  setShowCDOverrideConfirm(false);
+                }}
+                style={{
+                  padding: '7px 16px', borderRadius: 6, border: '1px solid #7c2d12',
+                  background: cdOverrideInput === 'confirm' ? 'rgba(251,146,60,0.15)' : 'transparent',
+                  color: cdOverrideInput === 'confirm' ? '#fb923c' : 'var(--text-muted)',
+                  cursor: cdOverrideInput === 'confirm' ? 'pointer' : 'not-allowed',
+                  fontSize: 13, fontWeight: 600,
+                }}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showJobPipSelector && (
@@ -1139,6 +1228,7 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
             visibleJobs={visibleJobs}
             setJobNote={setJobNote}
             viewerMode={viewerMode}
+            allowCooldownOverride={allowCooldownOverride}
           />
         </table>
       </div>

@@ -114,6 +114,7 @@ export interface GlobalSettings {
   maxHP: number;
   tankHP: number;
   encounterLevel: number;
+  allowCooldownOverride?: boolean;
 }
 
 export async function pushPlan(
