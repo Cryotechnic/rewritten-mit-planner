@@ -766,9 +766,9 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
           className="add-action-btn"
           style={{ color: '#67e8f9', borderColor: '#164e63' }}
           onClick={() => setShowJobPipSelector(true)}
-          title="Open Job PIP"
+          title="Open Cheat Sheet"
         >
-          Job PIP
+          Cheat Sheet
         </button>
 
         {baseActionsCleared && (
