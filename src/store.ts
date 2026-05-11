@@ -51,6 +51,7 @@ interface PlannerState {
   plans: Record<string, PlanData>;
   activePlanId: string;
   // Sync state (not persisted)
+  syncVersion: number;
   shareId: string | null;
   clientId: string;
   viewerMode: boolean;
@@ -141,6 +142,7 @@ export const useStore = create<PlannerState>()(
       plans: { [INIT_ID]: makePlan(INIT_ID, '') },
       activePlanId: INIT_ID,
       shareId: null,
+      syncVersion: 0,
       clientId: Math.random().toString(36).slice(2),
       viewerMode: false,
       writeToken: null,
@@ -217,15 +219,21 @@ export const useStore = create<PlannerState>()(
 
       clearPhase: (phaseIdx) => set((s) => patchActive(s, (plan) => ({
         mitGrid: { ...plan.mitGrid, [phaseIdx]: {} },
+        actionNotes: { ...(plan.actionNotes ?? {}), [phaseIdx]: {} },
+        rowTags: { ...(plan.rowTags ?? {}), [phaseIdx]: {} },
+        jobNotes: { ...(plan.jobNotes ?? {}), [phaseIdx]: {} },
       }))),
 
       clearPlan: () => set((s) => patchActive(s, () => ({
         mitGrid: {},
+        actionNotes: {},
+        rowTags: {},
+        jobNotes: {},
       }))),
 
       clearAllPlans: () => set((s) => ({
         plans: Object.fromEntries(
-          Object.entries(s.plans).map(([id, plan]) => [id, { ...plan, mitGrid: {} }])
+          Object.entries(s.plans).map(([id, plan]) => [id, { ...plan, mitGrid: {}, actionNotes: {}, rowTags: {}, jobNotes: {} }])
         ),
       })),
 
@@ -235,6 +243,9 @@ export const useStore = create<PlannerState>()(
         customActions: {},
         hiddenRows: {},
         baseActionsCleared: true,
+        actionNotes: {},
+        rowTags: {},
+        jobNotes: {},
       }))),
 
       restoreBaseActions: () => set((s) => patchActive(s, () => ({
@@ -367,13 +378,14 @@ export const useStore = create<PlannerState>()(
       setWriteToken: (token) => set({ writeToken: token }),
       toggleViewerMode: () => set((s) => ({ viewerMode: !s.viewerMode })),
 
-      applyRemotePlan: (plans, activePlanId, settings) => set({
+      applyRemotePlan: (plans, activePlanId, settings) => set((s) => ({
         plans,
         activePlanId,
         ...(settings?.maxHP !== undefined && { maxHP: settings.maxHP }),
         ...(settings?.tankHP !== undefined && { tankHP: settings.tankHP }),
         ...(settings?.encounterLevel !== undefined && { encounterLevel: settings.encounterLevel }),
-      }),
+        syncVersion: s.syncVersion + 1,
+      })),
 
       initPhase: (phaseIdx, phase) => {
         // Check before calling set() — returning {} from set() still triggers a re-render

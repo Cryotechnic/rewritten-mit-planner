@@ -489,7 +489,7 @@ const MitigationTableBody = React.memo(function MitigationTableBody({
 });
 
 export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onOpenPip }: Props) {
-  const { language, toggleMit, initPhase, showJobs, setShowJobs, maxHP, tankHP, toggleHideRow, clearHiddenRows, encounterLevel, addCustomAction, removeCustomAction, clearPhase, clearPlan, clearAllPlans, clearPlanActions, restoreBaseActions, setActionNote, setJobNote, viewerMode, toggleViewerMode } = useStore();
+  const { language, toggleMit, initPhase, showJobs, setShowJobs, maxHP, tankHP, toggleHideRow, clearHiddenRows, encounterLevel, syncVersion, addCustomAction, removeCustomAction, clearPhase, clearPlan, clearAllPlans, clearPlanActions, restoreBaseActions, setActionNote, setJobNote, viewerMode, toggleViewerMode } = useStore();
   const { mitGrid, actionOverrides, hiddenRows, customActions, name: planName, baseActionsCleared, actionNotes, rowTags, jobNotes: jobNotesRaw } = useStore((s) => s.plans[s.activePlanId]);
   const jobNotes = jobNotesRaw ?? {};
 
@@ -563,7 +563,7 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
     }
 
     return filtered;
-  }, [phase.skillCols, skillNameEN, encounterLevel, skills]);
+  }, [phase.skillCols, skillNameEN, encounterLevel, skills, syncVersion]);
 
   // Group skill columns by job
   const colGroups = React.useMemo<ColGroup[]>(() => {
