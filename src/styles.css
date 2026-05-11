@@ -792,6 +792,12 @@ body {
   border-left: 3px solid #92400e;
 }
 
+/* Disabled / read-only fields show not-allowed cursor */
+input:disabled,
+button:disabled {
+  cursor: not-allowed !important;
+}
+
 .add-action-btn {
   padding: 3px 10px;
   border-radius: var(--radius);

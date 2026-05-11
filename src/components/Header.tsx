@@ -47,27 +47,33 @@ export default function Header({ data, allPhases, onAddPhase }: Props) {
                   {phase.name}
                 </button>
                 {isCustom ? (
+                  !viewerMode && (
                   <button
                     className="phase-tab-hide-btn phase-tab-delete-btn"
                     onClick={(e) => { e.stopPropagation(); removeCustomPhase(idx, data.phases.length); }}
                     title={`Delete ${phase.name}`}
                   >×</button>
+                  )
                 ) : (
+                  !viewerMode && (
                   <button
                     className="phase-tab-hide-btn"
                     onClick={() => toggleHidePhase(idx, totalPhases)}
                     title={`Hide ${phase.name}`}
                   >×</button>
+                  )
                 )}
               </div>
             );
           })}
           {/* Add custom phase */}
+          {!viewerMode && (
           <button
             className="phase-tab-restore-btn"
             onClick={() => onAddPhase()}
             title="Add custom phase"
           >+</button>
+          )}
           {/* Restore hidden phases */}
           {hiddenPhaseList.length > 0 && (
             <div className="phase-tab-restore-wrap">

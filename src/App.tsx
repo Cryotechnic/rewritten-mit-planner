@@ -261,7 +261,7 @@ export default function App() {
         {tab === "planner" && !activePhase && (
           <div className="no-phase-empty">
             <p className="no-phase-hint">{t('btnNoPhase', language)}</p>
-            <button className="no-phase-add-btn" onClick={() => setShowAddPhase(true)}>+ {t('btnAddPhase', language).replace(/^\+ /, '')}</button>
+            {!viewerMode && <button className="no-phase-add-btn" onClick={() => setShowAddPhase(true)}>+ {t('btnAddPhase', language).replace(/^\+ /, '')}</button>}
           </div>
         )}
         {tab === "skills" && <SkillDatabase skills={skills} />}

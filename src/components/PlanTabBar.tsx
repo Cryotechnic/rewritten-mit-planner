@@ -5,7 +5,7 @@ import { generateShareId, pushPlan } from '../lib/planSync';
 import { t } from '../i18n';
 
 export default function PlanTabBar() {
-  const { plans, activePlanId, setActivePlan, addPlan, removePlan, renamePlan, shareId, clientId, setShareId, maxHP, tankHP, encounterLevel, language, writeToken } = useStore();
+  const { plans, activePlanId, setActivePlan, addPlan, removePlan, renamePlan, shareId, clientId, setShareId, maxHP, tankHP, encounterLevel, language, writeToken, viewerMode } = useStore();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [showDialog, setShowDialog] = useState(false);
@@ -76,8 +76,8 @@ export default function PlanTabBar() {
           key={plan.id}
           className={`plan-tab ${plan.id === activePlanId ? 'active' : ''}`}
           onClick={() => { if (editingId !== plan.id) setActivePlan(plan.id); }}
-          onDoubleClick={(e) => startRename(plan.id, plan.name, e)}
-          title="Double-click to rename"
+          onDoubleClick={(e) => { if (!viewerMode) startRename(plan.id, plan.name, e); }}
+          title={viewerMode ? undefined : "Double-click to rename"}
         >
           {editingId === plan.id ? (
             <input
@@ -95,21 +95,23 @@ export default function PlanTabBar() {
           ) : (
             <span className="plan-tab-name">{plan.name || <em style={{ opacity: 0.5 }}>Untitled</em>}</span>
           )}
-          {canRemove && (
+          {canRemove && !viewerMode && (
             <button
               className="plan-tab-close"
               onClick={(e) => { e.stopPropagation(); removePlan(plan.id); }}
               title="Close plan"
             >×</button>
           )}
+          {!viewerMode && (
           <button
             className="plan-tab-rename-btn"
             onClick={(e) => { e.stopPropagation(); setRenamingId(plan.id); }}
             title="Rename plan"
           >✎</button>
+          )}
         </div>
       ))}
-      <button className="plan-tab-add" onClick={() => setShowDialog(true)} title="New plan">+</button>
+      {!viewerMode && <button className="plan-tab-add" onClick={() => setShowDialog(true)} title="New plan">+</button>}
 
       {/* Sync controls */}
       <div className="sync-controls">
