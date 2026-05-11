@@ -436,7 +436,6 @@ export const useStore = create<PlannerState>()(
       },
       partialize: (s) => ({
         language: s.language,
-        showJobs: s.showJobs,
         maxHP: s.maxHP,
         tankHP: s.tankHP,
         encounterLevel: s.encounterLevel,
