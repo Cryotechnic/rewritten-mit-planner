@@ -431,7 +431,10 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
       setTimelineMatches(matches);
       setSelectedMatchIndices(new Set(matches.map((_, i) => i)));
       setImportFullTimeline(noMatches);
-      // Build per-ability assignment list (deduplicated, ordered by first occurrence)
+      // Build per-ability assignment list (deduplicated, ordered by first occurrence).
+      // Also capture bossAttackList for the full-timeline case with correct absolute timestamps.
+      type BossAttack = { phaseIdx: number; actionRow: number; timeSec: number; skillCols: Phase['skillCols'] };
+      let bossAttackList: BossAttack[] = [];
       if (noMatches) {
         const seen2 = new Set<string>();
         const assignments: AbilityAssignment[] = [];
@@ -440,12 +443,32 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
           if (!name || seen2.has(name)) continue;
           seen2.add(name);
           const timeSec = ((e as CastEvent).timestamp - fight.startTime) / 1000;
-          assignments.push({ name, timeSec, included: true, phaseIdx: 0, damageHit: abilityDamageMap[name] ?? null, nearbyCasts: getNearbyCasts(timeSec) });
+          const phaseIdx = 0;
+          // row = index in assignments array (same logic as handleApply when all included)
+          bossAttackList.push({ phaseIdx, actionRow: assignments.length, timeSec, skillCols: allPhases[phaseIdx]?.skillCols ?? [] });
+          assignments.push({ name, timeSec, included: true, phaseIdx, damageHit: abilityDamageMap[name] ?? null, nearbyCasts: getNearbyCasts(timeSec) });
         }
         setAbilityAssignments(assignments);
+      } else {
+        // Use FFLogs-matched times for existing plan actions; fall back to planner time.
+        const matchedTimeSec = new Map<string, number>();
+        for (const m of matches) matchedTimeSec.set(`${m.phaseIdx}-${m.actionRow}`, m.newTimeSec);
+        for (let pi = 0; pi < allPhases.length; pi++) {
+          const ph = allPhases[pi];
+          const baseA = baseActionsCleared ? [] : ph.actions.filter((a) => !!a.name);
+          const customA = customActions[pi] ?? [];
+          for (const action of [...baseA, ...customA]) {
+            const tSec =
+              matchedTimeSec.get(`${pi}-${action.row}`) ??
+              actionOverrides[pi]?.[action.row]?.timeSec ??
+              action.timeSec;
+            if (tSec === null) continue;
+            bossAttackList.push({ phaseIdx: pi, actionRow: action.row, timeSec: tSec, skillCols: ph.skillCols });
+          }
+        }
+        bossAttackList.sort((a, b) => a.timeSec - b.timeSec);
       }
-
-      // Detect mitigations from friendly casts matched to boss attacks
+      // Detect mitigations: map EN job → JP job name, EN skill name → JP skill name
       const enToJpJob: Record<string, string> = {};
       for (const [jpName, enAbbr] of Object.entries(JOB_DISPLAY_NAMES)) {
         if (!enToJpJob[enAbbr]) enToJpJob[enAbbr] = jpName;
@@ -454,18 +477,6 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
       for (const sk of skills) {
         if (sk.nameEN) skillEnToNameJP.set(sk.nameEN.toLowerCase(), sk.nameJP);
       }
-      const bossAttackList: Array<{ phaseIdx: number; actionRow: number; timeSec: number; skillCols: Phase['skillCols'] }> = [];
-      for (let pi = 0; pi < allPhases.length; pi++) {
-        const ph = allPhases[pi];
-        const baseA = baseActionsCleared ? [] : ph.actions.filter((a) => !!a.name);
-        const customA = customActions[pi] ?? [];
-        for (const action of [...baseA, ...customA]) {
-          const tSec = actionOverrides[pi]?.[action.row]?.timeSec ?? action.timeSec;
-          if (tSec === null) continue;
-          bossAttackList.push({ phaseIdx: pi, actionRow: action.row, timeSec: tSec, skillCols: ph.skillCols });
-        }
-      }
-      bossAttackList.sort((a, b) => a.timeSec - b.timeSec);
       const detMits: DetectedMitEntry[] = [];
       const seenMitKey = new Set<string>();
       for (const e of allFriendlyCasts as FriendlyCastEvent[]) {
