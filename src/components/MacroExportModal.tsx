@@ -120,7 +120,7 @@ function buildPhaseMacros(
     const action = combatActions[i];
 
     // Build mitigations for this action
-    const checked = mitGrid[phaseIdx]?.[action.row] ?? {};
+    const checked = mitGrid[action.row] ?? {};
     const byJob = new Map<string, string[]>();
     for (const [col, isChecked] of Object.entries(checked)) {
       if (!isChecked) continue;
