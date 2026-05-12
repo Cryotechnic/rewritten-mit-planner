@@ -33,7 +33,7 @@ export interface PipPhaseData {
 }
 
 export interface PipWindowHandle {
-  win: Window & typeof globalThis;
+  win: Window;
   container: HTMLElement;
   jobJP: string;
   jobName: string;
@@ -294,7 +294,7 @@ export function PipContent({ jobJP, jobName, allPhases, skills }: PipContentProp
 // Opens the PIP window and returns a handle � no React root created here.
 // MitigationGrid uses createPortal to render PipContent into handle.container.
 
-function applyPipStyles(win: Window & typeof globalThis, jobName: string): HTMLElement {
+function applyPipStyles(win: Window, jobName: string): HTMLElement {
   win.document.title = `${jobName} \u2013 Mitigations`;
   win.document.body.style.cssText = 'margin:0;padding:0;height:100vh;overflow:hidden;background:#0f1117';
   const style = win.document.createElement('style');

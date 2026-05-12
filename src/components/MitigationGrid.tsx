@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { startTransition } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore, JOB_DISPLAY_NAMES } from '../store';
 import type { Phase, Skill, Language, Action } from '../types';
@@ -757,40 +757,52 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
   const cellCoverage = React.useMemo(() => {
     const map = new Map<string, 'effect' | 'cooldown'>();
 
+    // Binary search helpers
+    // lowerBound: first index where arr[i] >= value
+    function lowerBound(arr: number[], value: number): number {
+      let lo = 0, hi = arr.length;
+      while (lo < hi) { const mid = (lo + hi) >>> 1; if (arr[mid] < value) lo = mid + 1; else hi = mid; }
+      return lo;
+    }
+    // upperBound: first index where arr[i] > value
+    function upperBound(arr: number[], value: number): number {
+      let lo = 0, hi = arr.length;
+      while (lo < hi) { const mid = (lo + hi) >>> 1; if (arr[mid] <= value) lo = mid + 1; else hi = mid; }
+      return lo;
+    }
+
     for (const sc of allVisibleCols) {
       const recast = sc.recast ?? 0;
       const effectTime = sc.effectTime ?? 0;
       if (recast === 0 && effectTime === 0) continue;
 
-      // Actions where this col is actively checked, sorted by time
-      const sources = mergedActions
+      // Sorted source times for this col (O(n log n) once per col)
+      const sourceTimes = mergedActions
         .filter((a) => (mitGrid[phaseIdx]?.[a.row]?.[sc.col] === true) && a.timeSec != null)
-        .sort((a, b) => (a.timeSec as number) - (b.timeSec as number));
-      if (sources.length === 0) continue;
+        .map((a) => a.timeSec as number)
+        .sort((a, b) => a - b);
+      if (sourceTimes.length === 0) continue;
 
       const maxCharges = Math.max(1, sc.charge ?? 1);
 
       for (const target of mergedActions) {
         const T = target.timeSec;
         if (T == null) continue;
-        // Source rows handle their own display
         if (mitGrid[phaseIdx]?.[target.row]?.[sc.col] === true) continue;
-        // Already marked '-' in the spreadsheet — don't override (unless force-checkable)
         if (target.mitStates[sc.col] === '-' && !FORCE_CHECKABLE_SKILLS.has(sc.skill)) continue;
 
-        // Is this row within any source's effect window?
+        // inEffect: source s where s < T && s >= T - effectTime  →  s ∈ [T-effectTime, T)
         const inEffect =
           effectTime > 0 &&
-          sources.some((s) => s.timeSec != null && T > s.timeSec && T <= s.timeSec + effectTime);
+          lowerBound(sourceTimes, T - effectTime) < lowerBound(sourceTimes, T);
 
-        // How many charges are still on cooldown at time T?
+        // onCooldown: source s where s < T && s > T - recast  →  s ∈ (T-recast, T)
         const chargesOnCooldown =
           recast > 0
-            ? sources.filter((s) => s.timeSec != null && s.timeSec < T && T < s.timeSec + recast).length
+            ? lowerBound(sourceTimes, T) - upperBound(sourceTimes, T - recast)
             : 0;
         const onCooldown = chargesOnCooldown >= maxCharges;
 
-        // Effect window takes priority over cooldown (buff is active = more informative)
         if (inEffect) {
           map.set(`${sc.col}:${target.row}`, 'effect');
         } else if (onCooldown) {
@@ -855,7 +867,7 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
                 {roleButton}
                 <button
                   className={`job-toggle ${showJobs[g.job] === false ? 'job-off' : 'visible'}`}
-                  onClick={() => useStore.getState().toggleJob(g.job)}
+                  onClick={() => startTransition(() => useStore.getState().toggleJob(g.job))}
                 >
                   {JOB_DISPLAY_NAMES[g.job] ?? g.job}
                 </button>
