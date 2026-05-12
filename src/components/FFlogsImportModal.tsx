@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { Phase } from '../types';
+import type { Phase, Skill } from '../types';
 import { useStore, JOB_DISPLAY_NAMES } from '../store';
 
 const FFLOGS_TOKEN_URL = 'https://www.fflogs.com/oauth/token';
@@ -118,6 +118,18 @@ query GetFriendlyCasts($code: String!, $fightId: Int!, $startTime: Float!, $endT
   }
 }`;
 
+const GET_COMBATANT_INFO_QUERY = `
+query GetCombatantInfo($code: String!, $fightId: Int!, $startTime: Float!, $endTime: Float!) {
+  reportData {
+    report(code: $code) {
+      events(fightIDs: [$fightId], startTime: $startTime, endTime: $endTime, dataType: CombatantInfo) {
+        data
+        nextPageTimestamp
+      }
+    }
+  }
+}`;
+
 async function paginateEvents(token: string, query: string, code: string, fightId: number, startTime: number, endTime: number): Promise<unknown[]> {
   let all: unknown[] = [];
   let pageStart = startTime;
@@ -172,6 +184,23 @@ interface FriendlyCastEvent {
   sourceID?: number;
 }
 
+interface CombatantInfoEvent {
+  sourceID: number;
+  hitPoints?: number;
+  maxHP?: number;
+}
+
+interface DetectedHPs {
+  maxHP: number | null;
+  tankHP: number | null;
+}
+
+interface DetectedMitEntry {
+  phaseIdx: number;
+  actionRow: number;
+  col: string;
+}
+
 interface TimelineMatch {
   phaseIdx: number;
   phaseName: string;
@@ -193,6 +222,7 @@ interface AbilityAssignment {
 
 interface Props {
   allPhases: Phase[];
+  skills: Skill[];
   onClose: () => void;
 }
 
@@ -206,8 +236,8 @@ function formatTime(sec: number): string {
   return `${sign}${m}:${s}`;
 }
 
-export default function FFlogsImportModal({ allPhases, onClose }: Props) {
-  const { setShowJobs, setActionOverride, renamePlan, activePlanId, replaceAllCustomActions } = useStore();
+export default function FFlogsImportModal({ allPhases, skills, onClose }: Props) {
+  const { setShowJobs, setActionOverride, renamePlan, activePlanId, replaceAllCustomActions, setMaxHP, setTankHP, setMit } = useStore();
   const { actionOverrides, baseActionsCleared, customActions } = useStore((s) => s.plans[s.activePlanId]);
 
   const [reportUrl, setReportUrl] = useState('');
@@ -237,6 +267,11 @@ export default function FFlogsImportModal({ allPhases, onClose }: Props) {
   const [rawAbilityNames, setRawAbilityNames] = useState<string[]>([]);
   const [showRawNames, setShowRawNames] = useState(false);
   const [selectedFightName, setSelectedFightName] = useState<string>('');
+  const [showGuide, setShowGuide] = useState(false);
+  const [detectedHPs, setDetectedHPs] = useState<DetectedHPs | null>(null);
+  const [importHP, setImportHP] = useState(false);
+  const [detectedMits, setDetectedMits] = useState<DetectedMitEntry[]>([]);
+  const [importMits, setImportMits] = useState(false);
 
   async function handleFetchReport() {
     const code = parseReportCode(reportUrl);
@@ -264,13 +299,10 @@ export default function FFlogsImportModal({ allPhases, onClose }: Props) {
     if (selectedFightId === null) return;
     const fight = fights.find((f) => f.id === selectedFightId)!;
 
-    const jobs = [...new Set(
-      actors.map((a) => FFLOGS_JOB_MAP[a.subType]).filter(Boolean)
-    )];
-    setPartyJobs(jobs);
-    setSelectedJobs(new Set(jobs));
     setSelectedFightName(fight.name ?? '');
     setError(null);
+    setDetectedHPs(null);
+    setDetectedMits([]);
     setStep('fetching_events');
 
     try {
@@ -284,11 +316,12 @@ export default function FFlogsImportModal({ allPhases, onClose }: Props) {
         return null;
       }
 
-      // Fetch boss casts, damage taken, and friendly casts in parallel
-      const [allEvents, allDamageEvents, allFriendlyCasts] = await Promise.all([
+      // Fetch boss casts, damage taken, friendly casts, and combatant info in parallel
+      const [allEvents, allDamageEvents, allFriendlyCasts, allCombatantInfo] = await Promise.all([
         paginateEvents(token, GET_EVENTS_QUERY, reportCode, fight.id, fight.startTime, fight.endTime),
         paginateEvents(token, GET_DAMAGE_QUERY, reportCode, fight.id, fight.startTime, fight.endTime),
         paginateEvents(token, GET_FRIENDLY_CASTS_QUERY, reportCode, fight.id, fight.startTime, fight.endTime),
+        paginateEvents(token, GET_COMBATANT_INFO_QUERY, reportCode, fight.id, fight.startTime, fight.endTime),
       ]);
 
       // Build ability damage map: name → max unmitigated (or mitigated) damage per hit
@@ -303,6 +336,38 @@ export default function FFlogsImportModal({ allPhases, onClose }: Props) {
       // Build actor ID → job abbreviation
       const actorJobMap: Record<number, string> = {};
       for (const a of actors) actorJobMap[a.id] = FFLOGS_JOB_MAP[a.subType] ?? a.subType;
+
+      // Detect HP values from combatant info
+      const TANK_ABBRS = new Set(['PLD', 'WAR', 'DRK', 'GNB']);
+      const tankHPs: number[] = [];
+      const nonTankHPs: number[] = [];
+      // Also collect the IDs of players actually in this fight (from CombatantInfo)
+      const fightPlayerIds = new Set<number>();
+      for (const e of allCombatantInfo as CombatantInfoEvent[]) {
+        fightPlayerIds.add(e.sourceID);
+        const abbr = actorJobMap[e.sourceID];
+        if (!abbr) continue;
+        const hp = e.hitPoints ?? e.maxHP ?? 0;
+        if (hp <= 0) continue;
+        if (TANK_ABBRS.has(abbr)) tankHPs.push(hp);
+        else nonTankHPs.push(hp);
+      }
+      const detectedHPValues: DetectedHPs = {
+        tankHP: tankHPs.length > 0 ? Math.max(...tankHPs) : null,
+        maxHP: nonTankHPs.length > 0 ? Math.round(nonTankHPs.reduce((a, b) => a + b, 0) / nonTankHPs.length) : null,
+      };
+      setDetectedHPs(detectedHPValues);
+      setImportHP(detectedHPValues.tankHP !== null || detectedHPValues.maxHP !== null);
+
+      // Party composition scoped to this fight's participants
+      const fightJobs = [...new Set(
+        actors
+          .filter((a) => fightPlayerIds.has(a.id))
+          .map((a) => FFLOGS_JOB_MAP[a.subType])
+          .filter(Boolean)
+      )];
+      setPartyJobs(fightJobs);
+      setSelectedJobs(new Set(fightJobs));
 
       // Sorted friendly casts for nearby lookup
       const friendlyCastsSorted = (allFriendlyCasts as FriendlyCastEvent[])
@@ -379,6 +444,52 @@ export default function FFlogsImportModal({ allPhases, onClose }: Props) {
         }
         setAbilityAssignments(assignments);
       }
+
+      // Detect mitigations from friendly casts matched to boss attacks
+      const enToJpJob: Record<string, string> = {};
+      for (const [jpName, enAbbr] of Object.entries(JOB_DISPLAY_NAMES)) {
+        if (!enToJpJob[enAbbr]) enToJpJob[enAbbr] = jpName;
+      }
+      const skillEnToNameJP = new Map<string, string>();
+      for (const sk of skills) {
+        if (sk.nameEN) skillEnToNameJP.set(sk.nameEN.toLowerCase(), sk.nameJP);
+      }
+      const bossAttackList: Array<{ phaseIdx: number; actionRow: number; timeSec: number; skillCols: Phase['skillCols'] }> = [];
+      for (let pi = 0; pi < allPhases.length; pi++) {
+        const ph = allPhases[pi];
+        const baseA = baseActionsCleared ? [] : ph.actions.filter((a) => !!a.name);
+        const customA = customActions[pi] ?? [];
+        for (const action of [...baseA, ...customA]) {
+          const tSec = actionOverrides[pi]?.[action.row]?.timeSec ?? action.timeSec;
+          if (tSec === null) continue;
+          bossAttackList.push({ phaseIdx: pi, actionRow: action.row, timeSec: tSec, skillCols: ph.skillCols });
+        }
+      }
+      bossAttackList.sort((a, b) => a.timeSec - b.timeSec);
+      const detMits: DetectedMitEntry[] = [];
+      const seenMitKey = new Set<string>();
+      for (const e of allFriendlyCasts as FriendlyCastEvent[]) {
+        const castTimeSec = (e.timestamp - fight.startTime) / 1000;
+        const abilityName = resolveAbilityName(e)?.toLowerCase();
+        if (!abilityName) continue;
+        const jobEN = e.sourceID != null ? actorJobMap[e.sourceID] : null;
+        if (!jobEN) continue;
+        const jobJP = enToJpJob[jobEN];
+        if (!jobJP) continue;
+        const nameJP = skillEnToNameJP.get(abilityName);
+        if (!nameJP) continue;
+        const targetAttack = bossAttackList.find((a) => a.timeSec >= castTimeSec && a.timeSec <= castTimeSec + 25);
+        if (!targetAttack) continue;
+        const matchCol = targetAttack.skillCols.find((sc) => sc.job === jobJP && sc.skill === nameJP);
+        if (!matchCol) continue;
+        const key = `${targetAttack.phaseIdx}-${targetAttack.actionRow}-${matchCol.col}`;
+        if (!seenMitKey.has(key)) {
+          seenMitKey.add(key);
+          detMits.push({ phaseIdx: targetAttack.phaseIdx, actionRow: targetAttack.actionRow, col: matchCol.col });
+        }
+      }
+      setDetectedMits(detMits);
+      setImportMits(detMits.length > 0);
       setStep('preview');
     } catch (e) {
       setError(String(e));
@@ -425,6 +536,13 @@ export default function FFlogsImportModal({ allPhases, onClose }: Props) {
         setActionOverride(m.phaseIdx, m.actionRow, { timeSec: m.newTimeSec });
       }
     }
+    if (importHP && detectedHPs) {
+      if (detectedHPs.maxHP !== null) setMaxHP(detectedHPs.maxHP);
+      if (detectedHPs.tankHP !== null) setTankHP(detectedHPs.tankHP);
+    }
+    if (importMits) {
+      for (const m of detectedMits) setMit(m.phaseIdx, m.actionRow, m.col, true);
+    }
     if (selectedFightName) renamePlan(activePlanId, selectedFightName);
     setStep('done');
   }
@@ -435,7 +553,7 @@ export default function FFlogsImportModal({ allPhases, onClose }: Props) {
     <div className="modal-backdrop" onClick={onClose}>
       <div
         className="modal"
-        style={{ width: '580px', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}
+        style={{ width: '680px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
@@ -445,7 +563,7 @@ export default function FFlogsImportModal({ allPhases, onClose }: Props) {
 
         {/* Step: credentials */}
         {(step === 'credentials' || step === 'fetching_report') && (
-          <div className="modal-body" style={{ overflowY: 'auto' }}>
+          <div className="modal-body">
             <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '12px', lineHeight: 1.5 }}>
               Uses the{' '}
               <a href="https://www.fflogs.com/api/v2/client" target="_blank" rel="noreferrer" style={{ color: '#7c9fff' }}>
@@ -494,7 +612,7 @@ export default function FFlogsImportModal({ allPhases, onClose }: Props) {
 
         {/* Step: select fight */}
         {(step === 'select_fight' || step === 'fetching_events') && (
-          <div className="modal-body" style={{ overflowY: 'auto' }}>
+          <div className="modal-body">
             <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px' }}>Select a fight to import:</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               {fights
@@ -538,8 +656,39 @@ export default function FFlogsImportModal({ allPhases, onClose }: Props) {
 
         {/* Step: preview */}
         {step === 'preview' && (
-          <div className="modal-body" style={{ overflowY: 'auto' }}>
-            {/* Party composition */}
+          <>
+            {/* Import guide — outside modal-body so it never scrolls */}
+            <div style={{ flexShrink: 0, borderBottom: showGuide ? '1px solid #2d3154' : 'none' }}>
+              <button
+                onClick={() => setShowGuide((v) => !v)}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px', background: '#0d1020', border: 'none', borderBottom: '1px solid #2d3154', color: '#94a3b8', fontSize: '13px', cursor: 'pointer', textAlign: 'left' }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '13px' }}>ℹ️</span> How importing works
+                </span>
+                <span style={{ fontSize: '10px' }}>{showGuide ? '▲' : '▼'}</span>
+              </button>
+              {showGuide && (
+                <div style={{ padding: '12px 16px', background: '#080c18', display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px', lineHeight: 1.65, color: '#94a3b8' }}>
+                  <div>
+                    <span style={{ color: '#7c9fff', fontWeight: 600 }}>Party composition</span>
+                    {' '}— Hides columns for jobs not present in the log. Toggle individual job pills to include/exclude them.
+                  </div>
+                  <div>
+                    <span style={{ color: '#86efac', fontWeight: 600 }}>Timeline matches</span>
+                    {' '}— The importer found boss cast names that match your existing action rows. Each checked row will update that action&apos;s timestamp to the time recorded in FFLogs. Unchecking a row skips it, leaving the current time unchanged.
+                  </div>
+                  <div>
+                    <span style={{ color: '#fbbf24', fontWeight: 600 }}>Full FFLogs timeline</span>
+                    {' '}— Only shown when no rows matched. Replaces the entire action list with every boss cast from the log. Use the checkboxes to include or exclude individual abilities, and assign them to phases if you have multiple.
+                  </div>
+                  <div style={{ color: '#475569', fontSize: '11px' }}>
+                    Tip: Action name matching is case-insensitive and allows partial overlaps. If matches are missing, check the &ldquo;Boss ability names from FFLogs&rdquo; list at the bottom to see exact spellings.
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="modal-body">
             <div style={{ marginBottom: '16px' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', cursor: 'pointer', userSelect: 'none' }}>
                 <input type="checkbox" checked={importPartyComp} onChange={(e) => setImportPartyComp(e.target.checked)} />
@@ -577,6 +726,41 @@ export default function FFlogsImportModal({ allPhases, onClose }: Props) {
                 )}
               </div>
             </div>
+
+            {/* HP import */}
+            {detectedHPs && (detectedHPs.maxHP !== null || detectedHPs.tankHP !== null) && (
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', cursor: 'pointer', userSelect: 'none' }}>
+                  <input type="checkbox" checked={importHP} onChange={(e) => setImportHP(e.target.checked)} />
+                  <span style={{ fontWeight: 600, fontSize: '13px' }}>Import HP values</span>
+                </label>
+                <div style={{ paddingLeft: '24px', display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+                  {detectedHPs.maxHP !== null && (
+                    <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+                      Party HP: <strong style={{ color: '#86efac' }}>{detectedHPs.maxHP.toLocaleString()}</strong>
+                    </span>
+                  )}
+                  {detectedHPs.tankHP !== null && (
+                    <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+                      Tank HP: <strong style={{ color: '#7c9fff' }}>{detectedHPs.tankHP.toLocaleString()}</strong>
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Mitigations import */}
+            {detectedMits.length > 0 && (
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', cursor: 'pointer', userSelect: 'none' }}>
+                  <input type="checkbox" checked={importMits} onChange={(e) => setImportMits(e.target.checked)} />
+                  <span style={{ fontWeight: 600, fontSize: '13px' }}>Import mitigations used ({detectedMits.length} checks)</span>
+                </label>
+                <p style={{ paddingLeft: '24px', fontSize: '12px', color: '#64748b', margin: '0' }}>
+                  Checks the mitigation grid based on skills actually cast in this pull.
+                </p>
+              </div>
+            )}
 
             {/* Full timeline import — per-ability assignment table (shown when no matches) */}
             {timelineMatches.length === 0 && (
@@ -801,6 +985,7 @@ export default function FFlogsImportModal({ allPhases, onClose }: Props) {
               </div>
             )}
           </div>
+          </>
         )}
 
         {/* Step: done */}
@@ -812,6 +997,8 @@ export default function FFlogsImportModal({ allPhases, onClose }: Props) {
               {importFullTimeline && ` Imported ${rawAbilityNames.length} unique boss abilities as the timeline.`}
               {!importFullTimeline && selectedMatchIndices.size > 0 && ` Updated ${selectedMatchIndices.size} action timing${selectedMatchIndices.size !== 1 ? 's' : ''}.`}
               {importPartyComp && ' Party composition applied.'}
+              {importHP && detectedHPs && (detectedHPs.maxHP !== null || detectedHPs.tankHP !== null) && ' HP values updated.'}
+              {importMits && detectedMits.length > 0 && ` ${detectedMits.length} mitigation check${detectedMits.length !== 1 ? 's' : ''} applied.`}
             </p>
           </div>
         )}

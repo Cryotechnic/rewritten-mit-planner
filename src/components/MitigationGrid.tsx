@@ -1022,6 +1022,7 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
       {showFFlogsModal && (
         <FFlogsImportModal
           allPhases={allPhases}
+          skills={skills}
           onClose={() => setShowFFlogsModal(false)}
         />
       )}
