@@ -7,6 +7,7 @@ import { JOB_DISPLAY_NAMES } from '../store';
 const MAX_LINES_PER_MACRO = 15;
 
 const CHANNELS = [
+  { label: 'Echo',            cmd: '/e' },
   { label: 'Party',           cmd: '/p' },
   { label: 'Say',             cmd: '/say' },
   { label: 'Free Company',    cmd: '/fc' },
