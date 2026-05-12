@@ -80,6 +80,7 @@ function pipBuildPhases(
   customActions: Record<number, Action[]>,
   baseActionsCleared: boolean,
   actionNotes: Record<number, Record<number, string>>,
+  jobNotes: Record<number, Record<number, Record<string, string>>>,
 ): PipPhaseData[] {
   return allPhases.map((phase, pi) => {
     const jobCols = phase.skillCols.filter((sc) => sc.job === jobJP);
@@ -95,8 +96,9 @@ function pipBuildPhases(
 
     const actions: PipAction[] = merged.flatMap((action) => {
       const note = actionNotes[pi]?.[action.row] ?? '';
+      const jobNote = jobNotes[pi]?.[action.row]?.[jobJP] ?? '';
       const checkedCols = jobCols.filter((sc) => mitGrid[pi]?.[action.row]?.[sc.col] === true);
-      if (checkedCols.length === 0 && !note) return [];
+      if (checkedCols.length === 0 && !note && !jobNote) return [];
       const checkedSkills = checkedCols.map((sc) => pipGetSkill(sc.skill, skills, language));
       const maxDuration = checkedCols.reduce<number | null>((max, sc) => {
         if (sc.effectTime == null) return max;
@@ -133,14 +135,14 @@ export function PipContent({ jobJP, jobName, allPhases, skills }: PipContentProp
   const jobIconUrl = JOB_ICON_URL[jobName] ?? null;
 
   const phases = useMemo(
-    () => pipBuildPhases(jobJP, allPhases, skills, language, mitGrid, actionOverrides, customActions, baseActionsCleared ?? false, actionNotes),
-    [jobJP, allPhases, skills, language, mitGrid, actionOverrides, customActions, baseActionsCleared, actionNotes],
+    () => pipBuildPhases(jobJP, allPhases, skills, language, mitGrid, actionOverrides, customActions, baseActionsCleared ?? false, actionNotes, jobNotes),
+    [jobJP, allPhases, skills, language, mitGrid, actionOverrides, customActions, baseActionsCleared, actionNotes, jobNotes],
   );
 
   const [baseElapsed, setBaseElapsed] = useState(0);
   const [runStart, setRunStart] = useState<number | null>(null);
   const [now, setNow] = useState(Date.now());
-  const [showNotes, setShowNotes] = useState(true);
+
 
   const running = runStart !== null;
   const elapsed = running ? baseElapsed + (now - runStart) / 1000 : baseElapsed;
@@ -256,12 +258,12 @@ export function PipContent({ jobJP, jobName, allPhases, skills }: PipContentProp
                       ))}
                     </div>
                   )}
-                  {showNotes && (() => { const liveNote = actionNotes[action.phaseIdx]?.[action.row] ?? ''; return liveNote ? (
+                  {(() => { const liveNote = actionNotes[action.phaseIdx]?.[action.row] ?? ''; return liveNote ? (
                     <div style={{ fontSize: '11px', color: '#fbbf24', marginTop: '3px', fontStyle: 'italic', lineHeight: 1.4, borderLeft: '2px solid #92400e', paddingLeft: '6px' }}>
                       {liveNote}
                     </div>
                   ) : null; })()}
-                  {showNotes && (() => { const jobNote = jobNotes[action.phaseIdx]?.[action.row]?.[jobJP] ?? ''; return jobNote ? (
+                  {(() => { const jobNote = jobNotes[action.phaseIdx]?.[action.row]?.[jobJP] ?? ''; return jobNote ? (
                     <div style={{ fontSize: '11px', color: '#67e8f9', marginTop: '3px', fontStyle: 'italic', lineHeight: 1.4, borderLeft: '2px solid #164e63', paddingLeft: '6px' }}>
                       {jobNote}
                     </div>
@@ -279,13 +281,7 @@ export function PipContent({ jobJP, jobName, allPhases, skills }: PipContentProp
         <button onClick={handleReset} style={{ padding: '8px 14px', borderRadius: '6px', border: '1px solid #2d3154', background: 'transparent', color: '#64748b', fontSize: '13px', cursor: 'pointer' }}>
           Reset
         </button>
-        <button
-          onClick={() => setShowNotes((v) => !v)}
-          style={{ padding: '8px 10px', borderRadius: '6px', border: `1px solid ${showNotes ? '#92400e' : '#2d3154'}`, background: showNotes ? 'rgba(146,64,14,0.2)' : 'transparent', color: showNotes ? '#fbbf24' : '#64748b', fontSize: '13px', cursor: 'pointer' }}
-          title="Toggle notes"
-        >
-          Notes
-        </button>
+
       </div>
     </div>
   );
