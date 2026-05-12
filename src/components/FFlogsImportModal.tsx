@@ -165,6 +165,7 @@ interface AbilityInfo {
 
 interface CastEvent {
   timestamp: number;
+  type?: string; // 'cast' | 'begincast'
   abilityGameID?: number;
   ability?: { name: string; guid?: number };
 }
@@ -272,6 +273,7 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
   const [importHP, setImportHP] = useState(false);
   const [detectedMits, setDetectedMits] = useState<DetectedMitEntry[]>([]);
   const [importMits, setImportMits] = useState(false);
+  const [mergedIndices, setMergedIndices] = useState<Set<number>>(new Set());
 
   async function handleFetchReport() {
     const code = parseReportCode(reportUrl);
@@ -303,6 +305,7 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
     setError(null);
     setDetectedHPs(null);
     setDetectedMits([]);
+    setMergedIndices(new Set());
     setStep('fetching_events');
 
     try {
@@ -369,12 +372,15 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
       setPartyJobs(fightJobs);
       setSelectedJobs(new Set(fightJobs));
 
-      // Sorted friendly casts for nearby lookup
+      // Sorted friendly casts for nearby lookup — only recognized skills (skills with a nameEN entry)
+      const knownSkillNames = new Set(skills.map(sk => sk.nameEN?.toLowerCase()).filter(Boolean) as string[]);
       const friendlyCastsSorted = (allFriendlyCasts as FriendlyCastEvent[])
         .map((e) => {
           const job = e.sourceID != null ? actorJobMap[e.sourceID] : null;
           const aName = resolveAbilityName(e);
-          return job && aName ? { timeSec: (e.timestamp - fight.startTime) / 1000, label: `${job}: ${aName}` } : null;
+          if (!job || !aName) return null;
+          if (!knownSkillNames.has(aName.toLowerCase())) return null;
+          return { timeSec: (e.timestamp - fight.startTime) / 1000, label: `${job}: ${aName}` };
         })
         .filter((x): x is { timeSec: number; label: string } => x !== null)
         .sort((a, b) => a.timeSec - b.timeSec);
@@ -391,6 +397,10 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
         return result;
       }
 
+      // Only keep resolved casts (type='cast'), drop 'begincast' wind-up events which
+      // fire ~1-2s before the ability resolves and produce spurious duplicate rows.
+      const resolvedEvents = (allEvents as CastEvent[]).filter(e => !e.type || e.type === 'cast');
+
       // Match FFLogs cast events to planner action rows by name
       const matches: TimelineMatch[] = [];
       for (let pi = 0; pi < allPhases.length; pi++) {
@@ -402,7 +412,7 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
           const override = actionOverrides[pi]?.[action.row];
           const currentTimeSec = override?.timeSec !== undefined ? override.timeSec : action.timeSec;
           const needle = action.name.toLowerCase().trim();
-          const ev = (allEvents as CastEvent[]).find((e) => {
+          const ev = resolvedEvents.find((e) => {
             const name = resolveAbilityName(e);
             if (!name) return false;
             const hay = name.toLowerCase().trim();
@@ -424,7 +434,7 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
       }
 
       const uniqueNames = [...new Set(
-        (allEvents as CastEvent[]).map((e) => resolveAbilityName(e)).filter((n): n is string => !!n)
+        resolvedEvents.map((e) => resolveAbilityName(e)).filter((n): n is string => !!n)
       )].sort((a, b) => a.localeCompare(b));
       const noMatches = matches.length === 0;
       setRawAbilityNames(uniqueNames);
@@ -436,15 +446,19 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
       type BossAttack = { phaseIdx: number; actionRow: number; timeSec: number; skillCols: Phase['skillCols'] };
       let bossAttackList: BossAttack[] = [];
       if (noMatches) {
-        const seen2 = new Set<string>();
         const assignments: AbilityAssignment[] = [];
-        for (const e of allEvents) {
-          const name = resolveAbilityName(e as CastEvent);
-          if (!name || seen2.has(name)) continue;
-          seen2.add(name);
-          const timeSec = ((e as CastEvent).timestamp - fight.startTime) / 1000;
+        // Dedupe by (name + second) — FFLogs Casts emits one event per target hit;
+        // same ability at the same timestamp are all the same mechanic instance.
+        const seenTimeKey = new Set<string>();
+        for (const e of resolvedEvents) {
+          const name = resolveAbilityName(e);
+          if (!name) continue;
+          const timeSec = Math.round((e.timestamp - fight.startTime) / 1000);
+          const timeKey = `${name}|${timeSec}`;
+          if (seenTimeKey.has(timeKey)) continue;
+          seenTimeKey.add(timeKey);
           const phaseIdx = 0;
-          // row = index in assignments array (same logic as handleApply when all included)
+          // row = index in assignments array (same logic as handleApply)
           bossAttackList.push({ phaseIdx, actionRow: assignments.length, timeSec, skillCols: allPhases[phaseIdx]?.skillCols ?? [] });
           assignments.push({ name, timeSec, included: true, phaseIdx, damageHit: abilityDamageMap[name] ?? null, nearbyCasts: getNearbyCasts(timeSec) });
         }
@@ -525,8 +539,9 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
       // Group assignments by phase
       const byPhase: Record<number, import('../types').Action[]> = {};
       let row = 0;
-      for (const a of abilityAssignments) {
-        if (!a.included) { row++; continue; }
+      for (const [idx, a] of abilityAssignments.entries()) {
+        const isMerged = mergedIndices.has(idx);
+        if (!a.included || isMerged) { row++; continue; }
         if (!byPhase[a.phaseIdx]) byPhase[a.phaseIdx] = [];
         byPhase[a.phaseIdx].push({
           row,
@@ -826,56 +841,121 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
                     {/* Ability rows */}
                     <div style={{ maxHeight: '240px', overflowY: 'auto' }}>
                       {abilityAssignments.map((a, i) => {
+                        if (mergedIndices.has(i)) {
+                          return (
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 8px 2px 28px', borderBottom: '1px solid #1e2235', background: 'rgba(29,58,138,0.12)' }}>
+                              <span style={{ fontSize: '10px', color: '#3b5bdb', userSelect: 'none' }}>└</span>
+                              <span style={{ fontFamily: 'monospace', fontSize: '10px', color: '#475569' }}>{formatTime(a.timeSec)}</span>
+                              <span style={{ flex: 1, fontSize: '10px', color: '#4c6ef5', fontStyle: 'italic' }}>merged into row above</span>
+                              <button
+                                onClick={() => setMergedIndices(prev => { const n = new Set(prev); n.delete(i); return n; })}
+                                title="Unmerge — show this row separately"
+                                style={{ fontSize: '10px', color: '#7c9fff', background: 'none', border: '1px solid #3b5bdb', borderRadius: '3px', padding: '0 6px', cursor: 'pointer', flexShrink: 0 }}
+                              >
+                                ✕ unmerge
+                              </button>
+                            </div>
+                          );
+                        }
+                        // indices of same-name rows that are not merged
+                        const sameNameIndices = abilityAssignments
+                          .map((x, j) => x.name === a.name ? j : -1)
+                          .filter(j => j >= 0);
+                        const isDup = sameNameIndices.length > 1;
+                        const isFirstOcc = sameNameIndices[0] === i;
                         const isSelected = selectedAbilityIndices.has(i);
+                        const isRepeat = isDup && !isFirstOcc;
+                        const mergeAllActive = sameNameIndices.slice(1).every(j => mergedIndices.has(j));
+                        const mergedCount = isDup && isFirstOcc ? sameNameIndices.slice(1).filter(j => mergedIndices.has(j)).length : 0;
                         return (
                           <React.Fragment key={i}>
                             <div
                               onClick={(e) => {
-                              if (e.shiftKey && lastSelectedIdx !== null) {
-                                const lo = Math.min(lastSelectedIdx, i), hi = Math.max(lastSelectedIdx, i);
-                                setSelectedAbilityIndices(prev => {
-                                  const next = new Set(prev);
-                                  for (let k = lo; k <= hi; k++) next.add(k);
-                                  return next;
-                                });
-                              } else {
-                                setSelectedAbilityIndices(prev => {
-                                  const next = new Set(prev);
-                                  next.has(i) ? next.delete(i) : next.add(i);
-                                  return next;
-                                });
-                                setLastSelectedIdx(i);
-                              }
-                            }}
-                              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 8px', background: isSelected ? 'rgba(124,159,255,0.14)' : a.included ? 'rgba(124,159,255,0.04)' : 'transparent', borderBottom: i < abilityAssignments.length - 1 && !expandedAbilityRows.has(i) ? '1px solid #1e2235' : 'none', opacity: a.included ? 1 : 0.4, cursor: 'pointer', userSelect: 'none' }}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={a.included}
-                              onClick={(e) => e.stopPropagation()}
-                              onChange={(e) => setAbilityAssignments(prev => prev.map((x, j) => j === i ? { ...x, included: e.target.checked } : x))}
-                            />
-                            <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#475569', whiteSpace: 'nowrap', minWidth: '40px' }}>{formatTime(a.timeSec)}</span>
-                            <span style={{ flex: 1, fontSize: '12px', color: '#cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</span>
-                            {a.nearbyCasts.length > 0 && (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); setExpandedAbilityRows(prev => { const n = new Set(prev); n.has(i) ? n.delete(i) : n.add(i); return n; }); }}
-                                style={{ fontSize: '10px', color: '#475569', background: 'none', border: '1px solid #2d3154', borderRadius: '3px', padding: '0 4px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
-                              >
-                                {expandedAbilityRows.has(i) ? '▲' : '▼'} {a.nearbyCasts.length}
-                              </button>
-                            )}
-                            {a.damageHit != null && (
-                              <span style={{ fontSize: '10px', fontFamily: 'monospace', color: '#f87171', whiteSpace: 'nowrap', flexShrink: 0 }}>⚔ {a.damageHit.toLocaleString()}</span>
-                            )}
-                            {allPhases.length > 1 && (
-                              <span style={{ fontSize: '11px', color: isSelected ? '#7c9fff' : '#475569', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                                {allPhases[a.phaseIdx]?.name || `Phase ${a.phaseIdx + 1}`}
-                              </span>
-                            )}
+                                if (e.shiftKey && lastSelectedIdx !== null) {
+                                  const lo = Math.min(lastSelectedIdx, i), hi = Math.max(lastSelectedIdx, i);
+                                  setSelectedAbilityIndices(prev => { const next = new Set(prev); for (let k = lo; k <= hi; k++) next.add(k); return next; });
+                                } else {
+                                  setSelectedAbilityIndices(prev => { const next = new Set(prev); next.has(i) ? next.delete(i) : next.add(i); return next; });
+                                  setLastSelectedIdx(i);
+                                }
+                              }}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 8px',
+                                paddingLeft: isRepeat ? '20px' : '8px',
+                                background: isSelected ? 'rgba(124,159,255,0.14)' : isRepeat ? 'rgba(255,255,255,0.01)' : a.included ? 'rgba(124,159,255,0.04)' : 'transparent',
+                                borderBottom: '1px solid #1e2235',
+                                borderLeft: isRepeat ? '2px solid #2d3154' : 'none',
+                                opacity: a.included ? (isRepeat ? 0.65 : 1) : 0.3,
+                                cursor: 'pointer', userSelect: 'none',
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={a.included}
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={(e) => setAbilityAssignments(prev => prev.map((x, j) => j === i ? { ...x, included: e.target.checked } : x))}
+                              />
+                              <span style={{ fontFamily: 'monospace', fontSize: '11px', color: isRepeat ? '#334155' : '#475569', whiteSpace: 'nowrap', minWidth: '40px' }}>{formatTime(a.timeSec)}</span>
+                              <span style={{ flex: 1, fontSize: '12px', color: isRepeat ? '#64748b' : '#cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</span>
+                              {a.nearbyCasts.length > 0 && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setExpandedAbilityRows(prev => { const n = new Set(prev); n.has(i) ? n.delete(i) : n.add(i); return n; }); }}
+                                  style={{ fontSize: '10px', color: '#475569', background: 'none', border: '1px solid #2d3154', borderRadius: '3px', padding: '0 4px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+                                >
+                                  {expandedAbilityRows.has(i) ? '▲' : '▼'} {a.nearbyCasts.length}
+                                </button>
+                              )}
+                              {a.damageHit != null && (
+                                <span style={{ fontSize: '10px', fontFamily: 'monospace', color: '#f87171', whiteSpace: 'nowrap', flexShrink: 0 }}>{a.damageHit.toLocaleString()}</span>
+                              )}
+                              {/* Repeat row: toggle merge-with-previous */}
+                              {isRepeat && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setMergedIndices(prev => { const n = new Set(prev); n.has(i) ? n.delete(i) : n.add(i); return n; }); }}
+                                  title="Merge this occurrence into the one above"
+                                  style={{
+                                    fontSize: '10px', whiteSpace: 'nowrap', flexShrink: 0, cursor: 'pointer',
+                                    padding: '1px 6px', borderRadius: '3px',
+                                    background: mergedIndices.has(i) ? '#1d3a8a' : 'transparent',
+                                    color: mergedIndices.has(i) ? '#93c5fd' : '#475569',
+                                    border: `1px solid ${mergedIndices.has(i) ? '#3b5bdb' : '#2d3154'}`,
+                                  }}
+                                >
+                                  ↑ merge
+                                </button>
+                              )}
+                              {/* First occurrence of a dup: merge-all convenience */}
+                              {isDup && isFirstOcc && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setMergedIndices(prev => {
+                                      const n = new Set(prev);
+                                      if (mergedCount > 0) { sameNameIndices.slice(1).forEach(j => n.delete(j)); }
+                                      else { sameNameIndices.slice(1).forEach(j => n.add(j)); }
+                                      return n;
+                                    });
+                                  }}
+                                  title={mergeAllActive ? `Expand all ${sameNameIndices.length} occurrences` : `Merge all ${sameNameIndices.length} occurrences into this row`}
+                                  style={{
+                                    fontSize: '10px', whiteSpace: 'nowrap', flexShrink: 0, cursor: 'pointer',
+                                    padding: '1px 6px', borderRadius: '3px',
+                                    background: mergedCount > 0 ? '#1d3a8a' : 'transparent',
+                                    color: mergedCount > 0 ? '#93c5fd' : '#475569',
+                                    border: `1px solid ${mergedCount > 0 ? '#3b5bdb' : '#2d3154'}`,
+                                  }}
+                                >
+                                  {mergedCount > 0 ? `+${mergedCount} merged` : `${sameNameIndices.length}×`}
+                                </button>
+                              )}
+                              {allPhases.length > 1 && (
+                                <span style={{ fontSize: '11px', color: isSelected ? '#7c9fff' : '#475569', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                                  {allPhases[a.phaseIdx]?.name || `Phase ${a.phaseIdx + 1}`}
+                                </span>
+                              )}
                             </div>
                             {expandedAbilityRows.has(i) && a.nearbyCasts.length > 0 && (
-                              <div style={{ padding: '3px 8px 4px 32px', background: '#0d1020', borderBottom: i < abilityAssignments.length - 1 ? '1px solid #1e2235' : 'none', fontSize: '10px', color: '#475569', lineHeight: 1.6 }}>
+                              <div style={{ padding: '3px 8px 4px 32px', background: '#0d1020', borderBottom: '1px solid #1e2235', fontSize: '10px', color: '#475569', lineHeight: 1.6 }}>
                                 {a.nearbyCasts.join(' · ')}
                               </div>
                             )}
