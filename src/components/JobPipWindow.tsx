@@ -294,13 +294,8 @@ export function PipContent({ jobJP, jobName, allPhases, skills }: PipContentProp
 // Opens the PIP window and returns a handle � no React root created here.
 // MitigationGrid uses createPortal to render PipContent into handle.container.
 
-export async function openPipWindow(jobJP: string, jobName: string): Promise<PipWindowHandle | null> {
-  if (!window.documentPictureInPicture) {
-    alert('Document Picture-in-Picture is not supported in this browser.\nRequires Chrome 116+ or Edge 116+.');
-    return null;
-  }
-  const win = await window.documentPictureInPicture.requestWindow({ width: 300, height: 480 });
-  win.document.title = `${jobName} � Mitigations`;
+function applyPipStyles(win: Window & typeof globalThis, jobName: string): HTMLElement {
+  win.document.title = `${jobName} \u2013 Mitigations`;
   win.document.body.style.cssText = 'margin:0;padding:0;height:100vh;overflow:hidden;background:#0f1117';
   const style = win.document.createElement('style');
   style.textContent = `
@@ -314,7 +309,24 @@ export async function openPipWindow(jobJP: string, jobName: string): Promise<Pip
   const container = win.document.createElement('div');
   container.style.height = '100%';
   win.document.body.appendChild(container);
-  return { win, container, jobJP, jobName };
+  return container;
+}
+
+export async function openPipWindow(jobJP: string, jobName: string): Promise<PipWindowHandle | null> {
+  if (window.documentPictureInPicture) {
+    const win = await window.documentPictureInPicture.requestWindow({ width: 300, height: 480 });
+    const container = applyPipStyles(win, jobName);
+    return { win, container, jobJP, jobName };
+  }
+
+  // Fallback for Firefox and other browsers that don't support documentPictureInPicture
+  const popup = window.open('', '_blank', 'width=300,height=480,resizable=yes,scrollbars=no');
+  if (!popup) {
+    alert('Could not open a popup window. Please allow popups for this site.');
+    return null;
+  }
+  const container = applyPipStyles(popup, jobName);
+  return { win: popup, container, jobJP, jobName };
 }
 
 // PipPortal � drop this in JSX to portal PipContent into an open PIP window.
@@ -329,7 +341,11 @@ interface PipPortalProps {
 export function PipPortal({ handle, allPhases, skills, onClose }: PipPortalProps) {
   useEffect(() => {
     handle.win.addEventListener('pagehide', onClose);
-    return () => handle.win.removeEventListener('pagehide', onClose);
+    handle.win.addEventListener('beforeunload', onClose);
+    return () => {
+      handle.win.removeEventListener('pagehide', onClose);
+      handle.win.removeEventListener('beforeunload', onClose);
+    };
   }, [handle, onClose]);
 
   return createPortal(

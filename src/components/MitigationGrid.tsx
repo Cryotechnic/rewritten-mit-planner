@@ -1108,6 +1108,20 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
             <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
               Opens a floating window showing when to use mitigations for the selected job.
             </div>
+            {!window.documentPictureInPicture && (
+              <div style={{
+                fontSize: '12px', color: '#fbbf24',
+                background: 'rgba(146,64,14,0.2)', border: '1px solid #92400e',
+                borderRadius: '6px', padding: '8px 10px',
+                display: 'flex', alignItems: 'flex-start', gap: '6px',
+              }}>
+                <span style={{ flexShrink: 0 }}>⚠️</span>
+                <span>
+                  Your browser does not support Document Picture-in-Picture. A regular popup window will open instead — it won't stay on top automatically.
+                  For the best experience, use Chrome or Edge 116+.
+                </span>
+              </div>
+            )}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
               {allJobs.map((jobJP) => {
                 const abbr = JOB_DISPLAY_NAMES[jobJP] ?? jobJP;
