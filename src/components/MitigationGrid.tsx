@@ -241,6 +241,14 @@ const FORCE_CHECKABLE_SKILLS = new Set<string>([
   'オブレーション',  // Oblation
 ]);
 
+// Tank invuln skills — when any of these are checked, the player survives regardless of damage.
+const INVULN_SKILLS = new Set<string>([
+  'インビンシブル',  // Hallowed Ground (PLD)
+  'ホルムギャング',  // Holmgang (WAR)
+  'リビングデッド',  // Living Dead (DRK)
+  'ボライド',        // Superbolide (GNB)
+]);
+
 interface ActionRowProps {
   action: Action;
   phaseIdx: number;
@@ -318,6 +326,7 @@ const ActionRow = React.memo(function ActionRow({
   const hp = damageType === 'Physical' ? tankHP : maxHP;
   const barrier = computeBarrier(allVisibleCols, checked, hp, computeHealBuff(allVisibleCols, checked));
   const mitPct = baseDamage > 0 ? Math.round((1 - mit) * 100) : null;
+  const hasInvuln = allVisibleCols.some(sc => checked[sc.col] && INVULN_SKILLS.has(sc.skill));
   const typeColor = DAMAGE_TYPE_COLORS[action.type ?? ''] ?? '#aaa';
 
   return (
@@ -390,7 +399,7 @@ const ActionRow = React.memo(function ActionRow({
           ) : ''}
         </td>
         <td className="calc-col mitigated-cell">
-          {baseDamage > 0 ? <HPBar damage={mitigatedDamage} barrier={barrier} maxHP={hp} /> : ''}
+          {baseDamage > 0 ? <HPBar damage={mitigatedDamage} barrier={barrier} maxHP={hp} invuln={hasInvuln} /> : ''}
         </td>
         <td className="calc-col barrier-cell">
           {barrier > 0 ? barrier.toLocaleString() : ''}
@@ -1274,13 +1283,13 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
   );
 }
 
-function HPBar({ damage, barrier, maxHP }: { damage: number; barrier: number; maxHP: number }) {
+function HPBar({ damage, barrier, maxHP, invuln }: { damage: number; barrier: number; maxHP: number; invuln?: boolean }) {
   const remaining = maxHP - damage;
   const remainingPct = Math.max(0, Math.min(100, (remaining / maxHP) * 100));
   const barrierPct = Math.min(100 - remainingPct, (barrier / maxHP) * 100);
   const damagePct = 100 - remainingPct - barrierPct;
 
-  const survived = damage <= maxHP + barrier;
+  const survived = invuln || damage <= maxHP + barrier;
 
   return (
     <div className="hp-bar-wrap" title={`${damage.toLocaleString()} damage, ${barrier.toLocaleString()} barrier, ${remaining.toLocaleString()} remaining`}>
@@ -1289,8 +1298,8 @@ function HPBar({ damage, barrier, maxHP }: { damage: number; barrier: number; ma
         <div className="hp-barrier" style={{ width: `${barrierPct}%` }} />
         <div className="hp-damage" style={{ width: `${Math.min(damagePct, 100)}%` }} />
       </div>
-      <span className={`hp-label ${survived ? '' : 'lethal'}`}>
-        {survived ? `${remaining.toLocaleString()}` : 'LETHAL'}
+      <span className={`hp-label ${survived ? '' : 'lethal'} ${invuln ? 'invuln' : ''}`}>
+        {invuln ? 'Invuln' : survived ? `${remaining.toLocaleString()}` : 'LETHAL'}
       </span>
     </div>
   );

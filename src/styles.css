@@ -1152,6 +1152,7 @@ tr:hover .job-note-btn { opacity: 1; }
 
 .hp-label { font-size: 10px; color: var(--text-muted); min-width: 48px; text-align: right; }
 .hp-label.lethal { color: var(--danger); font-weight: 700; }
+.hp-label.invuln { color: #a78bfa; font-weight: 700; }
 
 /* ========== Editable action cells ========== */
 .editable-cell { cursor: pointer; }
