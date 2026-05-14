@@ -9,7 +9,7 @@ interface Props {
 }
 
 export default function PlanTabBar({ onJoinByCode }: Props) {
-  const { plans, activePlanId, setActivePlan, addPlan, removePlan, renamePlan, shareId, clientId, setShareId, maxHP, tankHP, encounterLevel, language, writeToken, viewerMode } = useStore();
+  const { plans, activePlanId, setActivePlan, addPlan, removePlan, renamePlan, shareId, clientId, setShareId, maxHP, tankHP, encounterLevel, language, writeToken, viewerMode, setWriteToken, toggleViewerMode } = useStore();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [showDialog, setShowDialog] = useState(false);
@@ -40,6 +40,12 @@ export default function PlanTabBar({ onJoinByCode }: Props) {
     const id = generateShareId();
     await pushPlan(id, plans, activePlanId, clientId, { maxHP, tankHP, encounterLevel });
     setShareId(id);
+  };
+
+  const handleLeave = () => {
+    setShareId(null);
+    setWriteToken(null);
+    if (viewerMode) toggleViewerMode();
   };
 
   const handleJoin = () => {
@@ -129,6 +135,8 @@ export default function PlanTabBar({ onJoinByCode }: Props) {
               {copiedView ? 'Copied!' : 'View-only link'}
             </button>
             <button className="sync-btn" onClick={() => setShowRegenConfirm(true)} title={t('btnRegen', language)}>{t('btnRegen', language)}</button>
+            <button className="sync-btn" onClick={handleJoin} title="Join a different session">Join</button>
+            <button className="sync-btn sync-btn-stop" onClick={handleLeave} title="Leave session">Leave</button>
 
           </>
         ) : (
