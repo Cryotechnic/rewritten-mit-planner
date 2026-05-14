@@ -6,10 +6,11 @@ import { t } from '../i18n';
 
 interface Props {
   onJoinByCode?: () => void;
+  onLeave?: () => void;
 }
 
-export default function PlanTabBar({ onJoinByCode }: Props) {
-  const { plans, activePlanId, setActivePlan, addPlan, removePlan, renamePlan, shareId, clientId, setShareId, maxHP, tankHP, encounterLevel, language, writeToken, viewerMode, setWriteToken, toggleViewerMode } = useStore();
+export default function PlanTabBar({ onJoinByCode, onLeave }: Props) {
+  const { plans, activePlanId, setActivePlan, addPlan, removePlan, renamePlan, shareId, clientId, setShareId, maxHP, tankHP, encounterLevel, language, writeToken, viewerMode } = useStore();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [showDialog, setShowDialog] = useState(false);
@@ -43,9 +44,7 @@ export default function PlanTabBar({ onJoinByCode }: Props) {
   };
 
   const handleLeave = () => {
-    setShareId(null);
-    setWriteToken(null);
-    if (viewerMode) toggleViewerMode();
+    onLeave?.();
   };
 
   const handleJoin = () => {

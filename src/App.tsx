@@ -198,6 +198,28 @@ export default function App() {
     });
   }
 
+  function handleLeave() {
+    // Tear down current session
+    if (unsubRef.current) { unsubRef.current(); unsubRef.current = null; }
+    setShareId(null);
+    setWriteToken(null);
+    setSessionPassword(null);
+    setNeedJoinPassword(false);
+    setWaitingForHost(false);
+    if (viewerMode) toggleViewerMode();
+    awaitingFirstSyncRef.current = false;
+    skipNextPushRef.current = false;
+    // Start a brand-new session setup flow
+    clearPlanActions();
+    renamePlan(activePlanId, '');
+    const id = generateShareId();
+    const token = generateWriteToken();
+    pendingShareIdRef.current = id;
+    writeTokenRef.current = token;
+    setWriteToken(token);
+    setShowPasswordSetup(true);
+  }
+
   // Subscribe / unsubscribe when shareId or sessionPassword changes.
   // Intentionally NOT gated on needJoinPassword — we keep the subscription alive
   // so onSnapshot can fire onWaiting/onNeedsPassword even while the prompt is shown.
@@ -322,7 +344,7 @@ export default function App() {
   return (
     <div className="app">
       <Header data={data} allPhases={allPhases} onAddPhase={() => setShowAddPhase(true)} onJoinByCode={() => setShowJoinByCode(true)} />
-      <PlanTabBar onJoinByCode={() => setShowJoinByCode(true)} />
+      <PlanTabBar onJoinByCode={() => setShowJoinByCode(true)} onLeave={handleLeave} />
 
       <div className="tab-bar">
         <button
