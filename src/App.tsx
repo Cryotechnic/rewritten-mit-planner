@@ -141,10 +141,17 @@ export default function App() {
     const id = pendingShareIdRef.current!;
     setSessionPassword(password);
     setShowPasswordSetup(false);
+    // Suppress the debounced push effect so only this explicit pushPlan call
+    // creates the Firebase document (prevents a double-write on session creation).
+    awaitingFirstSyncRef.current = true;
     setShareId(id); // triggers subscribe effect
     const { plans: p, activePlanId: aid, maxHP: mhp, tankHP: thp, encounterLevel: el } = useStore.getState();
-    pushPlan(id, p, aid, clientId, { maxHP: mhp, tankHP: thp, encounterLevel: el, allowCooldownOverride: useStore.getState().allowCooldownOverride }, password ?? undefined, writeTokenRef.current ?? undefined).catch((err) => {
+    pushPlan(id, p, aid, clientId, { maxHP: mhp, tankHP: thp, encounterLevel: el, allowCooldownOverride: useStore.getState().allowCooldownOverride }, password ?? undefined, writeTokenRef.current ?? undefined).then(() => {
+      // Allow subsequent edits to sync after the initial push succeeds.
+      awaitingFirstSyncRef.current = false;
+    }).catch((err) => {
       console.error('Failed to create session:', err);
+      awaitingFirstSyncRef.current = false;
       setShareError('Could not create a sync session. Check your Firebase config or Firestore rules.');
     });
   }

@@ -18,6 +18,7 @@ export default function PlanTabBar({ onJoinByCode, onLeave }: Props) {
   const [copied, setCopied] = useState(false);
   const [copiedView, setCopiedView] = useState(false);
   const [showRegenConfirm, setShowRegenConfirm] = useState(false);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const canRemove = Object.keys(plans).length > 1;
@@ -44,7 +45,7 @@ export default function PlanTabBar({ onJoinByCode, onLeave }: Props) {
   };
 
   const handleLeave = () => {
-    onLeave?.();
+    setShowLeaveConfirm(true);
   };
 
   const handleJoin = () => {
@@ -134,7 +135,6 @@ export default function PlanTabBar({ onJoinByCode, onLeave }: Props) {
               {copiedView ? 'Copied!' : 'View-only link'}
             </button>
             <button className="sync-btn" onClick={() => setShowRegenConfirm(true)} title={t('btnRegen', language)}>{t('btnRegen', language)}</button>
-            <button className="sync-btn" onClick={handleJoin} title="Join a different session">Join</button>
             <button className="sync-btn sync-btn-stop" onClick={handleLeave} title="Leave session">Leave</button>
 
           </>
@@ -160,6 +160,20 @@ export default function PlanTabBar({ onJoinByCode, onLeave }: Props) {
           onConfirm={(encounterName) => { renamePlan(renamingId, encounterName); setRenamingId(null); }}
           onCancel={() => setRenamingId(null)}
         />
+      )}
+      {showLeaveConfirm && (
+        <div className="encounter-dialog-overlay" onClick={() => setShowLeaveConfirm(false)}>
+          <div className="encounter-dialog" onClick={(e) => e.stopPropagation()}>
+            <h2 className="encounter-dialog-title" style={{ color: '#f87171' }}>Leave Session?</h2>
+            <p style={{ margin: '0 0 16px', color: 'var(--text-dim, #9ca3af)', fontSize: 14 }}>
+              You will be taken back to the initial setup screen. Your local plan data will be cleared, but the session remains saved in the cloud and can be rejoined at any time.
+            </p>
+            <div className="encounter-dialog-actions">
+              <button className="encounter-dialog-cancel" onClick={() => setShowLeaveConfirm(false)}>Cancel</button>
+              <button className="encounter-dialog-confirm" style={{ background: '#dc2626' }} onClick={() => { setShowLeaveConfirm(false); onLeave?.(); }}>Leave</button>
+            </div>
+          </div>
+        </div>
       )}
       {showRegenConfirm && (
         <div className="encounter-dialog-overlay" onClick={() => setShowRegenConfirm(false)}>
