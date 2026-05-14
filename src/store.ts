@@ -448,6 +448,8 @@ export const useStore = create<PlannerState>()(
         encounterLevel: s.encounterLevel,
         plans: s.plans,
         activePlanId: s.activePlanId,
+        shareId: s.shareId,
+        writeToken: s.writeToken,
       }),
     }
   )

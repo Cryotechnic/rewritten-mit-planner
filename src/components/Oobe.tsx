@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 
 interface Props {
   onConfirm: (encounterName: string) => void;
+  onJoinByCode?: () => void;
 }
 
 const SUGGESTIONS = [
@@ -13,7 +14,7 @@ const SUGGESTIONS = [
   'Futures Rewritten (Ultimate)',
 ];
 
-export default function Oobe({ onConfirm }: Props) {
+export default function Oobe({ onConfirm, onJoinByCode }: Props) {
   const [name, setName] = useState('');
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -85,7 +86,22 @@ export default function Oobe({ onConfirm }: Props) {
           Get Started →
         </button>
 
-        <p className="oobe-hint">All data is saved locally in your browser. Nothing is sent to a server.</p>
+        <p className="oobe-hint">All data is saved locally in your browser.</p>
+
+        {onJoinByCode && (
+          <>
+            <div className="oobe-divider" />
+            <div style={{ textAlign: 'center' }}>
+              <p className="oobe-hint" style={{ marginBottom: '10px' }}>Have a session code from a teammate?</p>
+              <button
+                className="oobe-btn-secondary"
+                onClick={onJoinByCode}
+              >
+                Open session by code
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

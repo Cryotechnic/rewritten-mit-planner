@@ -51,9 +51,10 @@ interface SetupProps {
   shareUrl: string;
   viewUrl: string;
   onConfirm: (password: string | null) => void;
+  onJoinByCode?: () => void;
 }
 
-export function SharePasswordSetup({ shareUrl, viewUrl, onConfirm }: SetupProps) {
+export function SharePasswordSetup({ shareUrl, viewUrl, onConfirm, onJoinByCode }: SetupProps) {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const mismatch = confirm.length > 0 && password !== confirm;
@@ -124,6 +125,21 @@ export function SharePasswordSetup({ shareUrl, viewUrl, onConfirm }: SetupProps)
             Set password
           </button>
         </div>
+
+        {onJoinByCode && (
+          <div style={{ textAlign: 'center', marginTop: '4px' }}>
+            <button
+              onClick={onJoinByCode}
+              style={{
+                background: 'none', border: 'none', color: 'var(--text-muted)',
+                fontSize: '12px', cursor: 'pointer', textDecoration: 'underline',
+                padding: 0,
+              }}
+            >
+              Join an existing session by code instead
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

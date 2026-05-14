@@ -12,6 +12,7 @@ import SkillDatabase from "./components/SkillDatabase";
 import MitigationGrid from "./components/MitigationGrid";
 import { PipPortal, type PipWindowHandle } from "./components/JobPipWindow";
 import { SharePasswordSetup, JoinPasswordPrompt } from "./components/SessionPasswordDialog";
+import { JoinByCodeDialog } from "./components/JoinByCodeDialog";
 import { useStore } from "./store";
 import { pushPlan, subscribePlan, generateShareId, generateWriteToken, getSessionMeta, validateSessionPassword } from "./lib/planSync";
 import type { Unsubscribe } from "firebase/firestore";
@@ -48,8 +49,8 @@ export default function App() {
   const pushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Suppress echo after applying a remote update
   const skipNextPushRef = useRef(false);
-  // Suppress initial push when joining (so we don't overwrite the sharer's data)
-  const awaitingFirstSyncRef = useRef(false);
+  // Suppress initial push when joining or reconnecting (so we don't overwrite remote data)
+  const awaitingFirstSyncRef = useRef(!!shareId);
 
   // Per-session encryption
   const pendingShareIdRef = useRef<string | null>(null);
@@ -61,6 +62,9 @@ export default function App() {
   const [joinPasswordChecking, setJoinPasswordChecking] = useState(false);
   const [joinPasswordError, setJoinPasswordError] = useState(false);
   const [waitingForHost, setWaitingForHost] = useState(false);
+  const [showJoinByCode, setShowJoinByCode] = useState(false);
+  const [joiningCodeChecking, setJoiningCodeChecking] = useState(false);
+  const [joiningCodeError, setJoiningCodeError] = useState<string | null>(null);
   const [pipHandle, setPipHandle] = useState<PipWindowHandle | null>(null);
 
   // On mount: check URL for ?join=XXXXXX, or start share setup
@@ -102,7 +106,25 @@ export default function App() {
       }).catch(() => {
         setShareError('Could not reach the sync session. Check your connection.');
       });
-    } else if (!shareId) {
+    } else if (shareId) {
+      // Persisted session — reconnect without creating a new one or clearing plan data.
+      // awaitingFirstSyncRef is already true (initialized from shareId), so the push
+      // effect won't fire until the first remote sync arrives.
+      const { writeToken: persistedToken } = useStore.getState();
+      if (persistedToken) writeTokenRef.current = persistedToken;
+      getSessionMeta(shareId).then(({ exists, encrypted }) => {
+        if (!exists) {
+          // Session expired — drop it and let the user start fresh
+          setShareId(null);
+          setWriteToken(null);
+          awaitingFirstSyncRef.current = false;
+        } else if (encrypted) {
+          setNeedJoinPassword(true);
+        }
+      }).catch(() => {
+        setShareError('Could not reach the sync session. Check your connection.');
+      });
+    } else {
       // Sharer: generate ID + write token, prompt for optional password
       // Reset the active plan so sharing always starts from a blank slate
       clearPlanActions();
@@ -139,6 +161,41 @@ export default function App() {
       setJoinPasswordError(true);
     }
     setJoinPasswordChecking(false);
+  }
+
+  function handleJoinByCode(code: string) {
+    const id = code.trim().toUpperCase();
+    setJoiningCodeChecking(true);
+    setJoiningCodeError(null);
+    // Pre-validate against the allowed charset before hitting Firestore,
+    // so invalid chars produce "not found" rather than a permission error.
+    const VALID_RE = /^[A-HJ-NP-Z2-9]{6}$/;
+    if (!VALID_RE.test(id)) {
+      setJoiningCodeChecking(false);
+      setJoiningCodeError('Session not found. Check the code and try again.');
+      return;
+    }
+    getSessionMeta(id).then(({ exists, encrypted }) => {
+      setJoiningCodeChecking(false);
+      if (!exists) {
+        setJoiningCodeError('Session not found. Check the code and try again.');
+        return;
+      }
+      setShowJoinByCode(false);
+      setJoiningCodeError(null);
+      awaitingFirstSyncRef.current = true;
+      setShareId(id);
+      if (!viewerMode) toggleViewerMode();
+      if (encrypted) setNeedJoinPassword(true);
+    }).catch((err) => {
+      setJoiningCodeChecking(false);
+      // Firestore permission-denied = invalid code format slipped through
+      if (err?.code === 'permission-denied') {
+        setJoiningCodeError('Session not found. Check the code and try again.');
+      } else {
+        setJoiningCodeError('Could not reach the sync session. Check your connection.');
+      }
+    });
   }
 
   // Subscribe / unsubscribe when shareId or sessionPassword changes.
@@ -202,7 +259,24 @@ export default function App() {
     const base = `${window.location.origin}${window.location.pathname}`;
     const shareUrl = token ? `${base}?join=${id}#t=${token}` : `${base}?join=${id}`;
     const viewUrl = `${base}?view=${id}`;
-    return <SharePasswordSetup shareUrl={shareUrl} viewUrl={viewUrl} onConfirm={handleSharerPasswordConfirm} />;
+    return (
+      <>
+        <SharePasswordSetup
+          shareUrl={shareUrl}
+          viewUrl={viewUrl}
+          onConfirm={handleSharerPasswordConfirm}
+          onJoinByCode={() => { setShowPasswordSetup(false); setShowJoinByCode(true); }}
+        />
+        {showJoinByCode && (
+          <JoinByCodeDialog
+            onJoin={handleJoinByCode}
+            onCancel={() => { setShowJoinByCode(false); setJoiningCodeChecking(false); setJoiningCodeError(null); }}
+            checking={joiningCodeChecking}
+            error={joiningCodeError}
+          />
+        )}
+      </>
+    );
   }
 
   if (waitingForHost && shareId) {
@@ -230,14 +304,25 @@ export default function App() {
     );
   }
 
+  if (showJoinByCode) {
+    return (
+      <JoinByCodeDialog
+        onJoin={handleJoinByCode}
+        onCancel={() => { setShowJoinByCode(false); setJoiningCodeChecking(false); setJoiningCodeError(null); }}
+        checking={joiningCodeChecking}
+        error={joiningCodeError}
+      />
+    );
+  }
+
   if (!activePlan.name) {
-    return <Oobe onConfirm={(encounterName) => renamePlan(activePlanId, encounterName)} />;
+    return <Oobe onConfirm={(encounterName) => renamePlan(activePlanId, encounterName)} onJoinByCode={() => setShowJoinByCode(true)} />;
   }
 
   return (
     <div className="app">
-      <Header data={data} allPhases={allPhases} onAddPhase={() => setShowAddPhase(true)} />
-      <PlanTabBar />
+      <Header data={data} allPhases={allPhases} onAddPhase={() => setShowAddPhase(true)} onJoinByCode={() => setShowJoinByCode(true)} />
+      <PlanTabBar onJoinByCode={() => setShowJoinByCode(true)} />
 
       <div className="tab-bar">
         <button
@@ -302,6 +387,14 @@ export default function App() {
           ⚠ {shareError}
           <button onClick={() => setShareError(null)}>✕</button>
         </div>
+      )}
+      {showJoinByCode && (
+        <JoinByCodeDialog
+          onJoin={handleJoinByCode}
+          onCancel={() => { setShowJoinByCode(false); setJoiningCodeChecking(false); setJoiningCodeError(null); }}
+          checking={joiningCodeChecking}
+          error={joiningCodeError}
+        />
       )}
     </div>
   );

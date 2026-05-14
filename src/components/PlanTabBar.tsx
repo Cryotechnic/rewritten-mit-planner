@@ -4,7 +4,11 @@ import EncounterDialog from './EncounterDialog';
 import { generateShareId, pushPlan } from '../lib/planSync';
 import { t } from '../i18n';
 
-export default function PlanTabBar() {
+interface Props {
+  onJoinByCode?: () => void;
+}
+
+export default function PlanTabBar({ onJoinByCode }: Props) {
   const { plans, activePlanId, setActivePlan, addPlan, removePlan, renamePlan, shareId, clientId, setShareId, maxHP, tankHP, encounterLevel, language, writeToken, viewerMode } = useStore();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
@@ -12,8 +16,6 @@ export default function PlanTabBar() {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [copiedView, setCopiedView] = useState(false);
-  const [joinInput, setJoinInput] = useState('');
-  const [showJoinInput, setShowJoinInput] = useState(false);
   const [showRegenConfirm, setShowRegenConfirm] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -41,8 +43,7 @@ export default function PlanTabBar() {
   };
 
   const handleJoin = () => {
-    const id = joinInput.trim().toUpperCase();
-    if (id.length === 6) { setShareId(id); setShowJoinInput(false); setJoinInput(''); }
+    onJoinByCode?.();
   };
 
   const handleRegen = async () => {
@@ -130,24 +131,10 @@ export default function PlanTabBar() {
             <button className="sync-btn" onClick={() => setShowRegenConfirm(true)} title={t('btnRegen', language)}>{t('btnRegen', language)}</button>
 
           </>
-        ) : showJoinInput ? (
-          <>
-            <input
-              className="sync-join-input"
-              placeholder={t('joinPlaceholder', language)}
-              value={joinInput}
-              maxLength={6}
-              onChange={(e) => setJoinInput(e.target.value.toUpperCase())}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleJoin(); if (e.key === 'Escape') setShowJoinInput(false); }}
-              autoFocus
-            />
-            <button className="sync-btn" onClick={handleJoin}>{t('btnJoin', language)}</button>
-            <button className="sync-btn sync-btn-stop" onClick={() => setShowJoinInput(false)}>✕</button>
-          </>
         ) : (
           <>
             <button className="sync-btn" onClick={handleShare} title={t('btnShare', language)}>{t('btnShare', language)}</button>
-            <button className="sync-btn" onClick={() => setShowJoinInput(true)} title={t('btnJoin', language)}>{t('btnJoin', language)}</button>
+            <button className="sync-btn" onClick={handleJoin} title={t('btnJoin', language)}>{t('btnJoin', language)}</button>
           </>
         )}
       </div>
