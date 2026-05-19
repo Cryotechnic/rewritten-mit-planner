@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { requireAdmin } from '../../_lib/auth';
-import { getDb } from '../../_lib/firebase';
+import { requireAdmin } from '../../_lib/auth.js';
+import { getDb } from '../../_lib/firebase.js';
 import type { QueryDocumentSnapshot } from 'firebase-admin/firestore';
 
 interface SessionRow {

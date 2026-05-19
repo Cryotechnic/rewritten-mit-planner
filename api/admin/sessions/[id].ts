@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { requireAdmin } from '../../_lib/auth';
-import { getDb } from '../../_lib/firebase';
+import { requireAdmin } from '../../_lib/auth.js';
+import { getDb } from '../../_lib/firebase.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'DELETE') { res.status(405).json({ error: 'Method not allowed' }); return; }

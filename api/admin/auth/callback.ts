@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import jwt from 'jsonwebtoken';
-import { verifyOAuthState } from '../../_lib/oauth-state';
+import { verifyOAuthState } from '../../_lib/oauth-state.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { code, state } = req.query as Record<string, string | undefined>;
