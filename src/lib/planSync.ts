@@ -143,12 +143,15 @@ export function subscribePlan(
   password?: string,
   onNeedsPassword?: () => void,
   onWaiting?: () => void,
+  onDeleted?: () => void,
 ): Unsubscribe {
+  let seenDoc = false;
   return onSnapshot(doc(db, COLLECTION, shareId), async (snap) => {
     if (!snap.exists()) {
-      onWaiting?.();
+      if (seenDoc) { onDeleted?.(); } else { onWaiting?.(); }
       return;
     }
+    seenDoc = true;
     const data = snap.data();
     if (data.clientId === clientId) return;
 

@@ -38,6 +38,15 @@ function gitHashPlugin(): Plugin {
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), gitHashPlugin()],
+  server: {
+    proxy: {
+      // Proxy admin API requests to the local Express server in development
+      '/api/admin': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+    },
+  },
   build: {
     chunkSizeWarningLimit: 1000,
     rollupOptions: {

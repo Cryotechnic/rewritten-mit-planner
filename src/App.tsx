@@ -63,6 +63,7 @@ export default function App() {
   const [joinPasswordError, setJoinPasswordError] = useState(false);
   const [waitingForHost, setWaitingForHost] = useState(false);
   const [showJoinByCode, setShowJoinByCode] = useState(false);
+  const [sessionDeleted, setSessionDeleted] = useState(false);
   const [joiningCodeChecking, setJoiningCodeChecking] = useState(false);
   const [joiningCodeError, setJoiningCodeError] = useState<string | null>(null);
   const [pipHandle, setPipHandle] = useState<PipWindowHandle | null>(null);
@@ -245,6 +246,9 @@ export default function App() {
     }, () => {
       // Doc doesn't exist yet — sharer hasn't pushed
       setWaitingForHost(true);
+    }, () => {
+      // Doc existed but was deleted (e.g. by admin)
+      setSessionDeleted(true);
     });
     return () => { unsubRef.current?.(); unsubRef.current = null; };
   }, [shareId, clientId, sessionPassword]);
@@ -424,6 +428,19 @@ export default function App() {
           checking={joiningCodeChecking}
           error={joiningCodeError}
         />
+      )}
+      {sessionDeleted && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h2 className="modal-title">Session Deleted</h2>
+            <p className="modal-body">This session has been removed by an administrator. Your local plan data will be cleared.</p>
+            <div className="modal-actions">
+              <button className="btn btn-primary" onClick={() => { setSessionDeleted(false); handleLeave(); }}>
+                Go to Home
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
