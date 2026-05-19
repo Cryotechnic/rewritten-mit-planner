@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireAdmin } from '../../_lib/auth';
 import { getDb } from '../../_lib/firebase';
+import type { QueryDocumentSnapshot } from 'firebase-admin/firestore';
 
 interface SessionRow {
   id: string;
@@ -22,7 +23,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const db = getDb();
     const snap = await db.collection('sessions').get();
 
-    const rows: SessionRow[] = snap.docs.map((docSnap: FirebaseFirestore.QueryDocumentSnapshot) => {
+    const rows: SessionRow[] = snap.docs.map((docSnap: QueryDocumentSnapshot) => {
       const d = docSnap.data();
       const encrypted = 'ciphertext' in d;
       const base: SessionRow = {
