@@ -55,7 +55,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     rows.sort((a, b) => b.updatedAt - a.updatedAt);
     res.json(rows);
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
     console.error('[admin] List sessions error:', err);
-    res.status(500).json({ error: 'Failed to list sessions' });
+    res.status(500).json({ error: 'Failed to list sessions', detail: message });
   }
 }
