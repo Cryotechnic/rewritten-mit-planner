@@ -22,7 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const db = getDb();
     const snap = await db.collection('sessions').get();
 
-    const rows: SessionRow[] = snap.docs.map((docSnap) => {
+    const rows: SessionRow[] = snap.docs.map((docSnap: FirebaseFirestore.QueryDocumentSnapshot) => {
       const d = docSnap.data();
       const encrypted = 'ciphertext' in d;
       const base: SessionRow = {

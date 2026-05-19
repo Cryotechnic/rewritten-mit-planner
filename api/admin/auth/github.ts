@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createOAuthState } from '../../../_lib/oauth-state';
+import { createOAuthState } from '../../_lib/oauth-state';
 
 export default function handler(_req: VercelRequest, res: VercelResponse) {
   const state = createOAuthState();
