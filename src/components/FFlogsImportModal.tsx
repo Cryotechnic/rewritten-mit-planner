@@ -263,6 +263,7 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
   const [importFullTimeline, setImportFullTimeline] = useState(false);
   const [abilityAssignments, setAbilityAssignments] = useState<AbilityAssignment[]>([]);
   const [selectedAbilityIndices, setSelectedAbilityIndices] = useState<Set<number>>(new Set());
+  const [phaseFilter, setPhaseFilter] = useState<number | null>(null);
   const [bulkPhaseIdx, setBulkPhaseIdx] = useState(0);
   const [lastSelectedIdx, setLastSelectedIdx] = useState<number | null>(null);
   const [expandedAbilityRows, setExpandedAbilityRows] = useState<Set<number>>(new Set());
@@ -810,6 +811,33 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
                 </div>
                 {importFullTimeline && (
                   <div style={{ border: '1px solid #2d3154', borderRadius: '6px', overflow: 'hidden' }}>
+                    {/* Phase filter bar */}
+                    {allPhases.length > 1 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 8px', background: '#0a0d1a', borderBottom: '1px solid #2d3154', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '11px', color: '#64748b', marginRight: '4px', whiteSpace: 'nowrap' }}>View:</span>
+                        <button
+                          onClick={() => { setPhaseFilter(null); setSelectedAbilityIndices(new Set()); }}
+                          style={{ fontSize: '11px', padding: '1px 8px', borderRadius: '999px', border: '1px solid', cursor: 'pointer',
+                            background: phaseFilter === null ? '#fff' : 'transparent',
+                            borderColor: phaseFilter === null ? '#fff' : '#2d3154',
+                            color: phaseFilter === null ? '#0f0f1a' : '#64748b',
+                            fontWeight: phaseFilter === null ? 700 : 400,
+                          }}
+                        >Unassigned</button>
+                        {allPhases.map((p, pi) => (
+                          <button
+                            key={pi}
+                            onClick={() => { setPhaseFilter(pi); setSelectedAbilityIndices(new Set()); }}
+                            style={{ fontSize: '11px', padding: '1px 8px', borderRadius: '999px', border: '1px solid', cursor: 'pointer',
+                              background: phaseFilter === pi ? '#fff' : 'transparent',
+                              borderColor: phaseFilter === pi ? '#fff' : '#2d3154',
+                              color: phaseFilter === pi ? '#0f0f1a' : '#64748b',
+                              fontWeight: phaseFilter === pi ? 700 : 400,
+                            }}
+                          >{p.name || `Phase ${pi + 1}`}</button>
+                        ))}
+                      </div>
+                    )}
                     {/* Bulk-assign toolbar */}
                     {allPhases.length > 1 && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 8px', background: '#0d1020', borderBottom: '1px solid #2d3154', flexWrap: 'wrap' }}>
@@ -850,7 +878,11 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
                     {/* Ability rows */}
                     <div style={{ maxHeight: '240px', overflowY: 'auto' }}>
                       {abilityAssignments.map((a, i) => {
-                        if (a.assigned) return null;
+                        if (phaseFilter === null) {
+                          if (a.assigned) return null;
+                        } else {
+                          if (!a.assigned || a.phaseIdx !== phaseFilter) return null;
+                        }
                         if (mergedIndices.has(i)) {
                           return (
                             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 8px 2px 28px', borderBottom: '1px solid #1e2235', background: 'rgba(29,58,138,0.12)' }}>
@@ -959,8 +991,8 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
                                 </button>
                               )}
                               {allPhases.length > 1 && (
-                                <span style={{ fontSize: '11px', color: isSelected ? '#7c9fff' : '#475569', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                                  {allPhases[a.phaseIdx]?.name || `Phase ${a.phaseIdx + 1}`}
+                                <span style={{ fontSize: '11px', color: isSelected ? '#7c9fff' : a.assigned ? '#64748b' : '#334155', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                                  {a.assigned ? (allPhases[a.phaseIdx]?.name || `Phase ${a.phaseIdx + 1}`) : 'Unassigned'}
                                 </span>
                               )}
                             </div>
