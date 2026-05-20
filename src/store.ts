@@ -384,9 +384,8 @@ export const useStore = create<PlannerState>()(
       toggleViewerMode: () => set((s) => ({ viewerMode: !s.viewerMode })),
       toggleAllowCooldownOverride: () => set((s) => ({ allowCooldownOverride: !s.allowCooldownOverride })),
 
-      applyRemotePlan: (plans, activePlanId, settings) => set((s) => ({
+      applyRemotePlan: (plans, _activePlanId, settings) => set((s) => ({
         plans: { ...s.plans, ...(plans as Record<string, PlanData>) },
-        activePlanId,
         ...(settings?.maxHP !== undefined && { maxHP: settings.maxHP }),
         ...(settings?.tankHP !== undefined && { tankHP: settings.tankHP }),
         ...(settings?.encounterLevel !== undefined && { encounterLevel: settings.encounterLevel }),
