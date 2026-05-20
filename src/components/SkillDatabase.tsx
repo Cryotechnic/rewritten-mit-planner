@@ -118,7 +118,7 @@ export default function SkillDatabase({ skills }: Props) {
                 <td>{skill.barrierAmount != null ? skill.barrierAmount : (skill.barrierTime != null ? `${skill.barrierTime}s` : '—')}</td>
                 <td>{skill.healAmount != null ? skill.healAmount : (skill.hotAmount != null ? `${skill.hotAmount}/t` : '—')}</td>
                 <td className="notes-cell">
-                  {skill.precondition && <span className="badge precond">Req: {skill.precondition}</span>}
+                  {skill.precondition && <span className="badge precond">Req: {getSkillName(skills.find(s => s.nameJP === skill.precondition) ?? { nameJP: skill.precondition } as Skill, language)}</span>}
                   {skill.healBuffMultiplier && <span className="badge heal-buff">+{Math.round((skill.healBuffMultiplier - 1) * 100)}% Heal</span>}
                   {skill.charge > 1 && <span className="badge charge">×{skill.charge}</span>}
                 </td>
