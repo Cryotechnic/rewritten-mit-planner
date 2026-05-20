@@ -220,7 +220,7 @@ export function PipContent({ jobJP, jobName, allPhases, skills }: PipContentProp
         {phases.map((phase, pi) => (
           <React.Fragment key={pi}>
             <div
-              onClick={() => togglePhase(pi)}
+              ref={el => { if (el) el.onclick = () => togglePhase(pi); }}
               style={{ padding: '4px 14px', fontSize: '10px', fontWeight: 700, color: '#475569', letterSpacing: '0.08em', textTransform: 'uppercase', background: '#0d1020', borderTop: pi > 0 ? '1px solid #1e2235' : 'none', borderBottom: '1px solid #1e2235', position: 'sticky', top: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', userSelect: 'none' }}
             >
               <span>{phase.phaseName || `Phase ${pi + 1}`}</span>
