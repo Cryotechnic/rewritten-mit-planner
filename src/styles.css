@@ -1188,7 +1188,9 @@ tr:hover .job-note-btn { opacity: 1; }
 
 /* Action rows */
 .action-row { line-height: 18px; }
-.action-row:hover td { background: color-mix(in srgb, rgb(91, 125, 255) 7%, var(--surface)) !important; }
+.action-row:hover td { background: color-mix(in srgb, var(--accent) 18%, var(--surface)) !important; }
+.skill-cell.col-hovered, .skill-col-header.col-hovered, .skill-recast-header.col-hovered { background: color-mix(in srgb, var(--accent) 18%, var(--surface)) !important; }
+.skill-cell.checked.col-hovered { background: rgba(91, 125, 255, 0.6) !important; }
 /* nth-child(even) alternation is disabled — insert-action-rows occupy all odd positions,
    making every action-row even, so no alternation actually occurs. Rows use var(--surface) uniformly. */
 .hide-row { display: none; }

@@ -423,6 +423,7 @@ const ActionRow = React.memo(function ActionRow({
           return (
             <td
               key={sc.col}
+              data-col={sc.col}
               className={`skill-cell ${isChecked ? 'checked' : ''} ${coverage ? `coverage-${coverage}` : ''} ${coverage === 'cooldown' && allowCooldownOverride ? 'cd-override' : ''} ${colBoundaryClass(sc.col)}`}
               title={
                 isRowHidden ? 'Row is marked hidden' :
@@ -509,6 +510,27 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
   const { language, toggleMit, initPhase, showJobs, setShowJobs, maxHP, tankHP, toggleHideRow, clearHiddenRows, encounterLevel, syncVersion, addCustomAction, removeCustomAction, clearPhase, clearPlan, clearAllPlans, clearPlanActions, restoreBaseActions, setActionNote, setJobNote, viewerMode, toggleViewerMode, allowCooldownOverride, toggleAllowCooldownOverride } = useStore();
   const { mitGrid, actionOverrides, hiddenRows, customActions, name: planName, baseActionsCleared, actionNotes, rowTags, jobNotes: jobNotesRaw } = useStore((s) => s.plans[s.activePlanId]);
   const jobNotes = jobNotesRaw ?? {};
+
+  const tableContainerRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    const container = tableContainerRef.current;
+    if (!container) return;
+    let lastCol: string | null = null;
+    const enter = (e: MouseEvent) => {
+      const col = (e.target as Element).closest('[data-col]')?.getAttribute('data-col') ?? null;
+      if (col === lastCol) return;
+      if (lastCol) container.querySelectorAll(`[data-col="${lastCol}"]`).forEach(el => el.classList.remove('col-hovered'));
+      if (col) container.querySelectorAll(`[data-col="${col}"]`).forEach(el => el.classList.add('col-hovered'));
+      lastCol = col;
+    };
+    const leave = () => {
+      if (lastCol) container.querySelectorAll(`[data-col="${lastCol}"]`).forEach(el => el.classList.remove('col-hovered'));
+      lastCol = null;
+    };
+    container.addEventListener('mouseover', enter);
+    container.addEventListener('mouseleave', leave);
+    return () => { container.removeEventListener('mouseover', enter); container.removeEventListener('mouseleave', leave); };
+  }, []);
 
   const [showClearModal, setShowClearModal] = React.useState(false);
   const [showMacroModal, setShowMacroModal] = React.useState(false);
@@ -1199,7 +1221,7 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
         </div>
       )}
 
-      <div className="mit-table-container">
+      <div className="mit-table-container" ref={tableContainerRef}>
         <table className="mit-table">
           <colgroup>
             <col style={{ width: '46px' }} />
@@ -1249,7 +1271,7 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
                 const icon = getSkillIcon(sc.skill, skills);
                 const name = getSkillDisplayName(sc.skill, skills, language);
                 return (
-                  <th key={sc.col} className={`skill-col-header ${colBoundaryClass(sc.col)}`} title={name}>
+                  <th key={sc.col} data-col={sc.col} className={`skill-col-header ${colBoundaryClass(sc.col)}`} title={name}>
                     {icon ? (
                       <span className="icon-wrap">
                         <img src={icon} alt={name} width={20} height={20} loading="lazy"
@@ -1278,7 +1300,7 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
               <th className="calc-col" />
               <th className="calc-col" />
               {allVisibleCols.map((sc) => (
-                <th key={sc.col} className={`skill-recast-header ${colBoundaryClass(sc.col)}`}>
+                <th key={sc.col} data-col={sc.col} className={`skill-recast-header ${colBoundaryClass(sc.col)}`}>
                   {sc.effectTime != null ? `${sc.effectTime}s` : ''}
                 </th>
               ))}

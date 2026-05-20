@@ -924,9 +924,9 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
                               style={{
                                 display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 8px',
                                 paddingLeft: isRepeat ? '20px' : '8px',
-                                background: isSelected ? 'rgba(124,159,255,0.14)' : isRepeat ? 'rgba(255,255,255,0.01)' : a.included ? 'rgba(124,159,255,0.04)' : 'transparent',
+                                background: isSelected ? 'rgba(124,159,255,0.18)' : isRepeat ? 'rgba(255,255,255,0.01)' : a.included ? 'rgba(74,222,128,0.08)' : 'transparent',
                                 borderBottom: '1px solid #1e2235',
-                                borderLeft: isRepeat ? '2px solid #2d3154' : 'none',
+                                borderLeft: isSelected ? '2px solid #7c9fff' : (!isRepeat && a.included) ? '2px solid #4ade80' : isRepeat ? '2px solid #2d3154' : '2px solid transparent',
                                 opacity: a.included ? (isRepeat ? 0.65 : 1) : 0.3,
                                 cursor: 'pointer', userSelect: 'none',
                               }}
