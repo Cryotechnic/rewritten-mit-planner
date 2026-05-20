@@ -259,7 +259,7 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
   const [selectedJobs, setSelectedJobs] = useState<Set<string>>(new Set());
   const [timelineMatches, setTimelineMatches] = useState<TimelineMatch[]>([]);
   const [selectedMatchIndices, setSelectedMatchIndices] = useState<Set<number>>(new Set());
-  const [importPartyComp, setImportPartyComp] = useState(true);
+  const [importPartyComp, setImportPartyComp] = useState(false);
   const [importFullTimeline, setImportFullTimeline] = useState(false);
   const [abilityAssignments, setAbilityAssignments] = useState<AbilityAssignment[]>([]);
   const [selectedAbilityIndices, setSelectedAbilityIndices] = useState<Set<number>>(new Set());
@@ -876,7 +876,7 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
                       </div>
                     )}
                     {/* Ability rows */}
-                    <div style={{ maxHeight: '240px', overflowY: 'auto' }}>
+                    <div style={{ height: '240px', overflowY: 'auto' }}>
                       {abilityAssignments.map((a, i) => {
                         if (phaseFilter === null) {
                           if (a.assigned) return null;
