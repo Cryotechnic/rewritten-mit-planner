@@ -41,7 +41,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           };
           base.planCount = parsed.plans ? Object.keys(parsed.plans).length : undefined;
           base.planNames = parsed.plans
-            ? Object.values(parsed.plans).map((p) => p.name ?? 'Untitled')
+            ? Object.values(parsed.plans).map((p) => p.name || 'Untitled')
             : undefined;
           base.encounterLevel = parsed.settings?.encounterLevel;
           base.maxHP = parsed.settings?.maxHP;
