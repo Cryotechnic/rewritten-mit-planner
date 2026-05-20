@@ -338,6 +338,7 @@ export default function App() {
         checking={joinPasswordChecking}
         error={joinPasswordError}
         onSubmit={handleJoinPasswordSubmit}
+        onCancel={handleLeave}
       />
     );
   }

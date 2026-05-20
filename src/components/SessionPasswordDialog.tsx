@@ -152,9 +152,10 @@ interface JoinProps {
   checking: boolean;
   error: boolean;
   onSubmit: (password: string) => void;
+  onCancel?: () => void;
 }
 
-export function JoinPasswordPrompt({ shareId, checking, error, onSubmit }: JoinProps) {
+export function JoinPasswordPrompt({ shareId, checking, error, onSubmit, onCancel }: JoinProps) {
   const [input, setInput] = useState('');
 
   function handleSubmit(e: React.FormEvent) {
@@ -186,13 +187,20 @@ export function JoinPasswordPrompt({ shareId, checking, error, onSubmit }: JoinP
             Incorrect password.
           </div>
         )}
-        <button
-          type="submit"
-          disabled={!input.trim() || checking}
-          style={btnStyle(true, !input.trim() || checking)}
-        >
-          {checking ? 'Checking…' : 'Join'}
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {onCancel && (
+            <button type="button" style={btnStyle(false)} onClick={onCancel} disabled={checking}>
+              Cancel
+            </button>
+          )}
+          <button
+            type="submit"
+            disabled={!input.trim() || checking}
+            style={btnStyle(true, !input.trim() || checking)}
+          >
+            {checking ? 'Checking…' : 'Join'}
+          </button>
+        </div>
       </form>
     </div>
   );

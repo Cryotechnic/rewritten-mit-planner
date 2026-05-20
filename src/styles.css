@@ -34,7 +34,8 @@ body {
 .app {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .no-phase-empty {
@@ -823,6 +824,7 @@ body {
   flex: 1;
   overflow: auto;
   padding: 0;
+  min-height: 0;
 }
 
 /* ========== Job toggles ========== */
@@ -874,7 +876,8 @@ body {
 .mit-grid-wrap {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 120px);
+  height: 100%;
+  min-height: 0;
 }
 
 .mit-toolbar {
@@ -961,6 +964,7 @@ button:disabled {
 .mit-table-container {
   flex: 1;
   overflow: auto;
+  min-height: 0;
 }
 
 .mit-table {
