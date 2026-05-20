@@ -519,6 +519,7 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
 
   const [editingRow, setEditingRow] = React.useState<number | null>(null);
   const [showHidden, setShowHidden] = React.useState(true);
+  const [selectMode, setSelectMode] = React.useState(false);
   const showNotes = true;
 
   const hiddenSet = hiddenRows[phaseIdx] ?? EMPTY_HIDDEN;
@@ -826,6 +827,14 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
       )}
       {/* Job filter toggles */}
       <div className="job-toggles">
+        <button
+          className={`role-toggle ${selectMode ? 'select-active' : 'select-inactive'}`}
+          title={selectMode ? 'Solo mode: click a job to show only that job (click again to restore all)' : 'Enable solo mode: click to select one job at a time'}
+          onClick={() => setSelectMode((m) => !m)}
+        >
+          Solo
+        </button>
+        <span className="role-divider" />
         {(() => {
           // Group colGroups by role index
           const roleIdx = (job: string) => ROLE_GROUPS.findIndex((r) => r.includes(job));
@@ -868,7 +877,21 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
                 {roleButton}
                 <button
                   className={`job-toggle ${showJobs[g.job] === false ? 'job-off' : 'visible'}`}
-                  onClick={() => startTransition(() => useStore.getState().toggleJob(g.job))}
+                  onClick={() => startTransition(() => {
+                    if (selectMode) {
+                      const allColJobs = colGroups.map((x) => x.job);
+                      const onlyThis = allColJobs.every((j) => j === g.job || showJobs[j] === false);
+                      if (onlyThis) {
+                        setShowJobs({});
+                      } else {
+                        const next: Record<string, boolean> = {};
+                        allColJobs.forEach((j) => { if (j !== g.job) next[j] = false; });
+                        setShowJobs(next);
+                      }
+                    } else {
+                      useStore.getState().toggleJob(g.job);
+                    }
+                  })}
                 >
                   {JOB_DISPLAY_NAMES[g.job] ?? g.job}
                 </button>
