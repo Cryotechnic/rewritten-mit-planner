@@ -36,7 +36,7 @@ const allSkillCols = (() => {
 type Tab = "planner" | "skills";
 
 export default function App() {
-  const { plans, activePlanId, renamePlan, addCustomPhase, shareId, clientId, setShareId, applyRemotePlan, maxHP, tankHP, encounterLevel, language, viewerMode, toggleViewerMode, setWriteToken, clearPlanActions, allowCooldownOverride } = useStore();
+  const { plans, activePlanId, renamePlan, addCustomPhase, shareId, clientId, setShareId, applyRemotePlan, maxHP, tankHP, encounterLevel, language, viewerMode, toggleViewerMode, setWriteToken, resetPlans, allowCooldownOverride } = useStore();
   const [tab, setTab] = useState<Tab>("planner");
   const [showAddPhase, setShowAddPhase] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
@@ -127,8 +127,8 @@ export default function App() {
       });
     } else {
       // Sharer: generate ID + write token, prompt for optional password
-      // Reset the active plan so sharing always starts from a blank slate
-      clearPlanActions();
+      // Reset all plans so sharing always starts from a blank slate
+      resetPlans();
       const id = generateShareId();
       const token = generateWriteToken();
       pendingShareIdRef.current = id;
@@ -218,8 +218,7 @@ export default function App() {
     awaitingFirstSyncRef.current = false;
     skipNextPushRef.current = false;
     // Start a brand-new session setup flow
-    clearPlanActions();
-    renamePlan(activePlanId, '');
+    resetPlans();
     const id = generateShareId();
     const token = generateWriteToken();
     pendingShareIdRef.current = id;

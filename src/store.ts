@@ -75,6 +75,7 @@ interface PlannerState {
   clearPlan: () => void;
   clearAllPlans: () => void;
   clearPlanActions: () => void;
+  resetPlans: () => void;
   restoreBaseActions: () => void;
   addCustomAction: (phaseIdx: number, action: Action) => void;
   removeCustomAction: (phaseIdx: number, row: number) => void;
@@ -380,12 +381,13 @@ export const useStore = create<PlannerState>()(
       })),
 
       setShareId: (id) => set({ shareId: id }),
+      resetPlans: () => set({ plans: { [INIT_ID]: makePlan(INIT_ID, '') }, activePlanId: INIT_ID }),
       setWriteToken: (token) => set({ writeToken: token }),
       toggleViewerMode: () => set((s) => ({ viewerMode: !s.viewerMode })),
       toggleAllowCooldownOverride: () => set((s) => ({ allowCooldownOverride: !s.allowCooldownOverride })),
 
       applyRemotePlan: (plans, _activePlanId, settings) => set((s) => ({
-        plans: { ...s.plans, ...(plans as Record<string, PlanData>) },
+        plans: plans as Record<string, PlanData>,
         ...(settings?.maxHP !== undefined && { maxHP: settings.maxHP }),
         ...(settings?.tankHP !== undefined && { tankHP: settings.tankHP }),
         ...(settings?.encounterLevel !== undefined && { encounterLevel: settings.encounterLevel }),
