@@ -1,5 +1,5 @@
 /**
- * Level requirement for each skill (English name → minimum player level).
+ * Level requirement for each skill (English name -> minimum player level).
  * Sourced from MitPlan (https://github.com/MarbleSodas/MitPlan), MIT license.
  * Skills whose nameEN is not listed default to level 1.
  */
@@ -203,3 +203,16 @@ export function getSkillLevelReq(nameEN: string | null): number {
   if (!nameEN) return 1;
   return SKILL_LEVEL_REQUIREMENTS[nameEN] ?? 1;
 }
+
+/**
+ * Maps the nameJP of an upgraded skill to the nameJP of its predecessor
+ * (lower-level version with a different nameJP). Used to substitute the
+ * correct skill when the encounter level is below the upgrade threshold.
+ * E.g. at lv 90, Guardian (lv 92) is replaced by Sentinel (lv 38).
+ */
+export const SKILL_PREDECESSOR_JP: Record<string, string> = {
+  'エクストリームガード': 'センチネル',   // Guardian -> Sentinel (PLD 120s, lv 92 -> 38)
+  'グレートネビュラ': 'ネビュラ',         // Great Nebula -> Nebula (GNB 120s, lv 92 -> 38)
+  'シャドウヴィジル': 'シャドウウォール', // Shadowed Vigil -> Shadow Wall (DRK 120s, lv 92 -> 38)
+  'ダムネーション': 'ヴェンジェンス',     // Damnation -> Vengeance (WAR 120s, lv 92 -> 38)
+};

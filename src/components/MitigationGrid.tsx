@@ -11,7 +11,7 @@ import { openPipWindow } from './pipUtils';
 import type { PipWindowHandle } from './JobPipWindow';
 import { JOB_ICON_URL } from '../jobIcons';
 import { t, tFmt } from '../i18n';
-import { getSkillLevelReq } from '../data/skillLevels';
+import { getSkillLevelReq, SKILL_PREDECESSOR_JP } from '../data/skillLevels';
 
 interface Props {
   phaseIdx: number;
@@ -242,7 +242,7 @@ const FORCE_CHECKABLE_SKILLS = new Set<string>([
   'オブレーション',  // Oblation
 ]);
 
-// Tank invuln skills — when any of these are checked, the player survives regardless of damage.
+// Tank invuln skills - when any of these are checked, the player survives regardless of damage.
 const INVULN_SKILLS = new Set<string>([
   'インビンシブル',  // Hallowed Ground (PLD)
   'ホルムギャング',  // Holmgang (WAR)
@@ -412,7 +412,7 @@ const ActionRow = React.memo(function ActionRow({
           if (rawState === '-' && !FORCE_CHECKABLE_SKILLS.has(sc.skill)) {
             return (
               <td key={sc.col} className={`skill-cell unavailable ${colBoundaryClass(sc.col)}`}>
-                <span className="unavail-mark">—</span>
+                <span className="unavail-mark">-</span>
               </td>
             );
           }
@@ -427,7 +427,7 @@ const ActionRow = React.memo(function ActionRow({
               className={`skill-cell ${isChecked ? 'checked' : ''} ${coverage ? `coverage-${coverage}` : ''} ${coverage === 'cooldown' && allowCooldownOverride ? 'cd-override' : ''} ${colBoundaryClass(sc.col)}`}
               title={
                 isRowHidden ? 'Row is marked hidden' :
-                coverage === 'cooldown' ? (allowCooldownOverride ? 'On cooldown (warning — override allowed)' : 'On cooldown') :
+                coverage === 'cooldown' ? (allowCooldownOverride ? 'On cooldown (warning - override allowed)' : 'On cooldown') :
                 coverage === 'effect' ? 'Buff active' : undefined
               }
               onClick={() => {
@@ -553,7 +553,7 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
     setEditingRow(null);
   }, [phaseIdx]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Build a nameJP → nameEN lookup for level-requirement checks
+  // Build a nameJP -> nameEN lookup for level-requirement checks
   const skillNameEN = React.useMemo(() => {
     const m = new Map<string, string | null>();
     for (const s of skills) m.set(s.nameJP, s.nameEN);
@@ -562,10 +562,70 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
 
   // Filter skillCols by encounter level, and inject LB1/LB2 if LB3 is present
   const levelFilteredSkillCols = React.useMemo(() => {
-    const filtered = phase.skillCols.filter((sc) => {
+    // Build nameJP -> sorted-by-level-desc Skill[] for level-appropriate stat selection
+    const skillsByNameJP = new Map<string, typeof skills[0][]>();
+    for (const s of skills) {
+      const arr = skillsByNameJP.get(s.nameJP);
+      if (arr) arr.push(s);
+      else skillsByNameJP.set(s.nameJP, [s]);
+    }
+    for (const arr of skillsByNameJP.values()) {
+      arr.sort((a, b) => b.level - a.level);
+    }
+
+    const getBestVersion = (nameJP: string) =>
+      skillsByNameJP.get(nameJP)?.find((v) => v.level <= encounterLevel);
+
+    // Apply level-appropriate stat overrides for same-nameJP skills (e.g. Reprisal 10s at lv < 98)
+    const applyStatOverrides = (sc: typeof phase.skillCols[0]): typeof phase.skillCols[0] => {
+      const ver = getBestVersion(sc.skill);
+      if (!ver) return sc;
+      return {
+        ...sc,
+        effectTime: ver.effectTime ?? sc.effectTime,
+        recast: ver.recast ?? sc.recast,
+        mitPhysical: ver.mitPhysical ?? sc.mitPhysical,
+        mitMagic: ver.mitMagic ?? sc.mitMagic,
+        mitUnique: ver.mitUnique ?? sc.mitUnique,
+      };
+    };
+
+    // Build a replacement SkillCol from a predecessor skill (e.g. Sentinel at lv < 92 instead of Guardian)
+    const buildPredecessorCol = (sc: typeof phase.skillCols[0], predNameJP: string): typeof phase.skillCols[0] | null => {
+      const ver = getBestVersion(predNameJP);
+      if (!ver) return null;
+      return {
+        col: sc.col,
+        job: sc.job,
+        skill: predNameJP,
+        assign: ver.assign ?? sc.assign,
+        charge: ver.charge,
+        isAbility: ver.isAbility,
+        effectTime: ver.effectTime,
+        recast: ver.recast,
+        mitPhysical: ver.mitPhysical,
+        mitMagic: ver.mitMagic,
+        mitUnique: ver.mitUnique,
+        healBuffTarget: ver.healBuffTarget,
+        healBuff: ver.healBuffMultiplier,
+        barrierBuff: ver.barrierBuffAmount,
+        barrier: ver.barrierAmount,
+      };
+    };
+
+    const filtered: typeof phase.skillCols = [];
+    for (const sc of phase.skillCols) {
       const nameEN = skillNameEN.get(sc.skill) ?? null;
-      return getSkillLevelReq(nameEN) <= encounterLevel;
-    });
+      if (getSkillLevelReq(nameEN) <= encounterLevel) {
+        filtered.push(applyStatOverrides(sc));
+      } else {
+        const predNameJP = SKILL_PREDECESSOR_JP[sc.skill];
+        if (predNameJP) {
+          const predCol = buildPredecessorCol(sc, predNameJP);
+          if (predCol) filtered.push(predCol);
+        }
+      }
+    }
 
     // Inject LB1 and LB2 columns alongside LB3 if they aren't already present
     const hasLB3 = filtered.some((sc) => sc.skill === 'LB3');
@@ -667,7 +727,7 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
   const colBoundaryClass = (colId: string) =>
     roleStartCols.has(colId) ? 'role-boundary' : jobStartCols.has(colId) ? 'job-boundary' : '';
 
-  // Unique real jobs across all phases (for PIP selector) — excludes role-generic pseudo-jobs
+  // Unique real jobs across all phases (for PIP selector) - excludes role-generic pseudo-jobs
   const allJobs = React.useMemo(() => {
     const seen = new Set<string>();
     for (const p of allPhases)
@@ -815,12 +875,12 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
         if (mitGrid[phaseIdx]?.[target.row]?.[sc.col] === true) continue;
         if (target.mitStates[sc.col] === '-' && !FORCE_CHECKABLE_SKILLS.has(sc.skill)) continue;
 
-        // inEffect: source s where s < T && s >= T - effectTime  →  s ∈ [T-effectTime, T)
+        // inEffect: source s where s < T && s >= T - effectTime  ->  s ∈ [T-effectTime, T)
         const inEffect =
           effectTime > 0 &&
           lowerBound(sourceTimes, T - effectTime) < lowerBound(sourceTimes, T);
 
-        // onCooldown: source s where s < T && s > T - recast  →  s ∈ (T-recast, T)
+        // onCooldown: source s where s < T && s > T - recast  ->  s ∈ (T-recast, T)
         const chargesOnCooldown =
           recast > 0
             ? lowerBound(sourceTimes, T) - upperBound(sourceTimes, T - recast)
@@ -925,7 +985,7 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
           <>
             <span className="role-divider" />
             {showHidden ? (
-              // Rows are dimmed but visible — offer to collapse them
+              // Rows are dimmed but visible - offer to collapse them
               <>
                 <button
                   className="job-toggle visible"
@@ -943,7 +1003,7 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
                 </button>
               </>
             ) : (
-              // Rows are collapsed — offer to show them dimmed again
+              // Rows are collapsed - offer to show them dimmed again
               <button
                 className="job-toggle job-off"
                 onClick={() => setShowHidden(true)}
@@ -1034,7 +1094,7 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
           onClick={toggleViewerMode}
           title={viewerMode ? 'Exit viewer mode' : 'Enter viewer mode (notes only)'}
         >
-          {viewerMode ? '👁 Viewing — click to edit' : '👁'}
+          {viewerMode ? '👁 Viewing - click to edit' : '👁'}
         </button>
       </div>
 
@@ -1047,7 +1107,7 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
           fontSize: '12px', color: '#fbbf24', fontWeight: 600,
           userSelect: 'none',
         }}>
-          <span>👁 Viewer mode — checkboxes and edits are disabled.</span>
+          <span>👁 Viewer mode - checkboxes and edits are disabled.</span>
           <button
             onClick={toggleViewerMode}
             style={{
@@ -1185,7 +1245,7 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
               }}>
                 <span style={{ flexShrink: 0 }}>⚠️</span>
                 <span>
-                  Your browser does not support Document Picture-in-Picture. A regular popup window will open instead — it won't stay on top automatically.
+                  Your browser does not support Document Picture-in-Picture. A regular popup window will open instead - it won't stay on top automatically.
                   For the best experience, use Chrome or Edge 116+.
                 </span>
               </div>
