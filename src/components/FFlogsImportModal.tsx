@@ -217,6 +217,7 @@ interface AbilityAssignment {
   timeSec: number;
   included: boolean;
   phaseIdx: number;
+  assigned?: boolean;
   damageHit: number | null;
   nearbyCasts: string[]; // "JOB: Ability Name"
 }
@@ -829,7 +830,15 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
                         <button
                           disabled={selectedAbilityIndices.size === 0}
                           onClick={() => {
-                            setAbilityAssignments(prev => prev.map((x, j) => selectedAbilityIndices.has(j) ? { ...x, phaseIdx: bulkPhaseIdx } : x));
+                            // Also assign merged children of selected rows
+                            const toAssign = new Set(selectedAbilityIndices);
+                            for (const j of mergedIndices) {
+                              const name = abilityAssignments[j]?.name;
+                              if (!name) continue;
+                              const firstIdx = abilityAssignments.findIndex(x => x.name === name && !x.assigned);
+                              if (firstIdx >= 0 && toAssign.has(firstIdx)) toAssign.add(j);
+                            }
+                            setAbilityAssignments(prev => prev.map((x, j) => toAssign.has(j) ? { ...x, phaseIdx: bulkPhaseIdx, assigned: true } : x));
                             setSelectedAbilityIndices(new Set());
                           }}
                           style={{ padding: '2px 8px', borderRadius: '4px', border: 'none', background: selectedAbilityIndices.size > 0 ? '#1d3a8a' : '#1e2235', color: selectedAbilityIndices.size > 0 ? '#e2e8f0' : '#475569', fontSize: '11px', cursor: selectedAbilityIndices.size > 0 ? 'pointer' : 'default' }}
@@ -841,6 +850,7 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
                     {/* Ability rows */}
                     <div style={{ maxHeight: '240px', overflowY: 'auto' }}>
                       {abilityAssignments.map((a, i) => {
+                        if (a.assigned) return null;
                         if (mergedIndices.has(i)) {
                           return (
                             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 8px 2px 28px', borderBottom: '1px solid #1e2235', background: 'rgba(29,58,138,0.12)' }}>
@@ -857,9 +867,9 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
                             </div>
                           );
                         }
-                        // indices of same-name rows that are not merged
+                        // indices of same-name rows that are not merged and not assigned
                         const sameNameIndices = abilityAssignments
-                          .map((x, j) => x.name === a.name ? j : -1)
+                          .map((x, j) => (x.name === a.name && !x.assigned) ? j : -1)
                           .filter(j => j >= 0);
                         const isDup = sameNameIndices.length > 1;
                         const isFirstOcc = sameNameIndices[0] === i;
