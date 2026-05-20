@@ -1541,7 +1541,7 @@ tr:hover .job-note-btn { opacity: 1; }
 .gcd-row td { opacity: 0.85; }
 
 /* Scrollbar */
-::-webkit-scrollbar { width: 6px; height: 12px; }
+::-webkit-scrollbar { width: 6px; height: 18px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
