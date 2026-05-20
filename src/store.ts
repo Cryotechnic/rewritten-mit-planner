@@ -386,14 +386,24 @@ export const useStore = create<PlannerState>()(
       toggleViewerMode: () => set((s) => ({ viewerMode: !s.viewerMode })),
       toggleAllowCooldownOverride: () => set((s) => ({ allowCooldownOverride: !s.allowCooldownOverride })),
 
-      applyRemotePlan: (plans, _activePlanId, settings) => set((s) => ({
-        plans: plans as Record<string, PlanData>,
-        ...(settings?.maxHP !== undefined && { maxHP: settings.maxHP }),
-        ...(settings?.tankHP !== undefined && { tankHP: settings.tankHP }),
-        ...(settings?.encounterLevel !== undefined && { encounterLevel: settings.encounterLevel }),
-        ...(settings?.allowCooldownOverride !== undefined && { allowCooldownOverride: settings.allowCooldownOverride }),
-        syncVersion: s.syncVersion + 1,
-      })),
+      applyRemotePlan: (plans, _activePlanId, settings) => set((s) => {
+        const remotePlans = plans as Record<string, PlanData>;
+        // If local state is a fresh blank (only plan-1 with no name), replace entirely.
+        // Otherwise merge so in-flight local edits survive a concurrent remote push.
+        const localKeys = Object.keys(s.plans);
+        const isBlankSlate = localKeys.length === 1 && localKeys[0] === INIT_ID && !s.plans[INIT_ID].name;
+        const newPlans = isBlankSlate ? remotePlans : { ...s.plans, ...remotePlans };
+        const activePlanId = newPlans[s.activePlanId] ? s.activePlanId : Object.keys(newPlans)[0];
+        return {
+          plans: newPlans,
+          activePlanId,
+          ...(settings?.maxHP !== undefined && { maxHP: settings.maxHP }),
+          ...(settings?.tankHP !== undefined && { tankHP: settings.tankHP }),
+          ...(settings?.encounterLevel !== undefined && { encounterLevel: settings.encounterLevel }),
+          ...(settings?.allowCooldownOverride !== undefined && { allowCooldownOverride: settings.allowCooldownOverride }),
+          syncVersion: s.syncVersion + 1,
+        };
+      }),
 
       initPhase: (phaseIdx, phase) => {
         // Check before calling set() — returning {} from set() still triggers a re-render
