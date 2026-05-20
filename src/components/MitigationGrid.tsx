@@ -529,7 +529,7 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
   React.useEffect(() => {
     initPhase(phaseIdx, phase);
     setEditingRow(null);
-  }, [phaseIdx, phase]);
+  }, [phaseIdx]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Build a nameJP → nameEN lookup for level-requirement checks
   const skillNameEN = React.useMemo(() => {

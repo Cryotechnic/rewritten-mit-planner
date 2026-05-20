@@ -96,6 +96,7 @@ export default function App() {
       const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
       const token = hashParams.get('t');
       if (token) { writeTokenRef.current = token; setWriteToken(token); }
+      else { if (!viewerMode) toggleViewerMode(); } // no token = read-only
       setShareId(id);
       const url = new URL(window.location.href);
       url.searchParams.delete('join');
@@ -264,7 +265,12 @@ export default function App() {
     }
     if (pushTimerRef.current) clearTimeout(pushTimerRef.current);
     pushTimerRef.current = setTimeout(() => {
-      pushPlan(shareId, plans, activePlanId, clientId, { maxHP, tankHP, encounterLevel, allowCooldownOverride }, sessionPassword ?? undefined, writeTokenRef.current ?? undefined).catch(console.error);
+      pushPlan(shareId, plans, activePlanId, clientId, { maxHP, tankHP, encounterLevel, allowCooldownOverride }, sessionPassword ?? undefined, writeTokenRef.current ?? undefined).catch((err) => {
+        console.error(err);
+        if (err?.code === 'permission-denied') {
+          setShareError('Write access denied — your write token may be invalid or missing. Try rejoining with the full share link.');
+        }
+      });
     }, 600);
     return () => { if (pushTimerRef.current) clearTimeout(pushTimerRef.current); };
 }, [shareId, clientId, needJoinPassword, sessionPassword, viewerMode, activePlanForSync, plans, activePlanId, maxHP, tankHP, encounterLevel, allowCooldownOverride]);

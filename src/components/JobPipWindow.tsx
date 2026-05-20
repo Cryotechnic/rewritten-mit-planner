@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { Phase, Skill, Action, Language } from '../types';
 import { useStore } from '../store';
@@ -139,6 +139,19 @@ export function PipContent({ jobJP, jobName, allPhases, skills }: PipContentProp
     [jobJP, allPhases, skills, language, mitGrid, actionOverrides, customActions, baseActionsCleared, actionNotes, jobNotes],
   );
 
+  const [collapsedPhases, setCollapsedPhases] = useState<Set<number>>(new Set());
+  const collapsedInitRef = useRef(false);
+  useEffect(() => {
+    if (!collapsedInitRef.current && phases.length > 0) {
+      collapsedInitRef.current = true;
+      setCollapsedPhases(new Set(phases.flatMap((p, i) => p.actions.length === 0 ? [i] : [])));
+    }
+  }, [phases]);
+
+  function togglePhase(pi: number) {
+    setCollapsedPhases(prev => { const next = new Set(prev); next.has(pi) ? next.delete(pi) : next.add(pi); return next; });
+  }
+
   const [baseElapsed, setBaseElapsed] = useState(0);
   const [runStart, setRunStart] = useState<number | null>(null);
   const [now, setNow] = useState(Date.now());
@@ -206,13 +219,17 @@ export function PipContent({ jobJP, jobName, allPhases, skills }: PipContentProp
       <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto' }}>
         {phases.map((phase, pi) => (
           <React.Fragment key={pi}>
-            <div style={{ padding: '4px 14px', fontSize: '10px', fontWeight: 700, color: '#475569', letterSpacing: '0.08em', textTransform: 'uppercase', background: '#0d1020', borderTop: pi > 0 ? '1px solid #1e2235' : 'none', borderBottom: '1px solid #1e2235', position: 'sticky', top: 0 }}>
-              {phase.phaseName}
+            <div
+              onClick={() => togglePhase(pi)}
+              style={{ padding: '4px 14px', fontSize: '10px', fontWeight: 700, color: '#475569', letterSpacing: '0.08em', textTransform: 'uppercase', background: '#0d1020', borderTop: pi > 0 ? '1px solid #1e2235' : 'none', borderBottom: '1px solid #1e2235', position: 'sticky', top: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', userSelect: 'none' }}
+            >
+              <span>{phase.phaseName || `Phase ${pi + 1}`}</span>
+              <span style={{ fontSize: '9px', opacity: 0.5 }}>{collapsedPhases.has(pi) ? '▶' : '▼'}</span>
             </div>
-            {phase.actions.length === 0 && (
+            {!collapsedPhases.has(pi) && phase.actions.length === 0 && (
               <div style={{ padding: '6px 14px', fontSize: '12px', color: '#334155', fontStyle: 'italic' }}>No mitigations</div>
             )}
-            {phase.actions.map((action, ai) => {
+            {!collapsedPhases.has(pi) && phase.actions.map((action, ai) => {
               const key = `${pi}-${ai}`;
               const isCurrent = key === currentKey;
               const isNext = key === nextKey;
