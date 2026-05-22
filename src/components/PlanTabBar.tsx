@@ -19,6 +19,8 @@ export default function PlanTabBar({ onJoinByCode, onLeave }: Props) {
   const [copiedView, setCopiedView] = useState(false);
   const [showRegenConfirm, setShowRegenConfirm] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [closingPlanId, setClosingPlanId] = useState<string | null>(null);
+  const [closeConfirmInput, setCloseConfirmInput] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   const canRemove = Object.keys(plans).length > 1;
@@ -105,7 +107,7 @@ export default function PlanTabBar({ onJoinByCode, onLeave }: Props) {
           {canRemove && !viewerMode && (
             <button
               className="plan-tab-close"
-              onClick={(e) => { e.stopPropagation(); removePlan(plan.id); }}
+              onClick={(e) => { e.stopPropagation(); setClosingPlanId(plan.id); setCloseConfirmInput(''); }}
               title="Close plan"
             >×</button>
           )}
@@ -161,6 +163,41 @@ export default function PlanTabBar({ onJoinByCode, onLeave }: Props) {
           onCancel={() => setRenamingId(null)}
         />
       )}
+      {closingPlanId && (() => {
+        const planToClose = plans[closingPlanId];
+        const planName = planToClose?.name ?? '';
+        return (
+          <div className="encounter-dialog-overlay" onClick={() => setClosingPlanId(null)}>
+            <div className="encounter-dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+              <h2 className="encounter-dialog-title" style={{ color: '#f87171' }}>{t('closePlanTitle', language)}</h2>
+              <p style={{ margin: '0 0 12px', color: 'var(--text-dim, #9ca3af)', fontSize: 13, lineHeight: 1.5 }}>
+                <strong style={{ color: '#fca5a5' }}>{t('closePlanWarning', language)}</strong>
+              </p>
+              <p style={{ margin: '0 0 8px', color: 'var(--text-dim, #9ca3af)', fontSize: 13 }}>{t('closePlanPrompt', language)} <strong style={{ color: '#e5e7eb' }}>{planName}</strong></p>
+              <input
+                className="modal-input"
+                style={{ width: '100%', marginBottom: 20, boxSizing: 'border-box' }}
+                value={closeConfirmInput}
+                onChange={(e) => setCloseConfirmInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && closeConfirmInput === planName) { removePlan(closingPlanId); setClosingPlanId(null); }
+                  if (e.key === 'Escape') setClosingPlanId(null);
+                }}
+                autoFocus
+              />
+              <div className="encounter-dialog-actions">
+                <button className="encounter-dialog-cancel" onClick={() => setClosingPlanId(null)}>{t('btnCancel', language)}</button>
+                <button
+                  className="encounter-dialog-confirm"
+                  style={{ background: closeConfirmInput === planName ? '#dc2626' : '#3f1515', cursor: closeConfirmInput === planName ? 'pointer' : 'not-allowed', opacity: closeConfirmInput === planName ? 1 : 0.5 }}
+                  disabled={closeConfirmInput !== planName}
+                  onClick={() => { removePlan(closingPlanId); setClosingPlanId(null); }}
+                >{t('closePlanConfirm', language)}</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
       {showLeaveConfirm && (
         <div className="encounter-dialog-overlay" onClick={() => setShowLeaveConfirm(false)}>
           <div className="encounter-dialog" onClick={(e) => e.stopPropagation()}>

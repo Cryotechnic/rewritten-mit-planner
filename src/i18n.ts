@@ -75,6 +75,12 @@ const translations = {
   clearActionsConfirm: { JP: '削除する',      EN: 'Delete',             DE: 'Löschen',              FR: 'Supprimer',           KO: '삭제',           CN: '删除' },
   clearActionsBack: { JP: '← 戻る',          EN: '← Back',             DE: '← Zurück',             FR: '← Retour',            KO: '← 뒤로',          CN: '← 返回' },
 
+  // Close plan modal
+  closePlanTitle:   { JP: '⚠ プランを閉じますか?', EN: '⚠ Close Plan?',      DE: '⚠ Plan schließen?',    FR: '⚠ Fermer le plan ?',  KO: '⚠ 플랜 닫기?',    CN: '⚠ 关闭计划?' },
+  closePlanWarning: { JP: 'プランを閉じると完全に削除されます。この操作は取り消せません。', EN: 'Closing a plan permanently deletes it. This cannot be undone.', DE: 'Das Schließen eines Plans löscht ihn dauerhaft. Dies kann nicht rückgängig gemacht werden.', FR: 'Fermer un plan le supprime définitivement. Cette action est irréversible.', KO: '플랜을 닫으면 영구적으로 삭제됩니다. 이 작업은 취소할 수 없습니다.', CN: '关闭计划将永久删除它，此操作无法撤销。' },
+  closePlanPrompt:  { JP: '確認のためプラン名を入力:', EN: 'Type the plan name to confirm:', DE: 'Plannamen zur Bestätigung eingeben:', FR: 'Saisissez le nom du plan pour confirmer :', KO: '확인을 위해 플랜 이름을 입력하세요:', CN: '请输入计划名称以确认:' },
+  closePlanConfirm: { JP: 'プランを閉じる',   EN: 'Close Plan',         DE: 'Plan schließen',       FR: 'Fermer le plan',      KO: '플랜 닫기',        CN: '关闭计划' },
+
   // Regen modal
   regenTitle:       { JP: '⚠ セッション更新?', EN: '⚠ Refresh Session?', DE: '⚠ Sitzung erneuern?', FR: '⚠ Renouveler session ?', KO: '⚠ 세션 갱신?',  CN: '⚠ 刷新会话?' },
   regenDesc:        { JP: '新しいセッションコードが生成されます。', EN: 'This generates a new session code.', DE: 'Ein neuer Sitzungscode wird erstellt.', FR: 'Un nouveau code de session sera généré.', KO: '새로운 세션 코드가 생성됩니다.', CN: '这将生成一个新的会话代码。' },
