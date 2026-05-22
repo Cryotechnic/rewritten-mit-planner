@@ -354,6 +354,22 @@ export default function App() {
     );
   }
 
+  if (!activePlan.name) {
+    return (
+      <>
+        <Oobe onConfirm={(encounterName) => renamePlan(activePlanId, encounterName)} onJoinByCode={() => setShowJoinByCode(true)} />
+        {showJoinByCode && (
+          <JoinByCodeDialog
+            onJoin={handleJoinByCode}
+            onCancel={() => { setShowJoinByCode(false); setJoiningCodeChecking(false); setJoiningCodeError(null); }}
+            checking={joiningCodeChecking}
+            error={joiningCodeError}
+          />
+        )}
+      </>
+    );
+  }
+
   if (showJoinByCode) {
     return (
       <JoinByCodeDialog
@@ -363,10 +379,6 @@ export default function App() {
         error={joiningCodeError}
       />
     );
-  }
-
-  if (!activePlan.name) {
-    return <Oobe onConfirm={(encounterName) => renamePlan(activePlanId, encounterName)} onJoinByCode={() => setShowJoinByCode(true)} />;
   }
 
   return (
@@ -431,6 +443,8 @@ export default function App() {
         <span>© {new Date().getFullYear() > 2026 ? `2026–${new Date().getFullYear()}` : '2026'} Aya Flowis @ Famfrit. All rights reserved.</span>
         <span className="footer-divider">·</span>
         <span className="footer-version">v{CURRENT_VERSION} ({commitHash})</span>
+        <span className="footer-divider">·</span>
+        <span style={{ opacity: 0.4, fontSize: 11 }}>Fan project. Not affiliated with Square Enix or FINAL FANTASY XIV.</span>
       </footer>
       {showChangelog && (
         <ChangelogModal onClose={() => { setLastSeenVersion(CURRENT_VERSION); setShowChangelog(false); }} />

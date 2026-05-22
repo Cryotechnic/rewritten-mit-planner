@@ -22,6 +22,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       { type: 'new',    text: 'Closing a plan now requires typing its name to confirm, preventing accidental deletion.' },
       { type: 'new',    text: 'Added this changelog; opens automatically on first visit and after every update.' },
       { type: 'change', text: 'Added current version to footer for easier debug, including commit hash.'},
+      { type: 'new',    text: 'Add new disclaimer for using tool.'},
     ],
   },
   {

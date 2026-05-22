@@ -157,10 +157,15 @@ export default function ChangelogModal({ onClose }: Props) {
         </div>
 
         {/* Footer */}
-        <div style={{ marginTop: 16, borderTop: '1px solid var(--border, #374151)', paddingTop: 14, display: 'flex', justifyContent: 'flex-end' }}>
-          <button className="encounter-dialog-confirm" onClick={onClose} style={{ background: '#1d4ed8' }}>
-            Got it!
-          </button>
+        <div style={{ marginTop: 16, borderTop: '1px solid var(--border, #374151)', paddingTop: 14 }}>
+          <p style={{ margin: '0 0 10px', fontSize: 11, color: 'var(--text-dim, #6b7280)', lineHeight: 1.5 }}>
+            This tool is a fan project and is not affiliated with Square Enix or FINAL FANTASY XIV.
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button className="encounter-dialog-confirm" onClick={onClose} style={{ background: '#1d4ed8' }}>
+              Got it!
+            </button>
+          </div>
         </div>
       </div>
     </div>
