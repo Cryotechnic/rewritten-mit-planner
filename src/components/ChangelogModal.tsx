@@ -1,4 +1,5 @@
-import { CHANGELOG, CURRENT_VERSION, type ChangeType } from '../data/changelog';
+import { useState, useRef, useLayoutEffect, useEffect } from 'react';
+import { CHANGELOG, CURRENT_VERSION, type ChangeType, type ChangelogEntry } from '../data/changelog';
 
 interface Props {
   onClose: () => void;
@@ -18,7 +19,107 @@ const TYPE_STYLE: Record<ChangeType, React.CSSProperties> = {
   remove: { background: '#3f1515', color: '#fca5a5', border: '1px solid #7f1d1d' },
 };
 
+interface ItemProps {
+  entry: ChangelogEntry;
+  isOpen: boolean;
+  isLatest: boolean;
+  onToggle: () => void;
+}
+
+function AccordionItem({ entry, isOpen, isLatest, onToggle }: ItemProps) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const innerRef   = useRef<HTMLDivElement>(null);
+  const ready      = useRef(false);
+
+  // Paint the correct initial state (no animation), then enable transitions on the next frame
+  useLayoutEffect(() => {
+    const wrapper = wrapperRef.current;
+    const inner   = innerRef.current;
+    if (!wrapper || !inner) return;
+    wrapper.style.height  = isOpen ? `${inner.scrollHeight}px` : '0px';
+    wrapper.style.opacity = isOpen ? '1' : '0';
+    requestAnimationFrame(() => {
+      if (!wrapper) return;
+      wrapper.style.transition = 'height 0.18s ease, opacity 0.2s ease';
+      ready.current = true;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Animate open/close after mount
+  useEffect(() => {
+    if (!ready.current) return;
+    const wrapper = wrapperRef.current;
+    const inner   = innerRef.current;
+    if (!wrapper || !inner) return;
+    wrapper.style.height  = isOpen ? `${inner.scrollHeight}px` : '0px';
+    wrapper.style.opacity = isOpen ? '1' : '0';
+  }, [isOpen]);
+
+  return (
+    <div style={{ borderBottom: '1px solid var(--border, #374151)' }}>
+      {/* Header row */}
+      <button
+        onClick={onToggle}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+          padding: '10px 0', background: 'none', border: 'none', cursor: 'pointer',
+          textAlign: 'left',
+        }}
+      >
+        <span style={{
+          background: isLatest ? '#1d4ed8' : '#1f2937',
+          color: isLatest ? '#bfdbfe' : '#6b7280',
+          border: `1px solid ${isLatest ? '#2563eb' : '#374151'}`,
+          fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
+          letterSpacing: '0.04em', flexShrink: 0,
+        }}>
+          v{entry.version}
+        </span>
+        <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--text, #e5e7eb)', flex: 1 }}>{entry.title}</span>
+        <span style={{ fontSize: 11, color: 'var(--text-dim, #6b7280)', flexShrink: 0 }}>{entry.date}</span>
+        <span style={{
+          fontSize: 10, color: 'var(--text-dim, #6b7280)', flexShrink: 0, marginLeft: 4,
+          display: 'inline-block',
+          transform: isOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
+          transition: 'transform 0.16s ease',
+        }}>▼</span>
+      </button>
+
+      {/* Collapsible wrapper — all animation driven via DOM ref, no React style for animated props */}
+      <div ref={wrapperRef} style={{ overflow: 'hidden' }}>
+        <div ref={innerRef}>
+          <ul style={{ margin: '0 0 12px', padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {entry.changes.map((c, j) => (
+              <li key={j} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13 }}>
+                <span style={{
+                  ...TYPE_STYLE[c.type],
+                  fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 3,
+                  whiteSpace: 'nowrap', flexShrink: 0, marginTop: 1,
+                  letterSpacing: '0.05em', textTransform: 'uppercase',
+                }}>
+                  {TYPE_LABEL[c.type]}
+                </span>
+                <span style={{ color: 'var(--text-dim, #d1d5db)', lineHeight: 1.5 }}>{c.text}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ChangelogModal({ onClose }: Props) {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set([CHANGELOG[0].version]));
+
+  const toggle = (version: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(version)) next.delete(version); else next.add(version);
+      return next;
+    });
+
   return (
     <div className="encounter-dialog-overlay" onClick={onClose}>
       <div
@@ -39,45 +140,21 @@ export default function ChangelogModal({ onClose }: Props) {
           >×</button>
         </div>
 
-        {/* Scrollable entries */}
-        <div style={{ overflowY: 'auto', flex: 1, paddingRight: 4 }}>
-          {CHANGELOG.map((entry, i) => (
-            <div key={entry.version} style={{ marginBottom: i < CHANGELOG.length - 1 ? 24 : 0 }}>
-              {/* Version row */}
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 10 }}>
-                <span style={{
-                  background: '#1d4ed8', color: '#bfdbfe',
-                  fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
-                  letterSpacing: '0.04em',
-                }}>
-                  v{entry.version}
-                </span>
-                <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text, #e5e7eb)' }}>{entry.title}</span>
-                <span style={{ fontSize: 12, color: 'var(--text-dim, #6b7280)', marginLeft: 'auto' }}>{entry.date}</span>
-              </div>
-
-              {/* Change list */}
-              <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {entry.changes.map((c, j) => (
-                  <li key={j} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13 }}>
-                    <span style={{
-                      ...TYPE_STYLE[c.type],
-                      fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 3,
-                      whiteSpace: 'nowrap', flexShrink: 0, marginTop: 1,
-                      letterSpacing: '0.05em', textTransform: 'uppercase',
-                    }}>
-                      {TYPE_LABEL[c.type]}
-                    </span>
-                    <span style={{ color: 'var(--text-dim, #d1d5db)', lineHeight: 1.5 }}>{c.text}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+        {/* Accordion */}
+        <div style={{ overflowY: 'auto', overflowX: 'hidden', flex: 1, minHeight: 0 }}>
+          {CHANGELOG.map((entry) => (
+            <AccordionItem
+              key={entry.version}
+              entry={entry}
+              isOpen={expanded.has(entry.version)}
+              isLatest={entry.version === CHANGELOG[0].version}
+              onToggle={() => toggle(entry.version)}
+            />
           ))}
         </div>
 
         {/* Footer */}
-        <div style={{ marginTop: 20, borderTop: '1px solid var(--border, #374151)', paddingTop: 14, display: 'flex', justifyContent: 'flex-end' }}>
+        <div style={{ marginTop: 16, borderTop: '1px solid var(--border, #374151)', paddingTop: 14, display: 'flex', justifyContent: 'flex-end' }}>
           <button className="encounter-dialog-confirm" onClick={onClose} style={{ background: '#1d4ed8' }}>
             Got it
           </button>
