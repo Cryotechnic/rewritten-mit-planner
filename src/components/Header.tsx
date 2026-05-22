@@ -8,12 +8,13 @@ interface Props {
   allPhases: Phase[];
   onAddPhase: () => void;
   onJoinByCode?: () => void;
+  onShowChangelog?: () => void;
 }
 
 const LANGS = ['JP', 'EN', 'DE', 'FR', 'KO', 'CN'] as const;
 const ENCOUNTER_LEVELS = [50, 60, 70, 80, 90, 100] as const;
 
-export default function Header({ data, allPhases, onAddPhase, onJoinByCode: _onJoinByCode }: Props) {
+export default function Header({ data, allPhases, onAddPhase, onJoinByCode: _onJoinByCode, onShowChangelog }: Props) {
   const { setActivePhase, language, setLanguage, maxHP, tankHP, setMaxHP, setTankHP, encounterLevel, setEncounterLevel, plans, activePlanId, toggleHidePhase, removeCustomPhase, viewerMode } = useStore();
   const activePlan = plans[activePlanId];
   const activePhaseIdx = activePlan.activePhaseIdx;
@@ -115,6 +116,16 @@ export default function Header({ data, allPhases, onAddPhase, onJoinByCode: _onJ
             ))}
           </div>
         </div>
+
+        {/* What's New */}
+        <button
+          className="lang-btn"
+          onClick={() => onShowChangelog?.()}
+          title="What's New"
+          style={{ fontSize: 11, opacity: 0.75 }}
+        >
+          What's New
+        </button>
 
         {/* HP settings */}
         <div className="control-group">

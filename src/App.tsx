@@ -10,6 +10,7 @@ import EncounterDialog from "./components/EncounterDialog";
 import Oobe from "./components/Oobe";
 import SkillDatabase from "./components/SkillDatabase";
 import MitigationGrid from "./components/MitigationGrid";
+import ChangelogModal from "./components/ChangelogModal";
 import { PipPortal, type PipWindowHandle } from "./components/JobPipWindow";
 import { SharePasswordSetup, JoinPasswordPrompt } from "./components/SessionPasswordDialog";
 import { JoinByCodeDialog } from "./components/JoinByCodeDialog";
@@ -17,6 +18,7 @@ import { useStore } from "./store";
 import { pushPlan, subscribePlan, generateShareId, generateWriteToken, getSessionMeta, validateSessionPassword } from "./lib/planSync";
 import type { Unsubscribe } from "firebase/firestore";
 import { t } from "./i18n";
+import { CURRENT_VERSION } from "./data/changelog";
 
 const data = ucobData as unknown as EncounterData;
 const skills = skillsData as unknown as import('./types').Skill[];
@@ -36,16 +38,25 @@ const allSkillCols = (() => {
 type Tab = "planner" | "skills";
 
 export default function App() {
-  const { plans, activePlanId, renamePlan, addCustomPhase, shareId, clientId, setShareId, applyRemotePlan, maxHP, tankHP, encounterLevel, language, viewerMode, toggleViewerMode, setWriteToken, resetPlans, allowCooldownOverride } = useStore();
+  const { plans, activePlanId, renamePlan, addCustomPhase, shareId, clientId, setShareId, applyRemotePlan, maxHP, tankHP, encounterLevel, language, viewerMode, toggleViewerMode, setWriteToken, resetPlans, allowCooldownOverride, lastSeenVersion, setLastSeenVersion } = useStore();
   const [tab, setTab] = useState<Tab>("planner");
   const [showAddPhase, setShowAddPhase] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
+  const [showChangelog, setShowChangelog] = useState(false);
   const unsubRef = useRef<Unsubscribe | null>(null);
 
   useEffect(() => {
     const base = 'Rewritten Mitigation Planner';
     document.title = viewerMode ? `[VIEW-ONLY] ${base}` : base;
   }, [viewerMode]);
+
+  // Show changelog on first visit or after an update
+  useEffect(() => {
+    if (lastSeenVersion !== CURRENT_VERSION) {
+      setShowChangelog(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const pushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Suppress echo after applying a remote update
   const skipNextPushRef = useRef(false);
@@ -360,7 +371,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <Header data={data} allPhases={allPhases} onAddPhase={() => setShowAddPhase(true)} onJoinByCode={() => setShowJoinByCode(true)} />
+      <Header data={data} allPhases={allPhases} onAddPhase={() => setShowAddPhase(true)} onJoinByCode={() => setShowJoinByCode(true)} onShowChangelog={() => setShowChangelog(true)} />
       <PlanTabBar onJoinByCode={() => setShowJoinByCode(true)} onLeave={handleLeave} />
 
       <div className="tab-bar">
@@ -421,6 +432,9 @@ export default function App() {
         <span className="footer-divider">·</span>
         <span className="footer-version">{commitHash}</span>
       </footer>
+      {showChangelog && (
+        <ChangelogModal onClose={() => { setLastSeenVersion(CURRENT_VERSION); setShowChangelog(false); }} />
+      )}
       {shareError && (
         <div className="share-error-banner">
           ⚠ {shareError}

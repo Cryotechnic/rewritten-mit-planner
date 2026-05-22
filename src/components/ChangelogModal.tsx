@@ -1,0 +1,88 @@
+import { CHANGELOG, CURRENT_VERSION, type ChangeType } from '../data/changelog';
+
+interface Props {
+  onClose: () => void;
+}
+
+const TYPE_LABEL: Record<ChangeType, string> = {
+  new:    'New',
+  fix:    'Fix',
+  change: 'Change',
+  remove: 'Removed',
+};
+
+const TYPE_STYLE: Record<ChangeType, React.CSSProperties> = {
+  new:    { background: '#14532d', color: '#86efac', border: '1px solid #166534' },
+  fix:    { background: '#713f12', color: '#fde68a', border: '1px solid #92400e' },
+  change: { background: '#1e3a5f', color: '#93c5fd', border: '1px solid #1e40af' },
+  remove: { background: '#3f1515', color: '#fca5a5', border: '1px solid #7f1d1d' },
+};
+
+export default function ChangelogModal({ onClose }: Props) {
+  return (
+    <div className="encounter-dialog-overlay" onClick={onClose}>
+      <div
+        className="encounter-dialog"
+        onClick={(e) => e.stopPropagation()}
+        style={{ maxWidth: 520, maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}
+      >
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div>
+            <h2 className="encounter-dialog-title" style={{ margin: 0 }}>What's New</h2>
+            <span style={{ fontSize: 12, color: 'var(--text-dim, #6b7280)' }}>v{CURRENT_VERSION}</span>
+          </div>
+          <button
+            onClick={onClose}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim, #9ca3af)', fontSize: 20, lineHeight: 1, padding: '2px 6px' }}
+            title="Close"
+          >×</button>
+        </div>
+
+        {/* Scrollable entries */}
+        <div style={{ overflowY: 'auto', flex: 1, paddingRight: 4 }}>
+          {CHANGELOG.map((entry, i) => (
+            <div key={entry.version} style={{ marginBottom: i < CHANGELOG.length - 1 ? 24 : 0 }}>
+              {/* Version row */}
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 10 }}>
+                <span style={{
+                  background: '#1d4ed8', color: '#bfdbfe',
+                  fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
+                  letterSpacing: '0.04em',
+                }}>
+                  v{entry.version}
+                </span>
+                <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text, #e5e7eb)' }}>{entry.title}</span>
+                <span style={{ fontSize: 12, color: 'var(--text-dim, #6b7280)', marginLeft: 'auto' }}>{entry.date}</span>
+              </div>
+
+              {/* Change list */}
+              <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {entry.changes.map((c, j) => (
+                  <li key={j} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13 }}>
+                    <span style={{
+                      ...TYPE_STYLE[c.type],
+                      fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 3,
+                      whiteSpace: 'nowrap', flexShrink: 0, marginTop: 1,
+                      letterSpacing: '0.05em', textTransform: 'uppercase',
+                    }}>
+                      {TYPE_LABEL[c.type]}
+                    </span>
+                    <span style={{ color: 'var(--text-dim, #d1d5db)', lineHeight: 1.5 }}>{c.text}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer */}
+        <div style={{ marginTop: 20, borderTop: '1px solid var(--border, #374151)', paddingTop: 14, display: 'flex', justifyContent: 'flex-end' }}>
+          <button className="encounter-dialog-confirm" onClick={onClose} style={{ background: '#1d4ed8' }}>
+            Got it
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

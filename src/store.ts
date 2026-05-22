@@ -57,6 +57,7 @@ interface PlannerState {
   viewerMode: boolean;
   writeToken: string | null;
   allowCooldownOverride: boolean;
+  lastSeenVersion: string | null;
 
   setActivePhase: (idx: number) => void;
   setLanguage: (lang: Language) => void;
@@ -97,6 +98,7 @@ interface PlannerState {
   setWriteToken: (token: string | null) => void;
   toggleViewerMode: () => void;
   toggleAllowCooldownOverride: () => void;
+  setLastSeenVersion: (version: string) => void;
   applyRemotePlan: (plans: Record<string, PlanData>, activePlanId: string, settings?: { maxHP?: number; tankHP?: number; encounterLevel?: number; allowCooldownOverride?: boolean }) => void;
 }
 
@@ -150,6 +152,7 @@ export const useStore = create<PlannerState>()(
       viewerMode: false,
       writeToken: null,
       allowCooldownOverride: false,
+      lastSeenVersion: null as string | null,
 
       setActivePhase: (idx) => set((s) => patchActive(s, () => ({ activePhaseIdx: idx }))),
 
@@ -385,6 +388,7 @@ export const useStore = create<PlannerState>()(
       setWriteToken: (token) => set({ writeToken: token }),
       toggleViewerMode: () => set((s) => ({ viewerMode: !s.viewerMode })),
       toggleAllowCooldownOverride: () => set((s) => ({ allowCooldownOverride: !s.allowCooldownOverride })),
+      setLastSeenVersion: (version) => set({ lastSeenVersion: version }),
 
       applyRemotePlan: (plans, _activePlanId, settings) => set((s) => {
         const remotePlans = plans as Record<string, PlanData>;
@@ -461,6 +465,7 @@ export const useStore = create<PlannerState>()(
         activePlanId: s.activePlanId,
         shareId: s.shareId,
         writeToken: s.writeToken,
+        lastSeenVersion: s.lastSeenVersion,
       }),
     }
   )
