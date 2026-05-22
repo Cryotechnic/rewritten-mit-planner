@@ -90,8 +90,8 @@ function AccordionItem({ entry, isOpen, isLatest, onToggle }: ItemProps) {
 
       {/* Collapsible wrapper: animation driven via DOM ref only, no React style for animated props */}
       <div ref={wrapperRef} style={{ overflow: 'hidden' }}>
-        <div ref={innerRef}>
-          <ul style={{ margin: '0 0 12px', padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div ref={innerRef} style={{ paddingBottom: 24 }}>
+          <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
             {entry.changes.map((c, j) => (
               <li key={j} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13 }}>
                 <span style={{
@@ -100,6 +100,7 @@ function AccordionItem({ entry, isOpen, isLatest, onToggle }: ItemProps) {
                   whiteSpace: 'nowrap', flexShrink: 0, marginTop: 1,
                   letterSpacing: '0.05em', textTransform: 'uppercase',
                   width: 52, textAlign: 'center', display: 'inline-block',
+                  lineHeight: 1,
                 }}>
                   {TYPE_LABEL[c.type]}
                 </span>

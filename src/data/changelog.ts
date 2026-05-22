@@ -22,12 +22,12 @@ export const CHANGELOG: ChangelogEntry[] = [
       { type: 'new',    text: 'Closing a plan now requires typing its name to confirm, preventing accidental deletion.' },
       { type: 'new',    text: 'Added this changelog; opens automatically on first visit and after every update.' },
       { type: 'change', text: 'Added current version to footer for easier debug, including commit hash.'},
-      { type: 'new',    text: 'Add new disclaimer for using tool.'},
+      { type: 'new',    text: 'Added a disclaimer screen on first launch with terms of use and important notices.' },
     ],
   },
   {
     version: '1.8.0',
-    date: 'May 19–20, 2026',
+    date: 'May 19-20, 2026',
     title: 'PIP Phase Collapse & Localization Fixes',
     changes: [
       { type: 'new',    text: 'PIP window phases can now be collapsed for a cleaner per-job view.' },
@@ -36,7 +36,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       { type: 'fix',    text: 'Precondition tooltip now displays localized skill names.' },
       { type: 'fix',    text: 'Phase toggle now uses a ref for reliable event handling.' },
       { type: 'fix',    text: 'FFlogs import: importPartyComp now correctly defaults to false.' },
-      { type: 'fix',    text: 'App layout overflow and responsiveness improvements.' },
+      { type: 'fix',    text: 'Fixed app layout overflow on smaller screens.' },
       { type: 'change', text: 'Improved hover effects throughout the mitigation grid.' },
     ],
   },
