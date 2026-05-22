@@ -354,7 +354,7 @@ export default function App() {
     );
   }
 
-  if (!activePlan.name) {
+  if (!activePlan.name && !shareId) {
     return (
       <>
         <Oobe onConfirm={(encounterName) => renamePlan(activePlanId, encounterName)} onJoinByCode={() => setShowJoinByCode(true)} />
