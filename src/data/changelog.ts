@@ -1,4 +1,4 @@
-export type ChangeType = 'new' | 'fix' | 'change' | 'remove';
+export type ChangeType = 'new' | 'fix' | 'change' | 'remove' | 'hotfix';
 
 export interface ChangelogEntry {
   version: string;
@@ -15,12 +15,13 @@ export interface ChangelogEntry {
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: '1.9.0',
+    version: '1.8.1',
     date: 'May 21, 2026',
     title: 'Plan Safety & Changelog',
     changes: [
       { type: 'new',    text: 'Closing a plan now requires typing its name to confirm, preventing accidental deletion.' },
       { type: 'new',    text: 'Added this changelog; opens automatically on first visit and after every update.' },
+      { type: 'change', text: 'Added current version to footer for easier debug, including commit hash.'},
     ],
   },
   {

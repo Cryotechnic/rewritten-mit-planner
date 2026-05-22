@@ -10,6 +10,7 @@ const TYPE_LABEL: Record<ChangeType, string> = {
   fix:    'Fix',
   change: 'Change',
   remove: 'Removed',
+  hotfix: 'Hotfix'
 };
 
 const TYPE_STYLE: Record<ChangeType, React.CSSProperties> = {
@@ -17,6 +18,7 @@ const TYPE_STYLE: Record<ChangeType, React.CSSProperties> = {
   fix:    { background: '#713f12', color: '#fde68a', border: '1px solid #92400e' },
   change: { background: '#1e3a5f', color: '#93c5fd', border: '1px solid #1e40af' },
   remove: { background: '#3f1515', color: '#fca5a5', border: '1px solid #7f1d1d' },
+  hotfix: {background: '#d0342c', color: '#e7e6e6', border: '1px solid #e7e6e6'}
 };
 
 interface ItemProps {
@@ -94,9 +96,10 @@ function AccordionItem({ entry, isOpen, isLatest, onToggle }: ItemProps) {
               <li key={j} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13 }}>
                 <span style={{
                   ...TYPE_STYLE[c.type],
-                  fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 3,
+                  fontSize: 10, fontWeight: 700, padding: '2px 0', borderRadius: 3,
                   whiteSpace: 'nowrap', flexShrink: 0, marginTop: 1,
                   letterSpacing: '0.05em', textTransform: 'uppercase',
+                  width: 52, textAlign: 'center', display: 'inline-block',
                 }}>
                   {TYPE_LABEL[c.type]}
                 </span>
@@ -156,7 +159,7 @@ export default function ChangelogModal({ onClose }: Props) {
         {/* Footer */}
         <div style={{ marginTop: 16, borderTop: '1px solid var(--border, #374151)', paddingTop: 14, display: 'flex', justifyContent: 'flex-end' }}>
           <button className="encounter-dialog-confirm" onClick={onClose} style={{ background: '#1d4ed8' }}>
-            Got it
+            Got it!
           </button>
         </div>
       </div>

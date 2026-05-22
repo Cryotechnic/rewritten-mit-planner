@@ -430,7 +430,7 @@ export default function App() {
         <span className="footer-divider">·</span>
         <span>© {new Date().getFullYear() > 2026 ? `2026–${new Date().getFullYear()}` : '2026'} Aya Flowis @ Famfrit. All rights reserved.</span>
         <span className="footer-divider">·</span>
-        <span className="footer-version">{commitHash}</span>
+        <span className="footer-version">v{CURRENT_VERSION} ({commitHash})</span>
       </footer>
       {showChangelog && (
         <ChangelogModal onClose={() => { setLastSeenVersion(CURRENT_VERSION); setShowChangelog(false); }} />
