@@ -1,10 +1,10 @@
 /**
- * planSync.ts — Firestore sync for mit planner plans.
+ * planSync.ts: Firestore sync for mit planner plans.
  *
  * Each shared session is stored at: sessions/{shareId}
  * {
  *   json: string,       // full PlanData serialized via JSON (Sets → {__type:'Set',...})
- *   clientId: string,   // last writer — used to suppress echo on sender
+ *   clientId: string,   // last writer, used to suppress echo on sender
  *   updatedAt: number,  // Date.now() of last write
  * }
  *
@@ -164,7 +164,7 @@ export function subscribePlan(
       try {
         json = await decryptJson(data.ciphertext, data.iv, data.salt, password);
       } catch {
-        return; // wrong password or corrupt — ignore
+        return; // wrong password or corrupt, ignore
       }
     } else {
       if (typeof data.json !== 'string' || data.json.length > 2097152) return;
@@ -182,7 +182,7 @@ export function subscribePlan(
       ) return;
       onUpdate(parsed.plans, parsed.activePlanId, parsed.settings);
     } catch {
-      // Malformed — ignore
+      // Malformed, ignore
     }
   });
 }

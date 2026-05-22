@@ -374,7 +374,7 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
       setPartyJobs(fightJobs);
       setSelectedJobs(new Set(fightJobs));
 
-      // Sorted friendly casts for nearby lookup — only recognized skills (skills with a nameEN entry)
+      // Sorted friendly casts for nearby lookup: only recognized skills (skills with a nameEN entry)
       const knownSkillNames = new Set(skills.map(sk => sk.nameEN?.toLowerCase()).filter(Boolean) as string[]);
       const friendlyCastsSorted = (allFriendlyCasts as FriendlyCastEvent[])
         .map((e) => {
@@ -449,7 +449,7 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
       let bossAttackList: BossAttack[] = [];
       if (noMatches) {
         const assignments: AbilityAssignment[] = [];
-        // Dedupe by (name + second) — FFLogs Casts emits one event per target hit;
+        // Dedupe by (name + second); FFLogs Casts emits one event per target hit;
         // same ability at the same timestamp are all the same mechanic instance.
         const seenTimeKey = new Set<string>();
         for (const e of resolvedEvents) {
@@ -685,7 +685,7 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
         {/* Step: preview */}
         {step === 'preview' && (
           <>
-            {/* Import guide — outside modal-body so it never scrolls */}
+            {/* Import guide: outside modal-body so it never scrolls */}
             <div style={{ flexShrink: 0, borderBottom: showGuide ? '1px solid #2d3154' : 'none' }}>
               <button
                 onClick={() => setShowGuide((v) => !v)}
@@ -700,15 +700,15 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
                 <div style={{ padding: '12px 16px', background: '#080c18', display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px', lineHeight: 1.65, color: '#94a3b8' }}>
                   <div>
                     <span style={{ color: '#7c9fff', fontWeight: 600 }}>Party composition</span>
-                    {' '}— Hides columns for jobs not present in the log. Toggle individual job pills to include/exclude them.
+                    {' '}- Hides columns for jobs not present in the log. Toggle individual job pills to include/exclude them.
                   </div>
                   <div>
                     <span style={{ color: '#86efac', fontWeight: 600 }}>Timeline matches</span>
-                    {' '}— The importer found boss cast names that match your existing action rows. Each checked row will update that action&apos;s timestamp to the time recorded in FFLogs. Unchecking a row skips it, leaving the current time unchanged.
+                    {' '}- The importer found boss cast names that match your existing action rows. Each checked row will update that action&apos;s timestamp to the time recorded in FFLogs. Unchecking a row skips it, leaving the current time unchanged.
                   </div>
                   <div>
                     <span style={{ color: '#fbbf24', fontWeight: 600 }}>Full FFLogs timeline</span>
-                    {' '}— Only shown when no rows matched. Replaces the entire action list with every boss cast from the log. Use the checkboxes to include or exclude individual abilities, and assign them to phases if you have multiple.
+                    {' '}- Only shown when no rows matched. Replaces the entire action list with every boss cast from the log. Use the checkboxes to include or exclude individual abilities, and assign them to phases if you have multiple.
                   </div>
                   <div style={{ color: '#475569', fontSize: '11px' }}>
                     Tip: Action name matching is case-insensitive and allows partial overlaps. If matches are missing, check the &ldquo;Boss ability names from FFLogs&rdquo; list at the bottom to see exact spellings.
@@ -790,7 +790,7 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
               </div>
             )}
 
-            {/* Full timeline import — per-ability assignment table (shown when no matches) */}
+            {/* Full timeline import: per-ability assignment table (shown when no matches) */}
             {timelineMatches.length === 0 && (
               <div style={{ marginBottom: '16px' }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '6px' }}>
@@ -891,7 +891,7 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
                               <span style={{ flex: 1, fontSize: '10px', color: '#4c6ef5', fontStyle: 'italic' }}>merged into row above</span>
                               <button
                                 onClick={() => setMergedIndices(prev => { const n = new Set(prev); n.delete(i); return n; })}
-                                title="Unmerge — show this row separately"
+                                title="Unmerge: show this row separately"
                                 style={{ fontSize: '10px', color: '#7c9fff', background: 'none', border: '1px solid #3b5bdb', borderRadius: '3px', padding: '0 6px', cursor: 'pointer', flexShrink: 0 }}
                               >
                                 ✕ unmerge

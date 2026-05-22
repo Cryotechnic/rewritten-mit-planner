@@ -305,7 +305,7 @@ export function PipContent({ jobJP, jobName, allPhases, skills }: PipContentProp
 }
 
 
-// PipPortal — drop this in JSX to portal PipContent into an open PIP window.
+// PipPortal: drop this in JSX to portal PipContent into an open PIP window.
 
 interface PipPortalProps {
   handle: PipWindowHandle;

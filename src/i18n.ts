@@ -93,7 +93,7 @@ const translations = {
   editFieldName:    { JP: '名前',             EN: 'Name',               DE: 'Name',                 FR: 'Nom',                 KO: '이름',           CN: '名称' },
   editFieldTime:    { JP: '時間',             EN: 'Time',               DE: 'Zeit',                 FR: 'Temps',               KO: '시간',           CN: '时间' },
   editTimeHint:     { JP: '(M:SS.s, 例: -0:20.0)', EN: '(M:SS.s, e.g. -0:20.0)', DE: '(M:SS.s, z.B. -0:20.0)', FR: '(M:SS.s, ex. -0:20.0)', KO: '(M:SS.s, 예: -0:20.0)', CN: '(M:SS.s, 如: -0:20.0)' },
-  editTimeError:    { JP: '無効な形式 — M:SS.s で入力', EN: 'Invalid format — use M:SS.s', DE: 'Ungültig — M:SS.s verwenden', FR: 'Format invalide — utiliser M:SS.s', KO: '잘못된 형식 — M:SS.s 사용', CN: '格式无效 — 请使用 M:SS.s' },
+  editTimeError:    { JP: '無効な形式: M:SS.s で入力', EN: 'Invalid format: use M:SS.s', DE: 'Ungültig: M:SS.s verwenden', FR: 'Format invalide, utiliser M:SS.s', KO: '잘못된 형식: M:SS.s 사용', CN: '格式无效，请使用 M:SS.s' },
   editFieldDmgType: { JP: 'ダメージタイプ',   EN: 'Damage Type',        DE: 'Schadenstyp',          FR: 'Type de dégâts',      KO: '데미지 유형',      CN: '伤害类型' },
   editFieldDmg:     { JP: 'ダメージ (軽減前)', EN: 'Damage (pre-mit)',   DE: 'Schaden (vor Reduz.)', FR: 'Dégâts (avant miti.)', KO: '데미지 (경감 전)', CN: '伤害 (减伤前)' },
   editDmgNone:      { JP: 'なし',             EN: 'None',               DE: 'Keiner',               FR: 'Aucun',               KO: '없음',           CN: '无' },

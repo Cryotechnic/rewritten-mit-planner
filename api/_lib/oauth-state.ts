@@ -1,5 +1,5 @@
 /**
- * Stateless HMAC-signed OAuth state — avoids in-memory Map issues across
+ * Stateless HMAC-signed OAuth state: avoids in-memory Map issues across
  * serverless function invocations. State = `timestamp.hmac_signature`.
  */
 import { createHmac, timingSafeEqual } from 'crypto';

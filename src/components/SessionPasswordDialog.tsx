@@ -66,7 +66,7 @@ export function SharePasswordSetup({ shareUrl, viewUrl, onConfirm, onJoinByCode 
           New sync session
         </div>
         <div style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-          Share this URL with your team. Optionally set a password — anyone joining the link will need to enter it.
+          Share this URL with your team. Optionally set a password; anyone joining the link will need to enter it.
         </div>
 
         <div>

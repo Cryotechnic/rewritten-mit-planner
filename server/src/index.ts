@@ -33,7 +33,7 @@ if (missing.length) {
 // ── Firebase Admin SDK ───────────────────────────────────────────────────────
 
 if (FIREBASE_SERVICE_ACCOUNT) {
-  // Explicit service account — supports JSON string or file path
+  // Explicit service account: supports JSON string or file path
   const raw = FIREBASE_SERVICE_ACCOUNT.trim();
   const sa: ServiceAccount = raw.startsWith('{')
     ? JSON.parse(raw)
@@ -96,7 +96,7 @@ app.get('/api/admin/auth/callback', async (req, res) => {
   const { code, state } = req.query as Record<string, string | undefined>;
 
   if (!code || !state || !oauthStates.has(state)) {
-    res.status(400).send('Invalid OAuth state — please try logging in again.');
+    res.status(400).send('Invalid OAuth state, please try logging in again.');
     return;
   }
   oauthStates.delete(state);
@@ -198,7 +198,7 @@ app.get('/api/admin/sessions', requireAdmin, async (_req, res) => {
           base.maxHP = parsed.settings?.maxHP;
           base.tankHP = parsed.settings?.tankHP;
         } catch {
-          /* malformed JSON — return base metadata only */
+          /* malformed JSON, return base metadata only */
         }
       }
 

@@ -126,7 +126,7 @@ export default function PlanTabBar({ onJoinByCode, onLeave }: Props) {
       <div className="sync-controls">
         {shareId ? (
           <>
-            <span className="sync-badge sync-active" title={`Syncing — session: ${shareId}`}>
+            <span className="sync-badge sync-active" title={`Syncing (session: ${shareId})`}>
               <span className="sync-dot" />
               {shareId}
             </span>

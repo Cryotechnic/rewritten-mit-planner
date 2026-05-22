@@ -141,7 +141,7 @@ export default function AdminApp() {
         <div style={S.loginCard}>
           <div style={S.loginIcon}>⚙️</div>
           <h1 style={S.loginTitle}>Admin Panel</h1>
-          <p style={S.loginSub}>MIT Planner — Session Management</p>
+          <p style={S.loginSub}>MIT Planner: Session Management</p>
           <a href="/api/admin/auth/github" style={S.loginBtn}>
             <GitHubIcon />
             Sign in with GitHub

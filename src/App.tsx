@@ -23,7 +23,7 @@ import { CURRENT_VERSION } from "./data/changelog";
 const data = ucobData as unknown as EncounterData;
 const skills = skillsData as unknown as import('./types').Skill[];
 
-// All unique skill columns across all data phases — used for custom phases
+// All unique skill columns across all data phases, used for custom phases
 const allSkillCols = (() => {
   const seen = new Set<string>();
   const cols: EncounterData['phases'][0]['skillCols'] = [];
@@ -120,14 +120,14 @@ export default function App() {
         setShareError('Could not reach the sync session. Check your connection.');
       });
     } else if (shareId) {
-      // Persisted session — reconnect without creating a new one or clearing plan data.
+      // Persisted session: reconnect without creating a new one or clearing plan data.
       // awaitingFirstSyncRef is already true (initialized from shareId), so the push
       // effect won't fire until the first remote sync arrives.
       const { writeToken: persistedToken } = useStore.getState();
       if (persistedToken) writeTokenRef.current = persistedToken;
       getSessionMeta(shareId).then(({ exists, encrypted }) => {
         if (!exists) {
-          // Session expired — drop it and let the user start fresh
+          // Session expired: drop it and let the user start fresh
           setShareId(null);
           setWriteToken(null);
           awaitingFirstSyncRef.current = false;
@@ -240,7 +240,7 @@ export default function App() {
   }
 
   // Subscribe / unsubscribe when shareId or sessionPassword changes.
-  // Intentionally NOT gated on needJoinPassword — we keep the subscription alive
+  // Intentionally NOT gated on needJoinPassword; we keep the subscription alive
   // so onSnapshot can fire onWaiting/onNeedsPassword even while the prompt is shown.
   useEffect(() => {
     if (unsubRef.current) { unsubRef.current(); unsubRef.current = null; }
@@ -251,11 +251,11 @@ export default function App() {
       skipNextPushRef.current = true;
       applyRemotePlan(remotePlans as Record<string, PlanData>, remoteActivePlanId, remoteSettings);
     }, sessionPassword ?? undefined, () => {
-      // Encrypted doc arrived but we have no password — show prompt
+      // Encrypted doc arrived but we have no password, show prompt
       setNeedJoinPassword(true);
       setWaitingForHost(false);
     }, () => {
-      // Doc doesn't exist yet — sharer hasn't pushed
+      // Doc doesn't exist yet; sharer hasn't pushed
       setWaitingForHost(true);
     }, () => {
       // Doc existed but was deleted (e.g. by admin)
@@ -279,7 +279,7 @@ export default function App() {
       pushPlan(shareId, plans, activePlanId, clientId, { maxHP, tankHP, encounterLevel, allowCooldownOverride }, sessionPassword ?? undefined, writeTokenRef.current ?? undefined).catch((err) => {
         console.error(err);
         if (err?.code === 'permission-denied') {
-          setShareError('Write access denied — your write token may be invalid or missing. Try rejoining with the full share link.');
+          setShareError('Write access denied: your write token may be invalid or missing. Try rejoining with the full share link.');
         }
       });
     }, 600);

@@ -35,7 +35,7 @@ export function computeMitigation(
     else if (damageType === 'Physical') mit = sc.mitPhysical;
     else mit = sc.mitUnique; // null = skill doesn't apply to Unique/tankbuster, no fallback
 
-    // mit === 1 means "skill active but no reduction" (e.g. Holmgang) — skip for perf
+    // mit === 1 means "skill active but no reduction" (e.g. Holmgang), skip for perf
     if (mit !== null && mit > 0 && mit < 1) {
       combined *= mit;
     }

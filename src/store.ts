@@ -410,7 +410,7 @@ export const useStore = create<PlannerState>()(
       }),
 
       initPhase: (phaseIdx, phase) => {
-        // Check before calling set() — returning {} from set() still triggers a re-render
+        // Check before calling set(); returning {} from set() still triggers a re-render
         const plan = get().plans[get().activePlanId];
         if (plan.mitGrid[phaseIdx]) return;
         const grid: MitGrid = {};

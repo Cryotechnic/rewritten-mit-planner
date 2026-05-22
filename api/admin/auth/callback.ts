@@ -7,7 +7,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const origin = process.env.ADMIN_ORIGIN ?? 'http://localhost:5173';
 
   if (!code || !state || !verifyOAuthState(state)) {
-    res.status(400).send('Invalid OAuth state — please try logging in again.');
+    res.status(400).send('Invalid OAuth state, please try logging in again.');
     return;
   }
 

@@ -86,7 +86,7 @@ function AccordionItem({ entry, isOpen, isLatest, onToggle }: ItemProps) {
         }}>▼</span>
       </button>
 
-      {/* Collapsible wrapper — all animation driven via DOM ref, no React style for animated props */}
+      {/* Collapsible wrapper: animation driven via DOM ref only, no React style for animated props */}
       <div ref={wrapperRef} style={{ overflow: 'hidden' }}>
         <div ref={innerRef}>
           <ul style={{ margin: '0 0 12px', padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>

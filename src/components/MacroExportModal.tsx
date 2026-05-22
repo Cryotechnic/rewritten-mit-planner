@@ -105,7 +105,7 @@ function buildPhaseMacros(
     skillColMap.set(sc.col, sc.skill);
   }
 
-  // Only include actions at t≥0 (pre-pull countdowns are excluded — press at engage instead).
+  // Only include actions at t>=0 (pre-pull countdowns are excluded, press at engage instead).
   const combatActions = mergedActions.filter((a) => a.timeSec == null || a.timeSec >= 0);
 
   const lines: string[] = [];
@@ -113,7 +113,7 @@ function buildPhaseMacros(
   // Initial wait = time until first announcement (mechanic.timeSec - announceBefore).
   const firstTimeSec = combatActions.find((a) => a.timeSec != null)?.timeSec ?? 0;
   const initialWait = Math.max(0, Math.round(firstTimeSec - announceBefore));
-  const echoLine = `/echo Press at engage — announces ${announceBefore}s before each mechanic`;
+  const echoLine = `/echo Press at engage: announces ${announceBefore}s before each mechanic`;
   pushWithWait(lines, echoLine, initialWait > 0 ? initialWait : null);
 
   for (let i = 0; i < combatActions.length; i++) {

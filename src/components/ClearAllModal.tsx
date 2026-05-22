@@ -73,7 +73,7 @@ export default function ClearAllModal({ phaseName, planName, onClearPhase, onCle
                 onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
                 onClick={onClearPhase}
               >
-                <strong>{t('clearPhaseLabel', language)}</strong> — {phaseName}
+                <strong>{t('clearPhaseLabel', language)}</strong>: {phaseName}
               </button>
               <button
                 style={{ ...SCOPE_BTN_BASE, borderColor: '#92400e', color: '#fbbf24' }}
@@ -81,7 +81,7 @@ export default function ClearAllModal({ phaseName, planName, onClearPhase, onCle
                 onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
                 onClick={onClearPlan}
               >
-                <strong>{t('clearPlanLabel', language)}</strong> — {planName}
+                <strong>{t('clearPlanLabel', language)}</strong>: {planName}
               </button>
               <button
                 style={{ ...SCOPE_BTN_BASE, borderColor: '#7f1d1d', color: '#f87171' }}
@@ -89,7 +89,7 @@ export default function ClearAllModal({ phaseName, planName, onClearPhase, onCle
                 onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
                 onClick={onClearAll}
               >
-                <strong>{t('clearAllLabel', language)}</strong> — {t('clearAllDesc', language)}
+                <strong>{t('clearAllLabel', language)}</strong>: {t('clearAllDesc', language)}
               </button>
               <button
                 style={{ ...SCOPE_BTN_BASE, borderColor: '#1e3a5f', color: '#60a5fa' }}
@@ -97,7 +97,7 @@ export default function ClearAllModal({ phaseName, planName, onClearPhase, onCle
                 onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
                 onClick={handleClearActionsClick}
               >
-                <strong>{t('clearActionsLabel', language)}</strong> — {t('clearActionsDesc', language)}
+                <strong>{t('clearActionsLabel', language)}</strong>: {t('clearActionsDesc', language)}
               </button>
             </div>
             <div className="encounter-dialog-actions">
@@ -108,7 +108,7 @@ export default function ClearAllModal({ phaseName, planName, onClearPhase, onCle
           <>
             <p style={WARNING_STYLE}>
               <strong style={{ color: '#60a5fa' }}>{t('clearActionsLabel', language)}</strong>
-              {' — '}{planName}
+              {': '}{planName}
               <br /><br />
               <strong style={{ color: '#fca5a5' }}>{t('clearWarning', language)}</strong>
             </p>
