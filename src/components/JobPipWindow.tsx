@@ -22,9 +22,11 @@ export interface PipAction {
   timeSec: number | null;
   duration: number | null;
   skills: PipSkill[];
+  carriedSkills: { skill: PipSkill; remainingSec: number }[]; // skills from other rows whose duration covers this action's time
   note: string;
   phaseIdx: number;
   row: number;
+  tag?: 'tank' | 'heal' | 'dps' | 'note' | 'tb';
 }
 
 export interface PipPhaseData {
@@ -70,6 +72,17 @@ function pipGetSkill(nameJP: string, skills: Skill[], language: Language): PipSk
   return { name, icon: s.icon ?? null };
 }
 
+function pipGetEffectTime(nameJP: string, skills: Skill[], encounterLevel: number, fallback: number | null): number | null {
+  let best: Skill | null = null;
+  for (const s of skills) {
+    if (s.nameJP === nameJP && s.level <= encounterLevel) {
+      if (best === null || s.level > best.level) best = s;
+    }
+  }
+  if (best?.effectTime != null) return best.effectTime;
+  return fallback;
+}
+
 function pipBuildPhases(
   jobJP: string,
   allPhases: Phase[],
@@ -81,6 +94,8 @@ function pipBuildPhases(
   baseActionsCleared: boolean,
   actionNotes: Record<number, Record<number, string>>,
   jobNotes: Record<number, Record<number, Record<string, string>>>,
+  rowTags: Record<number, Record<number, 'tank' | 'heal' | 'dps' | 'note' | 'tb'>>,
+  encounterLevel: number,
 ): PipPhaseData[] {
   return allPhases.map((phase, pi) => {
     const jobCols = phase.skillCols.filter((sc) => sc.job === jobJP);
@@ -94,22 +109,54 @@ function pipBuildPhases(
       .filter((a) => a.type !== 'hide')
       .sort((a, b) => (a.timeSec ?? Infinity) - (b.timeSec ?? Infinity));
 
+    // Build timeline of skills with known durations so we can detect carry-over
+    const timeline: { col: string; skill: PipSkill; startTime: number; endTime: number }[] = [];
+    for (const a of merged) {
+      if (a.timeSec === null) continue;
+      for (const sc of jobCols) {
+        if (mitGrid[pi]?.[a.row]?.[sc.col] === true) {
+          const et = pipGetEffectTime(sc.skill, skills, encounterLevel, sc.effectTime);
+          if (et == null) continue;
+          timeline.push({ col: sc.col, skill: pipGetSkill(sc.skill, skills, language), startTime: a.timeSec, endTime: a.timeSec + et });
+        }
+      }
+    }
+
     const actions: PipAction[] = merged.flatMap((action) => {
       const note = actionNotes[pi]?.[action.row] ?? '';
       const jobNote = jobNotes[pi]?.[action.row]?.[jobJP] ?? '';
       const checkedCols = jobCols.filter((sc) => mitGrid[pi]?.[action.row]?.[sc.col] === true);
-      if (checkedCols.length === 0 && !note && !jobNote) return [];
+
+      // Skills from other rows still active at this action's time
+      const carriedSkills: { skill: PipSkill; remainingSec: number }[] = [];
+      if (action.timeSec !== null) {
+        const directColKeys = new Set(checkedCols.map((sc) => sc.col));
+        const seenCols = new Set<string>();
+        for (const entry of timeline) {
+          if (directColKeys.has(entry.col) || seenCols.has(entry.col)) continue;
+          if (entry.startTime < action.timeSec && action.timeSec <= entry.endTime) {
+            carriedSkills.push({ skill: entry.skill, remainingSec: entry.endTime - action.timeSec });
+            seenCols.add(entry.col);
+          }
+        }
+      }
+
+      if (checkedCols.length === 0 && carriedSkills.length === 0 && !note && !jobNote) return [];
       const checkedSkills = checkedCols.map((sc) => pipGetSkill(sc.skill, skills, language));
       const maxDuration = checkedCols.reduce<number | null>((max, sc) => {
-        if (sc.effectTime == null) return max;
-        return max === null ? sc.effectTime : Math.max(max, sc.effectTime);
+        const et = pipGetEffectTime(sc.skill, skills, encounterLevel, sc.effectTime);
+        if (et == null) return max;
+        return max === null ? et : Math.max(max, et);
       }, null);
-      return [{ actionName: action.name ?? '(unnamed)', timeSec: action.timeSec, duration: maxDuration, skills: checkedSkills, note, phaseIdx: pi, row: action.row }];
+      return [{ actionName: action.name ?? '(unnamed)', timeSec: action.timeSec, duration: maxDuration, skills: checkedSkills, carriedSkills, note, phaseIdx: pi, row: action.row, tag: rowTags[pi]?.[action.row] }];
     });
 
     return { phaseName: phase.name, actions };
   });
 }
+
+const PIP_TANK_JOBS = new Set(['PLD', 'WAR', 'DRK', 'GNB']);
+const PIP_HEAL_JOBS = new Set(['WHM', 'AST', 'SCH', 'SGE']);
 
 // PipContent rendered via createPortal so it lives in the main React tree
 
@@ -130,13 +177,21 @@ export function PipContent({ jobJP, jobName, allPhases, skills }: PipContentProp
   const actionNotes = actionNotesRaw ?? {};
   const jobNotesRaw = useStore((s) => s.plans[s.activePlanId]?.jobNotes);
   const jobNotes = jobNotesRaw ?? {};
+  const rowTagsRaw = useStore((s) => s.plans[s.activePlanId]?.rowTags);
+  const rowTags = (rowTagsRaw ?? {}) as Record<number, Record<number, 'tank' | 'heal' | 'dps' | 'note' | 'tb'>>;
   const language = useStore((s) => s.language);
+  const encounterLevel = useStore((s) => s.encounterLevel);
 
   const jobIconUrl = JOB_ICON_URL[jobName] ?? null;
 
+  const implicitRole: 'tank' | 'heal' | 'dps' = PIP_TANK_JOBS.has(jobName) ? 'tank' : PIP_HEAL_JOBS.has(jobName) ? 'heal' : 'dps';
+  const implicitRoleAccent = ({ tank: '#3b82f6', heal: '#22c55e', dps: '#ef4444' } as const)[implicitRole];
+  const implicitRoleBg     = ({ tank: 'rgba(59,130,246,0.09)', heal: 'rgba(34,197,94,0.09)', dps: 'rgba(239,68,68,0.09)' } as const)[implicitRole];
+  const implicitRoleNameColor = ({ tank: '#7bb3f0', heal: '#6dd69e', dps: '#f09090' } as const)[implicitRole];
+
   const phases = useMemo(
-    () => pipBuildPhases(jobJP, allPhases, skills, language, mitGrid, actionOverrides, customActions, baseActionsCleared ?? false, actionNotes, jobNotes),
-    [jobJP, allPhases, skills, language, mitGrid, actionOverrides, customActions, baseActionsCleared, actionNotes, jobNotes],
+    () => pipBuildPhases(jobJP, allPhases, skills, language, mitGrid, actionOverrides, customActions, baseActionsCleared ?? false, actionNotes, jobNotes, rowTags, encounterLevel),
+    [jobJP, allPhases, skills, language, mitGrid, actionOverrides, customActions, baseActionsCleared, actionNotes, jobNotes, rowTags, encounterLevel],
   );
 
   const [collapsedPhases, setCollapsedPhases] = useState<Set<number>>(new Set());
@@ -232,18 +287,33 @@ export function PipContent({ jobJP, jobName, allPhases, skills }: PipContentProp
             {!collapsedPhases.has(pi) && phase.actions.map((action, ai) => {
               const key = `${pi}-${ai}`;
               const isCurrent = key === currentKey;
-              const isNext = key === nextKey;
               const sinceAction = isCurrent && action.timeSec !== null ? elapsed - action.timeSec : Infinity;
               const isNow = isCurrent && sinceAction < (action.duration ?? 3);
               const isPast = started && action.timeSec !== null && action.timeSec <= elapsed && !isNow;
               const countdown = started && action.timeSec !== null ? action.timeSec - elapsed : null;
               const countdownColor = countdown === null ? '#64748b'
                 : countdown <= 5 ? '#f87171' : countdown <= 15 ? '#fbbf24' : '#86efac';
+              const tagAccent = action.tag ? ({ tb: '#a855f7', tank: '#3b82f6', heal: '#22c55e', dps: '#ef4444', note: '#f97316' } as Record<string, string>)[action.tag] : null;
+              const tagBg    = action.tag ? ({ tb: 'rgba(168,85,247,0.22)', tank: 'rgba(59,130,246,0.16)', heal: 'rgba(34,197,94,0.16)', dps: 'rgba(239,68,68,0.16)', note: 'rgba(249,115,22,0.16)' } as Record<string, string>)[action.tag] : null;
+              const tagNameColor = action.tag ? ({ tb: '#d8b4fe', tank: '#93c5fd', heal: '#86efac', dps: '#fca5a5', note: '#fdba74' } as Record<string, string>)[action.tag] : null;
+              const effectiveAccent    = tagAccent    ?? implicitRoleAccent;
+              const effectiveBg        = tagBg        ?? implicitRoleBg;
+              const effectiveNameColor = tagNameColor ?? implicitRoleNameColor;
               return (
-                <div key={ai} data-key={`${pi}-${ai}`} style={{ padding: '6px 14px 5px', background: isNow ? 'rgba(124,159,255,0.12)' : isNext ? 'rgba(134,239,172,0.06)' : 'transparent', borderLeft: isNow ? '3px solid #7c9fff' : isNext ? '3px solid #86efac' : '3px solid transparent', opacity: isPast ? 0.3 : 1, transition: 'opacity 0.3s, background 0.2s' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px' }}>
-                    <span style={{ fontSize: '13px', fontWeight: isNow || isNext ? 600 : 400, color: isNow ? '#e2e8f0' : isNext ? '#cbd5e1' : '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {action.actionName}
+                <div key={ai} data-key={`${pi}-${ai}`} style={{ padding: '6px 14px 5px', background: isNow ? 'rgba(124,159,255,0.12)' : effectiveBg, borderLeft: isNow ? '3px solid #7c9fff' : `3px solid ${effectiveAccent}`, opacity: isPast ? 0.3 : 1, transition: 'opacity 0.3s, background 0.2s' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '13px', fontWeight: 600, color: isNow ? '#e2e8f0' : effectiveNameColor, overflow: 'hidden', whiteSpace: 'nowrap', minWidth: 0 }}>
+                      {action.tag && (
+                        <span style={{
+                          flexShrink: 0, padding: '0 4px',
+                          borderRadius: '3px', fontSize: '10px', fontWeight: 700, lineHeight: '16px',
+                          background: ({ tb: 'rgba(168,85,247,0.25)', tank: 'rgba(59,130,246,0.25)', heal: 'rgba(34,197,94,0.25)', dps: 'rgba(239,68,68,0.25)', note: 'rgba(249,115,22,0.25)' })[action.tag],
+                          color: ({ tb: '#c084fc', tank: '#60a5fa', heal: '#4ade80', dps: '#f87171', note: '#fb923c' })[action.tag],
+                        }}>
+                          {{ tb: 'TB', tank: 'Tank', heal: 'Heal', dps: 'DPS', note: 'Note' }[action.tag]}
+                        </span>
+                      )}
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{action.actionName}</span>
                     </span>
                     {isNow && (
                       <span style={{ fontSize: '12px', fontFamily: 'monospace', color: '#f87171', whiteSpace: 'nowrap', fontWeight: 700, flexShrink: 0 }}>
@@ -265,12 +335,19 @@ export function PipContent({ jobJP, jobName, allPhases, skills }: PipContentProp
                       </span>
                     )}
                   </div>
-                  {action.skills.length > 0 && (
+                  {(action.skills.length > 0 || action.carriedSkills.length > 0) && (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px' }}>
                       {action.skills.map((sk, si) => (
                         <div key={si} style={{ display: 'flex', alignItems: 'center', gap: '3px', background: 'rgba(124,159,255,0.1)', borderRadius: '4px', padding: '1px 5px 1px 2px' }}>
                           {sk.icon && <img src={sk.icon} alt={sk.name} width={16} height={16} style={{ borderRadius: '2px', flexShrink: 0 }} />}
                           <span style={{ fontSize: '11px', color: '#7c9fff', lineHeight: 1.3 }}>{sk.name}</span>
+                        </div>
+                      ))}
+                      {action.carriedSkills.map((c, si) => (
+                        <div key={`c${si}`} style={{ display: 'flex', alignItems: 'center', gap: '3px', background: 'rgba(100,116,139,0.12)', borderRadius: '4px', padding: '1px 4px 1px 2px', opacity: 0.8 }}>
+                          {c.skill.icon && <img src={c.skill.icon} alt={c.skill.name} width={16} height={16} style={{ borderRadius: '2px', flexShrink: 0, opacity: 0.7 }} />}
+                          <span style={{ fontSize: '11px', color: '#94a3b8', lineHeight: 1.3 }}>{c.skill.name}</span>
+                          <span style={{ fontSize: '10px', color: '#64748b', fontFamily: 'monospace', marginLeft: '2px', lineHeight: 1.3 }}>{Math.ceil(c.remainingSec)}s</span>
                         </div>
                       ))}
                     </div>

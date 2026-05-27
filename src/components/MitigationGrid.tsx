@@ -19,6 +19,7 @@ interface Props {
   allPhases: Phase[];
   skills: Skill[];
   onOpenPip: (handle: PipWindowHandle) => void;
+  readOnlyJoin?: boolean;
 }
 
 type ColGroup = {
@@ -70,6 +71,7 @@ const DAMAGE_TYPE_ICONS: Record<string, string> = {
 const EMPTY_MIT_GRID: Record<number, Record<string, boolean>> = {};
 const EMPTY_HIDDEN = new Set<number>();
 const EMPTY_ACTIONS: Action[] = [];
+const EMPTY_ACTION_NOTES: Record<number, string> = {};
 const EMPTY_JOB_NOTES: Record<string, string> = {};
 const EMPTY_JOB_NOTES_PHASE: Record<number, Record<string, string>> = {};
 // eslint-disable-next-line @typescript-eslint/no-empty-function
@@ -100,7 +102,7 @@ interface TableBodyProps {
   showNotes: boolean;
   actionNotes: Record<number, string>;
   setActionNote: (phaseIdx: number, row: number, note: string) => void;
-  rowTagsForPhase: Record<number, 'tank' | 'heal' | 'dps' | 'note'>;
+  rowTagsForPhase: Record<number, 'tank' | 'heal' | 'dps' | 'note' | 'tb'>;
   jobNotesForPhase: Record<number, Record<string, string>>;
   visibleJobs: string[];
   setJobNote: (phaseIdx: number, row: number, jobJP: string, note: string) => void;
@@ -264,7 +266,7 @@ interface ActionRowProps {
   tankHP: number;
   showNotes: boolean;
   note: string;
-  tag: 'tank' | 'heal' | 'dps' | 'note' | undefined;
+  tag: 'tank' | 'heal' | 'dps' | 'note' | 'tb' | undefined;
   fixedColCount: number;
   toggleMit: (phaseIdx: number, row: number, col: string) => void;
   setEditingRow: (row: number | null) => void;
@@ -339,7 +341,7 @@ const ActionRow = React.memo(function ActionRow({
         <td className="sticky-col action-cell" onDoubleClick={() => setEditingRow(action.row)}>
           {tag && (
             <span className={`row-tag row-tag-${tag}`}>
-              {{ tank: 'Tank', heal: 'Heal', dps: 'DPS', note: 'Note' }[tag]}
+              {{ tank: 'Tank', heal: 'Heal', dps: 'DPS', note: 'Note', tb: 'TB' }[tag]}
             </span>
           )}
           <span className="action-name">{action.name}</span>
@@ -506,7 +508,7 @@ const MitigationTableBody = React.memo(function MitigationTableBody({
   );
 });
 
-export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onOpenPip }: Props) {
+export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onOpenPip, readOnlyJoin }: Props) {
   const { language, toggleMit, initPhase, showJobs, setShowJobs, maxHP, tankHP, toggleHideRow, clearHiddenRows, encounterLevel, syncVersion, addCustomAction, removeCustomAction, clearPhase, clearPlan, clearAllPlans, clearPlanActions, restoreBaseActions, setActionNote, setJobNote, viewerMode, toggleViewerMode, allowCooldownOverride, toggleAllowCooldownOverride } = useStore();
   const { mitGrid, actionOverrides, hiddenRows, customActions, name: planName, baseActionsCleared, actionNotes, rowTags, jobNotes: jobNotesRaw } = useStore((s) => s.plans[s.activePlanId]);
   const jobNotes = jobNotesRaw ?? {};
@@ -541,6 +543,7 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
 
   const [editingRow, setEditingRow] = React.useState<number | null>(null);
   const [showHidden, setShowHidden] = React.useState(true);
+  const [showTBOnly, setShowTBOnly] = React.useState(false);
   const [selectMode, setSelectMode] = React.useState(false);
   const showNotes = true;
 
@@ -897,6 +900,16 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
     return map;
   }, [allVisibleCols, mergedActions, mitGrid, phaseIdx]);
 
+  // Use user-set rowTags for this phase
+  const rowTagsForPhase = React.useMemo(() => {
+    return (rowTags ?? {})[phaseIdx] ?? {};
+  }, [rowTags, phaseIdx]);
+
+  const actionNotesForPhase = (actionNotes ?? {})[phaseIdx] ?? EMPTY_ACTION_NOTES;
+
+  // When TB-only filter is active, show only tb-tagged rows (handled inside MitigationTableBody
+  // to keep all rows mounted and avoid unmount/remount cost on toggle)
+
   return (
     <div className="mit-grid-wrap">
       {editingAction && editingDisplay && (
@@ -915,6 +928,13 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
           onClick={() => setSelectMode((m) => !m)}
         >
           Solo
+        </button>
+        <button
+          className={`role-toggle ${showTBOnly ? 'select-active' : 'select-inactive'}`}
+          title={showTBOnly ? 'Showing tankbusters only — click to show all rows' : 'Filter to tankbuster rows only'}
+          onClick={() => setShowTBOnly((v) => !v)}
+        >
+          TB
         </button>
         <span className="role-divider" />
         {(() => {
@@ -1014,6 +1034,7 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
             )}
           </>
         )}
+        <span className="role-divider" />
       </div>
 
       <div className="mit-toolbar">
@@ -1092,7 +1113,7 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
             ? { color: '#fbbf24', borderColor: '#92400e', background: 'rgba(251,191,36,0.15)', fontWeight: 700 }
             : { color: 'var(--text-muted)', borderColor: 'var(--border)' }}
           onClick={toggleViewerMode}
-          title={viewerMode ? 'Exit viewer mode' : 'Enter viewer mode (notes only)'}
+          title={readOnlyJoin ? 'Read-only session — rejoin with the full share link to edit' : viewerMode ? 'Exit viewer mode' : 'Enter viewer mode (notes only)'}
         >
           {viewerMode ? '👁 Viewing - click to edit' : '👁'}
         </button>
@@ -1108,16 +1129,21 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
           userSelect: 'none',
         }}>
           <span>👁 Viewer mode - checkboxes and edits are disabled.</span>
-          <button
-            onClick={toggleViewerMode}
-            style={{
-              marginLeft: 'auto', padding: '2px 10px', borderRadius: 4,
-              border: '1px solid #92400e', background: 'transparent',
-              color: '#fbbf24', cursor: 'pointer', fontSize: '11px', fontWeight: 700,
-            }}
-          >
-            Switch to Edit
-          </button>
+          {!readOnlyJoin && (
+            <button
+              onClick={toggleViewerMode}
+              style={{
+                marginLeft: 'auto', padding: '2px 10px', borderRadius: 4,
+                border: '1px solid #92400e', background: 'transparent',
+                color: '#fbbf24', cursor: 'pointer', fontSize: '11px', fontWeight: 700,
+              }}
+            >
+              Switch to Edit
+            </button>
+          )}
+          {readOnlyJoin && (
+            <span style={{ marginLeft: 'auto', fontSize: '11px', opacity: 0.6 }}>Read-only — no write token</span>
+          )}
         </div>
       )}
 
@@ -1281,7 +1307,7 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
         </div>
       )}
 
-      <div className="mit-table-container" ref={tableContainerRef}>
+      <div className={`mit-table-container${showTBOnly ? ' tb-filter-active' : ''}`} ref={tableContainerRef}>
         <table className="mit-table">
           <colgroup>
             <col style={{ width: '46px' }} />
@@ -1374,7 +1400,6 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
             cellCoverage={cellCoverage}
             hiddenSet={hiddenSet}
             showHidden={showHidden}
-
             phaseIdx={phaseIdx}
             maxHP={maxHP}
             tankHP={tankHP}
@@ -1386,9 +1411,9 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
             toggleHideRow={viewerMode ? noop : toggleHideRow}
             insertAfterRow={viewerMode ? noop : handleInsertAfterRow}
             showNotes={showNotes}
-            actionNotes={(actionNotes ?? {})[phaseIdx] ?? {}}
+            actionNotes={actionNotesForPhase}
             setActionNote={setActionNote}
-            rowTagsForPhase={(rowTags ?? {})[phaseIdx] ?? {}}
+            rowTagsForPhase={rowTagsForPhase}
             jobNotesForPhase={jobNotes[phaseIdx] ?? EMPTY_JOB_NOTES_PHASE}
             visibleJobs={visibleJobs}
             setJobNote={setJobNote}

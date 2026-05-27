@@ -1279,15 +1279,21 @@ tr:hover .job-note-btn { opacity: 1; }
   letter-spacing: 0.04em;
   flex-shrink: 0;
 }
+.row-tag-tb     { background: rgba(168,85,247,0.15); color: #c084fc; border: 1px solid rgba(168,85,247,0.35); }
 .row-tag-tank   { background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.35); }
 .row-tag-heal   { background: rgba(34,197,94,0.15);  color: #4ade80; border: 1px solid rgba(34,197,94,0.35); }
 .row-tag-dps    { background: rgba(239,68,68,0.15);  color: #f87171; border: 1px solid rgba(239,68,68,0.35); }
 .row-tag-note   { background: rgba(249,115,22,0.15); color: #fb923c; border: 1px solid rgba(249,115,22,0.35); }
 
+.tagged-row-tb td     { background: color-mix(in srgb, rgb(168,85,247) 8%, var(--surface)) !important; }
 .tagged-row-tank td   { background: color-mix(in srgb, rgb(59,130,246) 8%, var(--surface)) !important; }
 .tagged-row-heal td   { background: color-mix(in srgb, rgb(34,197,94)  8%, var(--surface)) !important; }
 .tagged-row-dps td    { background: color-mix(in srgb, rgb(239,68,68)  8%, var(--surface)) !important; }
 .tagged-row-note td   { background: color-mix(in srgb, rgb(249,115,22) 8%, var(--surface)) !important; }
+
+/* TB filter: hide non-tankbuster rows via CSS — no React re-render on toggle */
+.tb-filter-active .action-row:not(.tagged-row-tb) { display: none; }
+.tb-filter-active .action-row:not(.tagged-row-tb) + .insert-action-row { display: none; }
 
 .edit-action-btn {
   opacity: 0;

@@ -1,10 +1,12 @@
+import React from 'react';
+
 export type ChangeType = 'new' | 'fix' | 'change' | 'remove' | 'hotfix';
 
 export interface ChangelogEntry {
   version: string;
   date: string;
   title: string;
-  changes: { type: ChangeType; text: string }[];
+  changes: { type: ChangeType; text: React.ReactNode }[];
 }
 
 /**
@@ -14,6 +16,21 @@ export interface ChangelogEntry {
  * the modal automatically on next load.
  */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.8.2',
+    date: 'May 27, 2026',
+    title: 'Tank Buster Filter & PIP Improvements',
+    changes: [
+      { type: 'new',    text: 'Added a TB (tank buster) row tag: mark any action as a tank buster via the Edit Action modal.' },
+      { type: 'new',    text: 'TB filter button next to Solo in the job toggle bar: instantly hides all non-tank-buster rows with no performance overhead.' },
+      { type: 'new',    text: 'Row tags (TB, Tank, Heal, DPS, Note) now appear in the PIP window with coloured left borders, tinted backgrounds, and inline badges.' },
+      { type: 'new',    text: React.createElement(React.Fragment, null, 'PIP window now auto-colours rows by job role when no explicit tag is set: ', React.createElement('span', { style: { color: '#93c5fd' } }, 'blue'), ' for tanks, ', React.createElement('span', { style: { color: '#86efac' } }, 'green'), ' for healers, ', React.createElement('span', { style: { color: '#fca5a5' } }, 'red'), ' for DPS.') },
+      { type: 'new',    text: 'PIP window now shows mitigations that are still active (within their duration) at each mechanic, with remaining duration displayed on each chip.' },
+      { type: 'fix',    text: 'PIP skill durations now correctly account for encounter level (e.g. Reprisal shows 10s below level 98, 15s at level 100).' },
+      { type: 'fix',    text: 'PIP role colours are now consistent on all rows; the "next action" green highlight no longer overrides the job-role colour.' },
+      { type: 'fix',    text: 'Opening a session from the admin view no longer triggers a spurious write-access error; the session opens read-only with a clear indicator.' },
+    ],
+  },
   {
     version: '1.8.1',
     date: 'May 21, 2026',
@@ -55,7 +72,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     version: '1.6.0',
-    date: 'May 12–19, 2026',
+    date: 'May 12-19, 2026',
     title: 'Session Join by Code & Admin Server',
     changes: [
       { type: 'new',    text: 'Sessions can now be joined by entering a 6-character code.' },
@@ -68,7 +85,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     version: '1.5.0',
-    date: 'May 11–12, 2026',
+    date: 'May 11-12, 2026',
     title: 'FFlogs Import Enhancements',
     changes: [
       { type: 'new',    text: 'FFlogs import: boss attack timestamps captured for precise action placement.' },
@@ -81,7 +98,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     version: '1.4.0',
-    date: 'May 10–11, 2026',
+    date: 'May 10-11, 2026',
     title: 'Viewer Mode & Cooldown Control',
     changes: [
       { type: 'new',    text: 'Viewer mode: join a session as read-only with a separate view-only link.' },

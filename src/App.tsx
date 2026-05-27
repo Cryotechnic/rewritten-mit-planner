@@ -77,6 +77,7 @@ export default function App() {
   const [sessionDeleted, setSessionDeleted] = useState(false);
   const [joiningCodeChecking, setJoiningCodeChecking] = useState(false);
   const [joiningCodeError, setJoiningCodeError] = useState<string | null>(null);
+  const [readOnlyJoin, setReadOnlyJoin] = useState(false);
   const [pipHandle, setPipHandle] = useState<PipWindowHandle | null>(null);
 
   // On mount: check URL for ?join=XXXXXX, or start share setup
@@ -91,6 +92,7 @@ export default function App() {
       const id = viewId.toUpperCase();
       awaitingFirstSyncRef.current = true;
       setShareId(id);
+      setReadOnlyJoin(true);
       if (!viewerMode) toggleViewerMode();
       const url = new URL(window.location.href);
       url.searchParams.delete('view');
@@ -107,7 +109,7 @@ export default function App() {
       const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
       const token = hashParams.get('t');
       if (token) { writeTokenRef.current = token; setWriteToken(token); }
-      else { if (!viewerMode) toggleViewerMode(); } // no token = read-only
+      else { setReadOnlyJoin(true); if (!viewerMode) toggleViewerMode(); } // no token = read-only
       setShareId(id);
       const url = new URL(window.location.href);
       url.searchParams.delete('join');
@@ -205,6 +207,7 @@ export default function App() {
       setJoiningCodeError(null);
       awaitingFirstSyncRef.current = true;
       setShareId(id);
+      setReadOnlyJoin(true);
       if (!viewerMode) toggleViewerMode();
       if (encrypted) setNeedJoinPassword(true);
     }).catch((err) => {
@@ -226,6 +229,7 @@ export default function App() {
     setSessionPassword(null);
     setNeedJoinPassword(false);
     setWaitingForHost(false);
+    setReadOnlyJoin(false);
     if (viewerMode) toggleViewerMode();
     awaitingFirstSyncRef.current = false;
     skipNextPushRef.current = false;
@@ -269,6 +273,7 @@ export default function App() {
   const activePlanForSync = plans[activePlanId];
   useEffect(() => {
     if (!shareId || needJoinPassword || viewerMode) return;
+    if (readOnlyJoin) return; // joined without write token — changes are local only
     if (awaitingFirstSyncRef.current) return;
     if (skipNextPushRef.current) {
       skipNextPushRef.current = false;
@@ -410,6 +415,7 @@ export default function App() {
             allPhases={allPhases}
             skills={skills}
             onOpenPip={setPipHandle}
+            readOnlyJoin={readOnlyJoin}
           />
         )}
         {tab === "planner" && !activePhase && (

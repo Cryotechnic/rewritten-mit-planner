@@ -33,7 +33,7 @@ export default function EditActionModal({ phaseIdx, action, displayAction, onClo
   const [timeStr, setTimeStr] = React.useState(formatTime(displayAction.timeSec));
   const [type, setType] = React.useState(displayAction.type ?? 'Magic');
   const [damage, setDamage] = React.useState(String(displayAction.damageHit ?? ''));
-  const [tag, setTag] = React.useState<'tank' | 'heal' | 'dps' | 'note' | null>(currentTag);
+  const [tag, setTag] = React.useState<'tank' | 'heal' | 'dps' | 'note' | 'tb' | null>(currentTag);
   const [timeError, setTimeError] = React.useState(false);
 
   const isModified =
@@ -132,7 +132,7 @@ export default function EditActionModal({ phaseIdx, action, displayAction, onClo
           <div className="modal-field">
             <span>Tag</span>
             <div style={{ display: 'flex', gap: '6px', marginTop: '2px' }}>
-              {([['tank', '#3b82f6', 'Tank'], ['heal', '#22c55e', 'Heal'], ['dps', '#ef4444', 'DPS'], ['note', '#f97316', 'Note']] as const).map(([val, color, label]) => (
+              {([['tb', '#a855f7', 'TB'], ['tank', '#3b82f6', 'Tank'], ['heal', '#22c55e', 'Heal'], ['dps', '#ef4444', 'DPS'], ['note', '#f97316', 'Note']] as const).map(([val, color, label]) => (
                 <button
                   key={val}
                   type="button"

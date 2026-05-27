@@ -31,7 +31,7 @@ export interface PlanData {
   // phaseIdx → row → note text
   actionNotes: Record<number, Record<number, string>>;
   // phaseIdx → row → tag
-  rowTags: Record<number, Record<number, 'tank' | 'heal' | 'dps' | 'note'>>;
+  rowTags: Record<number, Record<number, 'tank' | 'heal' | 'dps' | 'note' | 'tb'>>;
   // phaseIdx → row → jobJP → note
   jobNotes: Record<number, Record<number, Record<string, string>>>;
 }
@@ -93,7 +93,7 @@ interface PlannerState {
   initPhase: (phaseIdx: number, phase: Phase) => void;
   setActionNote: (phaseIdx: number, row: number, note: string) => void;
   setJobNote: (phaseIdx: number, row: number, jobJP: string, note: string) => void;
-  setRowTag: (phaseIdx: number, row: number, tag: 'tank' | 'heal' | 'dps' | 'note' | null) => void;
+  setRowTag: (phaseIdx: number, row: number, tag: 'tank' | 'heal' | 'dps' | 'note' | 'tb' | null) => void;
   setShareId: (id: string | null) => void;
   setWriteToken: (token: string | null) => void;
   toggleViewerMode: () => void;
