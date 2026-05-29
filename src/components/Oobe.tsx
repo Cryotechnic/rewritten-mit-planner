@@ -4,6 +4,7 @@ import type React from 'react';
 interface Props {
   onConfirm: (encounterName: string) => void;
   onJoinByCode?: () => void;
+  onBack?: () => void;
 }
 
 const SUGGESTIONS = [
@@ -24,7 +25,7 @@ const DISCLAIMER_POINTS: React.ReactNode[] = [
   <>The website operator reserves the right to <strong>modify, suspend, or terminate this service</strong>, and to <strong>delete any stored data</strong>, at any time and without prior notice.</>,
 ];
 
-export default function Oobe({ onConfirm, onJoinByCode }: Props) {
+export default function Oobe({ onConfirm, onJoinByCode, onBack }: Props) {
   const [step, setStep] = useState<'disclaimer' | 'name'>('disclaimer');
   const [name, setName] = useState('');
   const [focused, setFocused] = useState(false);
@@ -115,6 +116,16 @@ export default function Oobe({ onConfirm, onJoinByCode }: Props) {
             </ul>
           )}
         </div>
+
+        {onBack && (
+          <button
+            className="oobe-btn-secondary"
+            style={{ marginBottom: 8 }}
+            onClick={onBack}
+          >
+            ← Back to share link
+          </button>
+        )}
 
         <button
           className="oobe-btn"

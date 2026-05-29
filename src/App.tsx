@@ -15,6 +15,7 @@ import { PipPortal, type PipWindowHandle } from "./components/JobPipWindow";
 import { SharePasswordSetup, JoinPasswordPrompt } from "./components/SessionPasswordDialog";
 import { JoinByCodeDialog } from "./components/JoinByCodeDialog";
 import { useStore } from "./store";
+import type { RecentSession } from "./store";
 import { pushPlan, subscribePlan, generateShareId, generateWriteToken, getSessionMeta, validateSessionPassword } from "./lib/planSync";
 import type { Unsubscribe } from "firebase/firestore";
 import { t } from "./i18n";
@@ -38,7 +39,7 @@ const allSkillCols = (() => {
 type Tab = "planner" | "skills";
 
 export default function App() {
-  const { plans, activePlanId, renamePlan, addCustomPhase, shareId, clientId, setShareId, applyRemotePlan, maxHP, tankHP, encounterLevel, language, viewerMode, toggleViewerMode, setWriteToken, resetPlans, allowCooldownOverride, lastSeenVersion, setLastSeenVersion } = useStore();
+  const { plans, activePlanId, renamePlan, addCustomPhase, shareId, clientId, setShareId, applyRemotePlan, maxHP, tankHP, encounterLevel, language, viewerMode, toggleViewerMode, setWriteToken, resetPlans, allowCooldownOverride, lastSeenVersion, setLastSeenVersion, addRecentSession, removeRecentSession, recentSessions } = useStore();
   const [tab, setTab] = useState<Tab>("planner");
   const [showAddPhase, setShowAddPhase] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
@@ -69,11 +70,13 @@ export default function App() {
   const initDoneRef = useRef(false);
   const [sessionPassword, setSessionPassword] = useState<string | null>(null);
   const [showPasswordSetup, setShowPasswordSetup] = useState(false);
+  const [showOobe, setShowOobe] = useState(false);
   const [needJoinPassword, setNeedJoinPassword] = useState(false);
   const [joinPasswordChecking, setJoinPasswordChecking] = useState(false);
   const [joinPasswordError, setJoinPasswordError] = useState(false);
   const [waitingForHost, setWaitingForHost] = useState(false);
   const [showJoinByCode, setShowJoinByCode] = useState(false);
+  const [joinByCodeReturn, setJoinByCodeReturn] = useState<'passwordSetup' | 'oobe' | null>(null);
   const [sessionDeleted, setSessionDeleted] = useState(false);
   const [joiningCodeChecking, setJoiningCodeChecking] = useState(false);
   const [joiningCodeError, setJoiningCodeError] = useState<string | null>(null);
@@ -156,6 +159,8 @@ export default function App() {
     const id = pendingShareIdRef.current!;
     setSessionPassword(password);
     setShowPasswordSetup(false);
+    // Show Oobe disclaimer + naming step only for first-time users
+    if (useStore.getState().lastSeenVersion === null) setShowOobe(true);
     // Suppress the debounced push effect so only this explicit pushPlan call
     // creates the Firebase document (prevents a double-write on session creation).
     awaitingFirstSyncRef.current = true;
@@ -230,6 +235,7 @@ export default function App() {
     setNeedJoinPassword(false);
     setWaitingForHost(false);
     setReadOnlyJoin(false);
+    setShowOobe(false);
     if (viewerMode) toggleViewerMode();
     awaitingFirstSyncRef.current = false;
     skipNextPushRef.current = false;
@@ -241,6 +247,42 @@ export default function App() {
     writeTokenRef.current = token;
     setWriteToken(token);
     setShowPasswordSetup(true);
+  }
+
+  function handleRejoinRecent(session: RecentSession) {
+    setShowPasswordSetup(false);
+    awaitingFirstSyncRef.current = true;
+    if (session.writeToken) {
+      writeTokenRef.current = session.writeToken;
+      setWriteToken(session.writeToken);
+    } else {
+      setReadOnlyJoin(true);
+      if (!viewerMode) toggleViewerMode();
+    }
+    setShareId(session.shareId);
+    getSessionMeta(session.shareId).then(({ exists, encrypted }) => {
+      if (!exists) {
+        // Session expired — remove from recents and fall back to fresh setup
+        removeRecentSession(session.shareId);
+        setShareId(null);
+        setWriteToken(null);
+        writeTokenRef.current = null;
+        awaitingFirstSyncRef.current = false;
+        setReadOnlyJoin(false);
+        if (viewerMode) toggleViewerMode();
+        resetPlans();
+        const id = generateShareId();
+        const token = generateWriteToken();
+        pendingShareIdRef.current = id;
+        writeTokenRef.current = token;
+        setWriteToken(token);
+        setShowPasswordSetup(true);
+      } else if (encrypted) {
+        setNeedJoinPassword(true);
+      }
+    }).catch(() => {
+      setShareError('Could not reach the sync session. Check your connection.');
+    });
   }
 
   // Subscribe / unsubscribe when shareId or sessionPassword changes.
@@ -291,6 +333,18 @@ export default function App() {
     return () => { if (pushTimerRef.current) clearTimeout(pushTimerRef.current); };
 }, [shareId, clientId, needJoinPassword, sessionPassword, viewerMode, activePlanForSync, plans, activePlanId, maxHP, tankHP, encounterLevel, allowCooldownOverride]);
 
+  // Keep the recent sessions list up-to-date whenever the active plan has a name.
+  const activePlanName = plans[activePlanId]?.name ?? '';
+  useEffect(() => {
+    if (!shareId) return;
+    addRecentSession({
+      shareId,
+      planName: activePlanName || shareId,
+      writeToken: useStore.getState().writeToken ?? undefined,
+      viewOnly: readOnlyJoin,
+    });
+  }, [shareId, activePlanName, readOnlyJoin]);
+
   const activePhaseIdx = plans[activePlanId].activePhaseIdx;
   const activePlan = plans[activePlanId];
 
@@ -314,22 +368,24 @@ export default function App() {
     const shareUrl = token ? `${base}?join=${id}#t=${token}` : `${base}?join=${id}`;
     const viewUrl = `${base}?view=${id}`;
     return (
-      <>
-        <SharePasswordSetup
-          shareUrl={shareUrl}
-          viewUrl={viewUrl}
-          onConfirm={handleSharerPasswordConfirm}
-          onJoinByCode={() => { setShowPasswordSetup(false); setShowJoinByCode(true); }}
-        />
-        {showJoinByCode && (
-          <JoinByCodeDialog
-            onJoin={handleJoinByCode}
-            onCancel={() => { setShowJoinByCode(false); setJoiningCodeChecking(false); setJoiningCodeError(null); }}
-            checking={joiningCodeChecking}
-            error={joiningCodeError}
-          />
-        )}
-      </>
+      <SharePasswordSetup
+        shareUrl={shareUrl}
+        viewUrl={viewUrl}
+        onConfirm={handleSharerPasswordConfirm}
+        onJoinByCode={() => { setShowPasswordSetup(false); setJoinByCodeReturn('passwordSetup'); setShowJoinByCode(true); }}
+        recentSessions={recentSessions}
+        onRejoinRecent={handleRejoinRecent}
+      />
+    );
+  }
+
+  if (showOobe) {
+    return (
+      <Oobe
+        onConfirm={(encounterName) => { renamePlan(activePlanId, encounterName); setLastSeenVersion(CURRENT_VERSION); setShowOobe(false); }}
+        onJoinByCode={() => { setShowOobe(false); setJoinByCodeReturn('oobe'); setShowJoinByCode(true); }}
+        onBack={pendingShareIdRef.current ? () => { setShowOobe(false); setShowPasswordSetup(true); } : undefined}
+      />
     );
   }
 
@@ -359,27 +415,21 @@ export default function App() {
     );
   }
 
-  if (!activePlan.name && !shareId) {
-    return (
-      <>
-        <Oobe onConfirm={(encounterName) => renamePlan(activePlanId, encounterName)} onJoinByCode={() => setShowJoinByCode(true)} />
-        {showJoinByCode && (
-          <JoinByCodeDialog
-            onJoin={handleJoinByCode}
-            onCancel={() => { setShowJoinByCode(false); setJoiningCodeChecking(false); setJoiningCodeError(null); }}
-            checking={joiningCodeChecking}
-            error={joiningCodeError}
-          />
-        )}
-      </>
-    );
-  }
-
+  // showJoinByCode must be checked before the Oobe: the Oobe has z-index 2000
+  // and would sit on top of the dialog (z-index 1000) if both were rendered together.
   if (showJoinByCode) {
+    const handleJoinByCodeCancel = () => {
+      setShowJoinByCode(false);
+      setJoiningCodeChecking(false);
+      setJoiningCodeError(null);
+      if (joinByCodeReturn === 'passwordSetup') setShowPasswordSetup(true);
+      else if (joinByCodeReturn === 'oobe') setShowOobe(true);
+      setJoinByCodeReturn(null);
+    };
     return (
       <JoinByCodeDialog
         onJoin={handleJoinByCode}
-        onCancel={() => { setShowJoinByCode(false); setJoiningCodeChecking(false); setJoiningCodeError(null); }}
+        onCancel={handleJoinByCodeCancel}
         checking={joiningCodeChecking}
         error={joiningCodeError}
       />

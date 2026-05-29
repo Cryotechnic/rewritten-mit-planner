@@ -42,6 +42,17 @@ function makePlan(id: string, name: string): PlanData {
 
 const INIT_ID = 'plan-1';
 
+export interface RecentSession {
+  shareId: string;
+  planName: string;
+  lastVisited: number;
+  /** Present when the user has write access to this session. */
+  writeToken?: string;
+  viewOnly: boolean;
+}
+
+const MAX_RECENT_SESSIONS = 8;
+
 interface PlannerState {
   language: Language;
   showJobs: Record<string, boolean>;
@@ -58,6 +69,7 @@ interface PlannerState {
   writeToken: string | null;
   allowCooldownOverride: boolean;
   lastSeenVersion: string | null;
+  recentSessions: RecentSession[];
 
   setActivePhase: (idx: number) => void;
   setLanguage: (lang: Language) => void;
@@ -99,6 +111,8 @@ interface PlannerState {
   toggleViewerMode: () => void;
   toggleAllowCooldownOverride: () => void;
   setLastSeenVersion: (version: string) => void;
+  addRecentSession: (entry: Omit<RecentSession, 'lastVisited'>) => void;
+  removeRecentSession: (shareId: string) => void;
   applyRemotePlan: (plans: Record<string, PlanData>, activePlanId: string, settings?: { maxHP?: number; tankHP?: number; encounterLevel?: number; allowCooldownOverride?: boolean }) => void;
 }
 
@@ -153,6 +167,7 @@ export const useStore = create<PlannerState>()(
       writeToken: null,
       allowCooldownOverride: false,
       lastSeenVersion: null as string | null,
+      recentSessions: [] as RecentSession[],
 
       setActivePhase: (idx) => set((s) => patchActive(s, () => ({ activePhaseIdx: idx }))),
 
@@ -390,6 +405,19 @@ export const useStore = create<PlannerState>()(
       toggleAllowCooldownOverride: () => set((s) => ({ allowCooldownOverride: !s.allowCooldownOverride })),
       setLastSeenVersion: (version) => set({ lastSeenVersion: version }),
 
+      addRecentSession: (entry) => set((s) => {
+        const filtered = s.recentSessions.filter((r) => r.shareId !== entry.shareId);
+        const next: RecentSession[] = [
+          { ...entry, lastVisited: Date.now() },
+          ...filtered,
+        ].slice(0, MAX_RECENT_SESSIONS);
+        return { recentSessions: next };
+      }),
+
+      removeRecentSession: (shareId) => set((s) => ({
+        recentSessions: s.recentSessions.filter((r) => r.shareId !== shareId),
+      })),
+
       applyRemotePlan: (plans, _activePlanId, settings) => set((s) => {
         const remotePlans = plans as Record<string, PlanData>;
         // If local state is a fresh blank (only plan-1 with no name), replace entirely.
@@ -427,7 +455,7 @@ export const useStore = create<PlannerState>()(
     }),
     {
       name: 'ucob-planner-state',
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => localStorage, {
         replacer: (_key, value) =>
           value instanceof Set ? { __type: 'Set', values: [...value] } : value,
@@ -438,7 +466,7 @@ export const useStore = create<PlannerState>()(
       }),
       migrate: (persisted: any, version: number) => {
         if (version === 0) {
-          return {
+          persisted = {
             ...persisted,
             plans: {
               [INIT_ID]: {
@@ -454,6 +482,12 @@ export const useStore = create<PlannerState>()(
             activePlanId: INIT_ID,
           };
         }
+        if (version <= 1) {
+          // shareId and writeToken must not survive browser restarts — strip them
+          // from any previously-persisted state so stale sessions cannot reconnect.
+          const { shareId: _s, writeToken: _w, ...rest } = persisted;
+          persisted = rest;
+        }
         return persisted;
       },
       partialize: (s) => ({
@@ -463,8 +497,10 @@ export const useStore = create<PlannerState>()(
         encounterLevel: s.encounterLevel,
         plans: s.plans,
         activePlanId: s.activePlanId,
-        shareId: s.shareId,
-        writeToken: s.writeToken,
+        // shareId and writeToken are intentionally NOT persisted across browser
+        // restarts to prevent a new visitor on a shared device from silently
+        // inheriting a previous user's collaborative session.
+        recentSessions: s.recentSessions,
         lastSeenVersion: s.lastSeenVersion,
       }),
     }

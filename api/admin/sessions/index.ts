@@ -21,11 +21,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const db = getDb();
-    const snap = await db.collection('sessions').get();
+    // Select only lightweight fields — skip `ciphertext`, `iv`, and `salt` which
+    // can each be up to 2 MB and are useless for the listing view.  Encrypted
+    // sessions have no `json` field, so its absence doubles as the encrypted flag.
+    const snap = await db.collection('sessions')
+      .select('clientId', 'updatedAt', 'json', 'writeToken')
+      .orderBy('updatedAt', 'desc')
+      .limit(500)
+      .get();
 
     const rows: SessionRow[] = snap.docs.map((docSnap: QueryDocumentSnapshot) => {
       const d = docSnap.data();
-      const encrypted = 'ciphertext' in d;
+      // `ciphertext` is not selected, so encrypted sessions simply have no `json` field.
+      const encrypted = typeof d.json !== 'string';
       const base: SessionRow = {
         id: docSnap.id,
         encrypted,
@@ -52,7 +60,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return base;
     });
 
-    rows.sort((a, b) => b.updatedAt - a.updatedAt);
     res.json(rows);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

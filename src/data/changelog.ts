@@ -17,6 +17,18 @@ export interface ChangelogEntry {
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.8.3',
+    date: 'May 28, 2026',
+    title: 'Session Onboarding & Security Fixes',
+    changes: [
+      { type: 'fix',    text: React.createElement(React.Fragment, null, 'Fixed a data leak where the session code and write token were persisted in ', React.createElement('code', { style: { fontFamily: 'monospace', background: 'rgba(255,255,255,0.08)', padding: '1px 5px', borderRadius: 3, fontSize: '0.88em' } }, 'localStorage'), ', causing a previous session to silently reopen on next visit.') },
+      { type: 'new',    text: 'Added a Recent Sessions list to the share setup screen. Quickly rejoin any of your last 8 sessions without needing a code! Note that you will still need to enter a password for password-protected sessions.' },
+      { type: 'fix',    text: 'New sheets are no longer pre-filled with encounter data before the encounter is named; the planner now opens clean after setup.' },
+      { type: 'fix',    text: 'Opening "Session by code" from the setup screen and cancelling now correctly returns to the setup screen instead of dropping into the planner.' },
+      { type: 'fix',    text: 'Admin panel: session list now loads significantly faster by fetching only the required fields.' },
+    ],
+  },
+  {
     version: '1.8.2',
     date: 'May 27, 2026',
     title: 'Tank Buster Filter & PIP Improvements',

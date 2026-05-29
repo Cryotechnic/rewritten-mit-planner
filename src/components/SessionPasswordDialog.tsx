@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import type { RecentSession } from '../store';
 
 const overlayStyle: React.CSSProperties = {
   position: 'fixed', inset: 0,
@@ -52,9 +53,22 @@ interface SetupProps {
   viewUrl: string;
   onConfirm: (password: string | null) => void;
   onJoinByCode?: () => void;
+  recentSessions?: RecentSession[];
+  onRejoinRecent?: (session: RecentSession) => void;
 }
 
-export function SharePasswordSetup({ shareUrl, viewUrl, onConfirm, onJoinByCode }: SetupProps) {
+function formatRelativeTime(ts: number): string {
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+export function SharePasswordSetup({ shareUrl, viewUrl, onConfirm, onJoinByCode, recentSessions, onRejoinRecent }: SetupProps) {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const mismatch = confirm.length > 0 && password !== confirm;
@@ -138,6 +152,46 @@ export function SharePasswordSetup({ shareUrl, viewUrl, onConfirm, onJoinByCode 
             >
               Join an existing session by code instead
             </button>
+          </div>
+        )}
+
+        {recentSessions && recentSessions.length > 0 && onRejoinRecent && (
+          <div style={{ marginTop: '8px' }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '6px' }}>
+              RECENT SESSIONS
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              {recentSessions.map((s) => (
+                <button
+                  key={s.shareId}
+                  onClick={() => onRejoinRecent(s)}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    gap: '8px', padding: '7px 10px',
+                    background: 'var(--surface2)', border: '1px solid var(--border)',
+                    borderRadius: '6px', cursor: 'pointer', textAlign: 'left',
+                    color: 'var(--text)',
+                  }}
+                >
+                  <span style={{ fontSize: '13px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                    {s.planName}
+                  </span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                    {s.viewOnly && (
+                      <span style={{ fontSize: '10px', color: '#67e8f9', fontWeight: 600, background: 'rgba(103,232,249,0.12)', borderRadius: '4px', padding: '1px 5px' }}>
+                        VIEW
+                      </span>
+                    )}
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                      {s.shareId}
+                    </span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                      {formatRelativeTime(s.lastVisited)}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>
