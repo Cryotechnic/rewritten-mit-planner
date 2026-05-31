@@ -541,7 +541,7 @@ const MitigationTableBody = React.memo(function MitigationTableBody({
 });
 
 export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onOpenPip, readOnlyJoin }: Props) {
-  const { language, toggleMit, initPhase, showJobs, setShowJobs, maxHP, tankHP, toggleHideRow, clearHiddenRows, encounterLevel, syncVersion, addCustomAction, removeCustomAction, clearPhase, clearPlan, clearAllPlans, clearPlanActions, restoreBaseActions, setActionNote, setJobNote, viewerMode, toggleViewerMode, allowCooldownOverride, toggleAllowCooldownOverride } = useStore();
+  const { language, toggleMit, initPhase, showJobs, setShowJobs, maxHP, tankHP, toggleHideRow, clearHiddenRows, encounterLevel, syncVersion, addCustomAction, removeCustomAction, clearPhase, clearPlan, clearAllPlans, clearPlanActions, setActionNote, setJobNote, viewerMode, toggleViewerMode, allowCooldownOverride, toggleAllowCooldownOverride } = useStore();
   const { mitGrid, actionOverrides, hiddenRows, customActions, name: planName, baseActionsCleared, actionNotes, rowTags, jobNotes: jobNotesRaw } = useStore((s) => s.plans[s.activePlanId]);
   const jobNotes = jobNotesRaw ?? {};
 
