@@ -242,7 +242,21 @@ const EMPTY_CHECKED: Record<string, boolean> = {};
 const FORCE_CHECKABLE_SKILLS = new Set<string>([
   'ブラックナイト',  // The Blackest Night
   'オブレーション',  // Oblation
+  'ハート・オブ・コランダム',  // Heart of Corundum
+  'インターベンション',  // Intervention
 ]);
+
+// Skills with phased effects that deserve extra tooltip info
+const SKILL_EXTRA_TOOLTIP: Record<string, string> = {
+  'ホーリーシェルトロン': '0-4s: 30% mit (Knight\'s Resolve) → 4-8s: 15% mit (Knight\'s Benediction)',
+  'ハート・オブ・コランダム': '0-4s: ~28% mit (Corundum + Clarity) → 4-8s: 15% mit (Corundum only)',
+};
+
+// Single-target tank mitigation skills: only count toward mit% on TB-tagged rows
+// Any skill from a tank job that targets SELF or SINGLE_PARTY is tank self-mit.
+const TANK_JOBS = new Set(['タンク', 'ナイト', '戦士', '暗黒騎士', 'ガンブレイカー']);
+const isTankSelfMit = (sc: { job: string; assign: string | null }) =>
+  TANK_JOBS.has(sc.job) && (sc.assign === 'SELF' || sc.assign === 'SINGLE_PARTY');
 
 // Tank invuln skills - when any of these are checked, the player survives regardless of damage.
 const INVULN_SKILLS = new Set<string>([
@@ -320,16 +334,34 @@ const ActionRow = React.memo(function ActionRow({
   const colBoundaryClass = (colId: string) =>
     roleStartCols.has(colId) ? 'role-boundary' : jobStartCols.has(colId) ? 'job-boundary' : '';
 
+  // For non-TB rows, exclude tank self-mitigation skills from calculations
+  const calcCols = tag === 'tb'
+    ? allVisibleCols
+    : allVisibleCols.filter((sc) => !isTankSelfMit(sc));
+
+  // Merge in skills that are "in effect" from other rows (cellCoverage === 'effect')
+  const effectiveChecked = React.useMemo(() => {
+    let merged: Record<string, boolean> = checked;
+    for (const sc of calcCols) {
+      if (merged[sc.col]) continue; // already checked on this row
+      if (cellCoverage.get(`${sc.col}:${action.row}`) === 'effect') {
+        if (merged === checked) merged = { ...checked }; // lazy copy
+        merged[sc.col] = true;
+      }
+    }
+    return merged;
+  }, [checked, cellCoverage, calcCols, action.row]);
+
   const damageType = (action.type ?? 'Magic') as 'Magic' | 'Physical' | 'Unique';
-  const mit = computeMitigation(action, allVisibleCols, checked, damageType === 'Physical' ? 'Physical' : 'Magic');
+  const mit = computeMitigation(action, calcCols, effectiveChecked, damageType === 'Physical' ? 'Physical' : 'Magic');
   const baseDamage = action.damageHit ?? 0;
   const mitigatedDamage = baseDamage > 0
-    ? applyMitigations(baseDamage, action, allVisibleCols, checked, damageType)
+    ? applyMitigations(baseDamage, action, calcCols, effectiveChecked, damageType)
     : 0;
   const hp = damageType === 'Physical' ? tankHP : maxHP;
-  const barrier = computeBarrier(allVisibleCols, checked, hp, computeHealBuff(allVisibleCols, checked));
+  const barrier = computeBarrier(calcCols, effectiveChecked, hp, computeHealBuff(calcCols, effectiveChecked));
   const mitPct = baseDamage > 0 ? Math.round((1 - mit) * 100) : null;
-  const hasInvuln = allVisibleCols.some(sc => checked[sc.col] && INVULN_SKILLS.has(sc.skill));
+  const hasInvuln = tag === 'tb' && allVisibleCols.some(sc => checked[sc.col] && INVULN_SKILLS.has(sc.skill));
   const typeColor = DAMAGE_TYPE_COLORS[action.type ?? ''] ?? '#aaa';
 
   return (
@@ -514,25 +546,35 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
   const jobNotes = jobNotesRaw ?? {};
 
   const tableContainerRef = React.useRef<HTMLDivElement>(null);
+  const hoveredColRef = React.useRef<string | null>(null);
   React.useEffect(() => {
     const container = tableContainerRef.current;
     if (!container) return;
-    let lastCol: string | null = null;
     const enter = (e: MouseEvent) => {
       const col = (e.target as Element).closest('[data-col]')?.getAttribute('data-col') ?? null;
-      if (col === lastCol) return;
-      if (lastCol) container.querySelectorAll(`[data-col="${lastCol}"]`).forEach(el => el.classList.remove('col-hovered'));
+      if (col === hoveredColRef.current) return;
+      if (hoveredColRef.current) container.querySelectorAll(`[data-col="${hoveredColRef.current}"]`).forEach(el => el.classList.remove('col-hovered'));
       if (col) container.querySelectorAll(`[data-col="${col}"]`).forEach(el => el.classList.add('col-hovered'));
-      lastCol = col;
+      hoveredColRef.current = col;
     };
     const leave = () => {
-      if (lastCol) container.querySelectorAll(`[data-col="${lastCol}"]`).forEach(el => el.classList.remove('col-hovered'));
-      lastCol = null;
+      if (hoveredColRef.current) container.querySelectorAll(`[data-col="${hoveredColRef.current}"]`).forEach(el => el.classList.remove('col-hovered'));
+      hoveredColRef.current = null;
     };
     container.addEventListener('mouseover', enter);
     container.addEventListener('mouseleave', leave);
     return () => { container.removeEventListener('mouseover', enter); container.removeEventListener('mouseleave', leave); };
   }, []);
+
+  // Re-apply col-hovered after React re-renders replace DOM nodes
+  React.useLayoutEffect(() => {
+    const container = tableContainerRef.current;
+    const col = hoveredColRef.current;
+    if (!container || !col) return;
+    container.querySelectorAll(`[data-col="${col}"]`).forEach(el => {
+      if (!el.classList.contains('col-hovered')) el.classList.add('col-hovered');
+    });
+  });
 
   const [showClearModal, setShowClearModal] = React.useState(false);
   const [showMacroModal, setShowMacroModal] = React.useState(false);
@@ -825,10 +867,16 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
       if (firstTime !== null && firstTime > 1) timeSec = Math.round((firstTime / 2) * 10) / 10;
       else timeSec = 0;
     }
-    // Mark all single-target cells as unavailable (same as addCustomAction does implicitly)
+    // Mark single-target cells as unavailable only if the skill provides no mitigation/barrier/buff
+    // (i.e. pure spot heals). Skills like Feint, Addle, Dismantle, Minne provide meaningful
+    // mitigation or buffs and should remain checkable on custom rows.
     const mitStates: Record<string, boolean | string | number> = {};
     for (const sc of allVisible) {
-      if (sc.assign === 'SINGLE_PARTY' || sc.assign === 'SINGLE_ENEMY') mitStates[sc.col] = '-';
+      if (sc.assign === 'SINGLE_PARTY' || sc.assign === 'SINGLE_ENEMY') {
+        const hasMitValue = sc.mitPhysical != null || sc.mitMagic != null || sc.mitUnique != null
+          || sc.healBuff != null || sc.barrierBuff != null || sc.barrier != null;
+        if (!hasMitValue) mitStates[sc.col] = '-';
+      }
     }
     const newAction: Action = { row, timeSec, name: 'New Action', type: 'Magic', damageHit: null, damageDot: null, damageTick: null, mitStates };
     addCustomAction(phaseIdx, newAction);
@@ -878,10 +926,10 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
         if (mitGrid[phaseIdx]?.[target.row]?.[sc.col] === true) continue;
         if (target.mitStates[sc.col] === '-' && !FORCE_CHECKABLE_SKILLS.has(sc.skill)) continue;
 
-        // inEffect: source s where s < T && s >= T - effectTime  ->  s ∈ [T-effectTime, T)
+        // inEffect: source s where s <= T && s >= T - effectTime  ->  s ∈ [T-effectTime, T]
         const inEffect =
           effectTime > 0 &&
-          lowerBound(sourceTimes, T - effectTime) < lowerBound(sourceTimes, T);
+          lowerBound(sourceTimes, T - effectTime) < upperBound(sourceTimes, T);
 
         // onCooldown: source s where s < T && s > T - recast  ->  s ∈ (T-recast, T)
         const chargesOnCooldown =
@@ -1356,8 +1404,10 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
               {allVisibleCols.map((sc) => {
                 const icon = getSkillIcon(sc.skill, skills);
                 const name = getSkillDisplayName(sc.skill, skills, language);
+                const extraTip = SKILL_EXTRA_TOOLTIP[sc.skill];
+                const titleText = extraTip ? `${name}\n${extraTip}` : name;
                 return (
-                  <th key={sc.col} data-col={sc.col} className={`skill-col-header ${colBoundaryClass(sc.col)}`} title={name}>
+                  <th key={sc.col} data-col={sc.col} className={`skill-col-header ${colBoundaryClass(sc.col)}`} title={titleText}>
                     {icon ? (
                       <span className="icon-wrap">
                         <img src={icon} alt={name} width={20} height={20} loading="lazy"
@@ -1385,11 +1435,14 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
               <th className="calc-col" />
               <th className="calc-col" />
               <th className="calc-col" />
-              {allVisibleCols.map((sc) => (
-                <th key={sc.col} data-col={sc.col} className={`skill-recast-header ${colBoundaryClass(sc.col)}`}>
+              {allVisibleCols.map((sc) => {
+                const extraTip = SKILL_EXTRA_TOOLTIP[sc.skill];
+                return (
+                <th key={sc.col} data-col={sc.col} className={`skill-recast-header ${colBoundaryClass(sc.col)}`} title={extraTip || undefined}>
                   {sc.effectTime != null ? `${sc.effectTime}s` : ''}
                 </th>
-              ))}
+                );
+              })}
             </tr>
           </thead>
           <MitigationTableBody

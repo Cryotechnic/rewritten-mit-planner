@@ -1,5 +1,12 @@
 import type { Action, SkillCol } from './types';
 
+// Skills that should always contribute to mitigation calculations even if mitStates has '-'
+const FORCE_CALC_SKILLS = new Set<string>([
+  'オブレーション',  // Oblation (10% mit)
+  'ハート・オブ・コランダム',  // Heart of Corundum (~28% mit)
+  'インターベンション',  // Intervention (10% mit)
+]);
+
 /**
  * Floor with epsilon correction for floating-point safety.
  * Matches the fl() function from xiv-gear-planner/xivmath.ts.
@@ -26,9 +33,9 @@ export function computeMitigation(
   for (const sc of skillCols) {
     if (!checkedCols[sc.col]) continue;
 
-    // Skip cols with '-' (unavailable/charge marker)
+    // Skip cols with '-' (unavailable/charge marker) unless force-checkable
     const rawState = action.mitStates[sc.col];
-    if (rawState === '-') continue;
+    if (rawState === '-' && !FORCE_CALC_SKILLS.has(sc.skill)) continue;
 
     let mit: number | null = null;
     if (damageType === 'Magic') mit = sc.mitMagic;
@@ -59,7 +66,7 @@ export function applyMitigations(
   for (const sc of skillCols) {
     if (!checkedCols[sc.col]) continue;
     const rawState = action.mitStates[sc.col];
-    if (rawState === '-') continue;
+    if (rawState === '-' && !FORCE_CALC_SKILLS.has(sc.skill)) continue;
     let mit: number | null = null;
     if (damageType === 'Magic') mit = sc.mitMagic;
     else if (damageType === 'Physical') mit = sc.mitPhysical;
