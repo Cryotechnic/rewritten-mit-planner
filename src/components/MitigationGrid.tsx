@@ -443,7 +443,10 @@ const ActionRow = React.memo(function ActionRow({
           const rawState = action.mitStates[sc.col];
           const isChecked = checked[sc.col] ?? false;
 
-          if (rawState === '-' && !FORCE_CHECKABLE_SKILLS.has(sc.skill)) {
+          // A skill is truly unavailable only if it has '-' AND provides no meaningful mitigation/buff value
+          const hasMitValue = sc.mitPhysical != null || sc.mitMagic != null || sc.mitUnique != null
+            || sc.healBuff != null || sc.barrierBuff != null || sc.barrier != null;
+          if (rawState === '-' && !hasMitValue && !FORCE_CHECKABLE_SKILLS.has(sc.skill)) {
             return (
               <td key={sc.col} className={`skill-cell unavailable ${colBoundaryClass(sc.col)}`}>
                 <span className="unavail-mark">-</span>
@@ -920,11 +923,14 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
 
       const maxCharges = Math.max(1, sc.charge ?? 1);
 
+      const hasMitValueForCov = sc.mitPhysical != null || sc.mitMagic != null || sc.mitUnique != null
+        || sc.healBuff != null || sc.barrierBuff != null || sc.barrier != null;
+
       for (const target of mergedActions) {
         const T = target.timeSec;
         if (T == null) continue;
         if (mitGrid[phaseIdx]?.[target.row]?.[sc.col] === true) continue;
-        if (target.mitStates[sc.col] === '-' && !FORCE_CHECKABLE_SKILLS.has(sc.skill)) continue;
+        if (target.mitStates[sc.col] === '-' && !hasMitValueForCov && !FORCE_CHECKABLE_SKILLS.has(sc.skill)) continue;
 
         // inEffect: source s where s <= T && s >= T - effectTime  ->  s ∈ [T-effectTime, T]
         const inEffect =

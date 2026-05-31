@@ -33,9 +33,11 @@ export function computeMitigation(
   for (const sc of skillCols) {
     if (!checkedCols[sc.col]) continue;
 
-    // Skip cols with '-' (unavailable/charge marker) unless force-checkable
+    // Skip cols with '-' (unavailable/charge marker) unless the skill provides actual mitigation
     const rawState = action.mitStates[sc.col];
-    if (rawState === '-' && !FORCE_CALC_SKILLS.has(sc.skill)) continue;
+    const hasMitValue = sc.mitPhysical != null || sc.mitMagic != null || sc.mitUnique != null
+      || sc.healBuff != null || sc.barrierBuff != null || sc.barrier != null;
+    if (rawState === '-' && !hasMitValue && !FORCE_CALC_SKILLS.has(sc.skill)) continue;
 
     let mit: number | null = null;
     if (damageType === 'Magic') mit = sc.mitMagic;
@@ -66,7 +68,9 @@ export function applyMitigations(
   for (const sc of skillCols) {
     if (!checkedCols[sc.col]) continue;
     const rawState = action.mitStates[sc.col];
-    if (rawState === '-' && !FORCE_CALC_SKILLS.has(sc.skill)) continue;
+    const hasMitValue = sc.mitPhysical != null || sc.mitMagic != null || sc.mitUnique != null
+      || sc.healBuff != null || sc.barrierBuff != null || sc.barrier != null;
+    if (rawState === '-' && !hasMitValue && !FORCE_CALC_SKILLS.has(sc.skill)) continue;
     let mit: number | null = null;
     if (damageType === 'Magic') mit = sc.mitMagic;
     else if (damageType === 'Physical') mit = sc.mitPhysical;
