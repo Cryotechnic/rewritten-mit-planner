@@ -1768,8 +1768,8 @@
           "mitUnique": null,
           "healBuffTarget": null,
           "healBuff": null,
-          "barrierBuff": 0.1,
-          "barrier": null
+          "barrierBuff": null,
+          "barrier": 100
         },
         {
           "col": "N",
@@ -6580,8 +6580,8 @@
           "mitUnique": null,
           "healBuffTarget": null,
           "healBuff": null,
-          "barrierBuff": 0.1,
-          "barrier": null
+          "barrierBuff": null,
+          "barrier": 100
         },
         {
           "col": "N",
@@ -15232,8 +15232,8 @@
           "mitUnique": null,
           "healBuffTarget": null,
           "healBuff": null,
-          "barrierBuff": 0.1,
-          "barrier": null
+          "barrierBuff": null,
+          "barrier": 100
         },
         {
           "col": "N",
@@ -23884,8 +23884,8 @@
           "mitUnique": null,
           "healBuffTarget": null,
           "healBuff": null,
-          "barrierBuff": 0.1,
-          "barrier": null
+          "barrierBuff": null,
+          "barrier": 100
         },
         {
           "col": "N",
@@ -32536,8 +32536,8 @@
           "mitUnique": null,
           "healBuffTarget": null,
           "healBuff": null,
-          "barrierBuff": 0.1,
-          "barrier": null
+          "barrierBuff": null,
+          "barrier": 100
         },
         {
           "col": "N",

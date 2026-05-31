@@ -52,6 +52,15 @@ export interface ChangelogEntry {
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.8.6',
+    date: 'May 31, 2026',
+    title: 'PLD Skill Fixes',
+    changes: [
+      { type: 'fix', text: withIcons('Divine Veil now correctly contributes a 10% max HP barrier to the Barrier column instead of boosting other barriers.') },
+      { type: 'fix', text: withIcons('Bulwark now applies a 10% physical and magic damage reduction, reflecting 100% block rate uptime during its effect window.') },
+    ],
+  },
+  {
     version: '1.8.5',
     date: 'May 31, 2026',
     title: 'Single-Target Skill Fix',
