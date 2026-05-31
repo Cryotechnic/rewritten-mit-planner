@@ -13,6 +13,7 @@ interface SessionRow {
   encounterLevel?: number;
   maxHP?: number;
   tankHP?: number;
+  writeToken?: string;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -39,6 +40,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         encrypted,
         clientId: d.clientId as string,
         updatedAt: d.updatedAt as number,
+        writeToken: d.writeToken as string | undefined,
       };
 
       if (!encrypted && typeof d.json === 'string') {

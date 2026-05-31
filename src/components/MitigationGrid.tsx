@@ -1072,7 +1072,7 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
           Cheat Sheet
         </button>
 
-        {!viewerMode && baseActionsCleared && (
+        {/* {!viewerMode && baseActionsCleared && (
           <button
             className="add-action-btn"
             style={{ color: '#86efac', borderColor: '#14532d' }}
@@ -1081,7 +1081,7 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
           >
             Restore encounter data
           </button>
-        )}
+        )} */}
         {!viewerMode && (
           <button className="add-action-btn" style={{ color: '#f87171', borderColor: '#7f1d1d' }} onClick={() => setShowClearModal(true)} title={t('btnClear', language)}>
             {t('btnClear', language)}

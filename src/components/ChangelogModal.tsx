@@ -99,7 +99,7 @@ function AccordionItem({ entry, isOpen, isLatest, onToggle }: ItemProps) {
                   fontSize: 10, fontWeight: 700, padding: '2px 0', borderRadius: 3,
                   whiteSpace: 'nowrap', flexShrink: 0, marginTop: 1,
                   letterSpacing: '0.05em', textTransform: 'uppercase',
-                  width: 52, textAlign: 'center', display: 'inline-block',
+                  width: 58, textAlign: 'center', display: 'inline-block',
                   lineHeight: 1,
                 }}>
                   {TYPE_LABEL[c.type]}

@@ -20,6 +20,7 @@ interface SessionRow {
   encounterLevel?: number;
   maxHP?: number;
   tankHP?: number;
+  writeToken?: string;
 }
 
 type AuthState = 'checking' | 'unauthenticated' | 'authenticated';
@@ -349,12 +350,21 @@ function SessionTableRow({
       <td style={{ ...S.td, textAlign: 'right' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
           <a
-            href={`/?join=${s.id}`}
+            href={`/?view=${s.id}`}
             target="_blank"
             rel="noopener noreferrer"
             className="admin-open-link"
             style={S.openAppLink}
           >Open ↗</a>
+          {s.writeToken && (
+            <a
+              href={`/?join=${s.id}&t=${s.writeToken}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="admin-open-link"
+              style={{ ...S.openAppLink, color: '#86efac', borderColor: '#14532d' }}
+            >Edit ↗</a>
+          )}
           <button onClick={onDelete} className="admin-delete-btn" style={S.deleteRowBtn}>Delete</button>
         </div>
       </td>

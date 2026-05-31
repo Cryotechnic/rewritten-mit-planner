@@ -5,6 +5,7 @@ interface Props {
   onConfirm: (encounterName: string) => void;
   onJoinByCode?: () => void;
   onBack?: () => void;
+  skipDisclaimer?: boolean;
 }
 
 const SUGGESTIONS = [
@@ -25,8 +26,8 @@ const DISCLAIMER_POINTS: React.ReactNode[] = [
   <>The website operator reserves the right to <strong>modify, suspend, or terminate this service</strong>, and to <strong>delete any stored data</strong>, at any time and without prior notice.</>,
 ];
 
-export default function Oobe({ onConfirm, onJoinByCode, onBack }: Props) {
-  const [step, setStep] = useState<'disclaimer' | 'name'>('disclaimer');
+export default function Oobe({ onConfirm, onJoinByCode, onBack, skipDisclaimer }: Props) {
+  const [step, setStep] = useState<'disclaimer' | 'name'>(skipDisclaimer ? 'name' : 'disclaimer');
   const [name, setName] = useState('');
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);

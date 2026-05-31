@@ -162,6 +162,7 @@ interface SessionRow {
   encounterLevel?: number;
   maxHP?: number;
   tankHP?: number;
+  writeToken?: string;
 }
 
 // ── Admin API: list sessions ─────────────────────────────────────────────────
@@ -178,6 +179,7 @@ app.get('/api/admin/sessions', requireAdmin, async (_req, res) => {
         encrypted,
         clientId: d.clientId as string,
         updatedAt: d.updatedAt as number,
+        writeToken: d.writeToken as string | undefined,
       };
 
       if (!encrypted && typeof d.json === 'string') {

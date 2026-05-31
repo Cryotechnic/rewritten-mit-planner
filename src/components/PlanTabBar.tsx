@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import type { MutableRefObject } from 'react';
 import { useStore } from '../store';
 import EncounterDialog from './EncounterDialog';
 import { generateShareId, pushPlan } from '../lib/planSync';
@@ -7,10 +8,11 @@ import { t } from '../i18n';
 interface Props {
   onJoinByCode?: () => void;
   onLeave?: () => void;
+  writeTokenRef?: MutableRefObject<string | null>;
 }
 
-export default function PlanTabBar({ onJoinByCode, onLeave }: Props) {
-  const { plans, activePlanId, setActivePlan, addPlan, removePlan, renamePlan, shareId, clientId, setShareId, maxHP, tankHP, encounterLevel, language, writeToken, viewerMode } = useStore();
+export default function PlanTabBar({ onJoinByCode, onLeave, writeTokenRef }: Props) {
+  const { plans, activePlanId, setActivePlan, addPlan, removePlan, renamePlan, shareId, clientId, setShareId, maxHP, tankHP, encounterLevel, language, writeToken: storeWriteToken, viewerMode } = useStore();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [showDialog, setShowDialog] = useState(false);
@@ -64,8 +66,9 @@ export default function PlanTabBar({ onJoinByCode, onLeave }: Props) {
   const handleCopy = () => {
     const url = new URL(window.location.href);
     url.searchParams.set('join', shareId!);
-    const href = writeToken ? `${url.toString()}#t=${writeToken}` : url.toString();
-    navigator.clipboard.writeText(href);
+    const token = writeTokenRef?.current ?? storeWriteToken;
+    if (token) url.searchParams.set('t', token);
+    navigator.clipboard.writeText(url.toString());
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

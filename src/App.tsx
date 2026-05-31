@@ -92,6 +92,7 @@ export default function App() {
     const viewId = params.get('view');
     if (viewId) {
       // View-only link: subscribe read-only, enable viewer mode
+      resetPlans();
       const id = viewId.toUpperCase();
       awaitingFirstSyncRef.current = true;
       setShareId(id);
@@ -106,17 +107,18 @@ export default function App() {
         setShareError('Could not reach the sync session. Check your connection.');
       });
     } else if (joinId) {
+      resetPlans();
       const id = joinId.toUpperCase();
       awaitingFirstSyncRef.current = true;
-      // Parse write token from URL hash (#t=TOKEN)
-      const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-      const token = hashParams.get('t');
+      // Parse write token from query param (?t=TOKEN) or hash (#t=TOKEN) for backwards compat
+      const token = params.get('t') || new URLSearchParams(window.location.hash.replace(/^#/, '')).get('t');
       if (token) { writeTokenRef.current = token; setWriteToken(token); }
       else { setReadOnlyJoin(true); if (!viewerMode) toggleViewerMode(); } // no token = read-only
       setShareId(id);
       const url = new URL(window.location.href);
       url.searchParams.delete('join');
-      window.history.replaceState({}, '', url.pathname + url.search); // strip hash too
+      url.searchParams.delete('t');
+      window.history.replaceState({}, '', url.pathname + url.search); // strip params and hash
       // Use getSessionMeta only as a quick early signal for the encrypted case.
       // The subscription's onWaiting callback handles the doc-doesn't-exist case.
       getSessionMeta(id).then(({ encrypted }) => {
@@ -159,21 +161,11 @@ export default function App() {
     const id = pendingShareIdRef.current!;
     setSessionPassword(password);
     setShowPasswordSetup(false);
-    // Show Oobe disclaimer + naming step only for first-time users
-    if (useStore.getState().lastSeenVersion === null) setShowOobe(true);
-    // Suppress the debounced push effect so only this explicit pushPlan call
-    // creates the Firebase document (prevents a double-write on session creation).
+    // Always show Oobe so user must name the plan before the session is created
+    setShowOobe(true);
+    // Suppress the debounced push effect until the initial push (after naming) succeeds.
     awaitingFirstSyncRef.current = true;
     setShareId(id); // triggers subscribe effect
-    const { plans: p, activePlanId: aid, maxHP: mhp, tankHP: thp, encounterLevel: el } = useStore.getState();
-    pushPlan(id, p, aid, clientId, { maxHP: mhp, tankHP: thp, encounterLevel: el, allowCooldownOverride: useStore.getState().allowCooldownOverride }, password ?? undefined, writeTokenRef.current ?? undefined).then(() => {
-      // Allow subsequent edits to sync after the initial push succeeds.
-      awaitingFirstSyncRef.current = false;
-    }).catch((err) => {
-      console.error('Failed to create session:', err);
-      awaitingFirstSyncRef.current = false;
-      setShareError('Could not create a sync session. Check your Firebase config or Firestore rules.');
-    });
   }
 
   async function handleJoinPasswordSubmit(password: string) {
@@ -365,7 +357,7 @@ export default function App() {
     const id = pendingShareIdRef.current;
     const token = writeTokenRef.current;
     const base = `${window.location.origin}${window.location.pathname}`;
-    const shareUrl = token ? `${base}?join=${id}#t=${token}` : `${base}?join=${id}`;
+    const shareUrl = token ? `${base}?join=${id}&t=${token}` : `${base}?join=${id}`;
     const viewUrl = `${base}?view=${id}`;
     return (
       <SharePasswordSetup
@@ -382,9 +374,29 @@ export default function App() {
   if (showOobe) {
     return (
       <Oobe
-        onConfirm={(encounterName) => { renamePlan(activePlanId, encounterName); setLastSeenVersion(CURRENT_VERSION); setShowOobe(false); }}
+        onConfirm={(encounterName) => {
+          renamePlan(activePlanId, encounterName);
+          setLastSeenVersion(CURRENT_VERSION);
+          setShowOobe(false);
+          // If this is the initial session creation, push the now-named plan to Firebase
+          if (pendingShareIdRef.current && awaitingFirstSyncRef.current) {
+            // Use setTimeout(0) to ensure the zustand state from renamePlan has settled
+            setTimeout(() => {
+              const { plans: p, activePlanId: aid, maxHP: mhp, tankHP: thp, encounterLevel: el } = useStore.getState();
+              pushPlan(pendingShareIdRef.current!, p, aid, clientId, { maxHP: mhp, tankHP: thp, encounterLevel: el, allowCooldownOverride: useStore.getState().allowCooldownOverride }, sessionPassword ?? undefined, writeTokenRef.current ?? undefined).then(() => {
+                awaitingFirstSyncRef.current = false;
+                pendingShareIdRef.current = null;
+              }).catch((err) => {
+                console.error('Failed to create session:', err);
+                awaitingFirstSyncRef.current = false;
+                setShareError('Could not create a sync session. Check your Firebase config or Firestore rules.');
+              });
+            }, 0);
+          }
+        }}
         onJoinByCode={() => { setShowOobe(false); setJoinByCodeReturn('oobe'); setShowJoinByCode(true); }}
         onBack={pendingShareIdRef.current ? () => { setShowOobe(false); setShowPasswordSetup(true); } : undefined}
+        skipDisclaimer={lastSeenVersion !== null}
       />
     );
   }
@@ -436,10 +448,37 @@ export default function App() {
     );
   }
 
+  // Force naming if the active plan is untitled and the user has write access
+  // Skip while awaiting first sync (remote data will replace the blank plan)
+  if (!viewerMode && !readOnlyJoin && !awaitingFirstSyncRef.current && !plans[activePlanId]?.name?.trim()) {
+    return (
+      <Oobe
+        onConfirm={(encounterName) => {
+          renamePlan(activePlanId, encounterName);
+          setLastSeenVersion(CURRENT_VERSION);
+          // Push immediately, don't rely on the debounced effect which can be
+          // skipped by skipNextPushRef or beaten by a subscription echo.
+          skipNextPushRef.current = false;
+          if (shareId) {
+            setTimeout(() => {
+              const { plans: p, activePlanId: aid, maxHP: mhp, tankHP: thp, encounterLevel: el } = useStore.getState();
+              const token = writeTokenRef.current ?? useStore.getState().writeToken ?? undefined;
+              pushPlan(shareId, p, aid, clientId, { maxHP: mhp, tankHP: thp, encounterLevel: el, allowCooldownOverride: useStore.getState().allowCooldownOverride }, sessionPassword ?? undefined, token).catch((err) => {
+                console.error('Force-name push failed:', err);
+              });
+            }, 0);
+          }
+        }}
+        onJoinByCode={() => { setJoinByCodeReturn('oobe'); setShowJoinByCode(true); }}
+        skipDisclaimer={lastSeenVersion !== null}
+      />
+    );
+  }
+
   return (
     <div className="app">
       <Header data={data} allPhases={allPhases} onAddPhase={() => setShowAddPhase(true)} onJoinByCode={() => setShowJoinByCode(true)} onShowChangelog={() => setShowChangelog(true)} />
-      <PlanTabBar onJoinByCode={() => setShowJoinByCode(true)} onLeave={handleLeave} />
+      <PlanTabBar onJoinByCode={() => setShowJoinByCode(true)} onLeave={handleLeave} writeTokenRef={writeTokenRef} />
 
       <div className="tab-bar">
         <button

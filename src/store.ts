@@ -455,7 +455,7 @@ export const useStore = create<PlannerState>()(
     }),
     {
       name: 'ucob-planner-state',
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => localStorage, {
         replacer: (_key, value) =>
           value instanceof Set ? { __type: 'Set', values: [...value] } : value,
@@ -488,6 +488,12 @@ export const useStore = create<PlannerState>()(
           const { shareId: _s, writeToken: _w, ...rest } = persisted;
           persisted = rest;
         }
+        if (version <= 2) {
+          // writeToken was briefly persisted in v2; strip it to prevent cross-session
+          // token contamination when opening a different session link.
+          const { writeToken: _wt, ...rest } = persisted;
+          persisted = rest;
+        }
         return persisted;
       },
       partialize: (s) => ({
@@ -497,9 +503,8 @@ export const useStore = create<PlannerState>()(
         encounterLevel: s.encounterLevel,
         plans: s.plans,
         activePlanId: s.activePlanId,
-        // shareId and writeToken are intentionally NOT persisted across browser
-        // restarts to prevent a new visitor on a shared device from silently
-        // inheriting a previous user's collaborative session.
+        // writeToken is NOT persisted: persisting it causes cross-session token
+        // contamination when opening a different session link in a new tab.
         recentSessions: s.recentSessions,
         lastSeenVersion: s.lastSeenVersion,
       }),
