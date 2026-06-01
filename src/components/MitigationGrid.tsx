@@ -716,6 +716,9 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
         healBuff: ver.healBuffMultiplier,
         barrierBuff: ver.barrierBuffAmount,
         barrier: ver.barrierAmount,
+        critMitMagic: ver.critMitMagic ?? null,
+        critMitPhysical: ver.critMitPhysical ?? null,
+        precondition: ver.precondition ?? null,
       };
     };
 
@@ -761,6 +764,9 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
           healBuff: null,
           barrierBuff: null,
           barrier: null,
+          critMitMagic: null,
+          critMitPhysical: null,
+          precondition: null,
         };
       };
 

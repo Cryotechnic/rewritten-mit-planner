@@ -475,7 +475,7 @@ export const useStore = create<PlannerState>()(
             value && typeof value === 'object' && (value as any).__type === 'Set'
               ? new Set((value as any).values)
               : value,
-        });
+        })!;
         let timer: ReturnType<typeof setTimeout> | null = null;
         let pendingName: string | null = null;
         let pendingValue: any = null;
