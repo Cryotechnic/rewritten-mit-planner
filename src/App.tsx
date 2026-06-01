@@ -342,13 +342,17 @@ export default function App() {
 
   // Build combined phase list: data phases + custom phases
   const customPhaseEntries = activePlan.customPhases ?? [];
+  const phaseNameOverrides = activePlan.phaseNameOverrides ?? {};
   const allPhases = useMemo<Phase[]>(
     () => [
-      ...data.phases,
-      ...customPhaseEntries.map((cp) => ({ name: cp.name, skillCols: allSkillCols, actions: [] as Phase['actions'] })),
+      ...data.phases.map((p, i) => phaseNameOverrides[i] ? { ...p, name: phaseNameOverrides[i] } : p),
+      ...customPhaseEntries.map((cp, ci) => {
+        const idx = data.phases.length + ci;
+        return { name: phaseNameOverrides[idx] ?? cp.name, skillCols: allSkillCols, actions: [] as Phase['actions'] };
+      }),
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [customPhaseEntries.length, customPhaseEntries.map((c) => c.name).join('\0')]
+    [customPhaseEntries.length, customPhaseEntries.map((c) => c.name).join('\0'), JSON.stringify(phaseNameOverrides)]
   );
   const hiddenPhases = activePlan.hiddenPhases ?? new Set<number>();
   const activePhase = !hiddenPhases.has(activePhaseIdx) ? allPhases[activePhaseIdx] : undefined;

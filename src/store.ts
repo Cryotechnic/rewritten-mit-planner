@@ -34,10 +34,12 @@ export interface PlanData {
   rowTags: Record<number, Record<number, 'tank' | 'heal' | 'dps' | 'note' | 'tb'>>;
   // phaseIdx → row → jobJP → note
   jobNotes: Record<number, Record<number, Record<string, string>>>;
+  // phaseIdx → overridden name (works for both data and custom phases)
+  phaseNameOverrides: Record<number, string>;
 }
 
 function makePlan(id: string, name: string): PlanData {
-  return { id, name, activePhaseIdx: 0, hiddenPhases: new Set(), customPhases: [], mitGrid: {}, actionOverrides: {}, hiddenRows: {}, customActions: {}, baseActionsCleared: false, actionNotes: {}, rowTags: {}, jobNotes: {} };
+  return { id, name, activePhaseIdx: 0, hiddenPhases: new Set(), customPhases: [], mitGrid: {}, actionOverrides: {}, hiddenRows: {}, customActions: {}, baseActionsCleared: false, actionNotes: {}, rowTags: {}, jobNotes: {}, phaseNameOverrides: {} };
 }
 
 const INIT_ID = 'plan-1';
@@ -56,6 +58,7 @@ const MAX_RECENT_SESSIONS = 8;
 interface PlannerState {
   language: Language;
   showJobs: Record<string, boolean>;
+  jobOrder: string[];
   maxHP: number;
   tankHP: number;
   encounterLevel: number;
@@ -75,6 +78,7 @@ interface PlannerState {
   setLanguage: (lang: Language) => void;
   toggleJob: (job: string) => void;
   setShowJobs: (jobs: Record<string, boolean>) => void;
+  setJobOrder: (order: string[]) => void;
   toggleMit: (phaseIdx: number, actionRow: number, col: string) => void;
   setMit: (phaseIdx: number, actionRow: number, col: string, val: boolean) => void;
   setMaxHP: (hp: number) => void;
@@ -102,6 +106,7 @@ interface PlannerState {
   addCustomPhase: (name: string, dataPhaseCount: number) => void;
   removeCustomPhase: (phaseIdx: number, dataPhaseCount: number) => void;
   renameCustomPhase: (phaseIdx: number, name: string, dataPhaseCount: number) => void;
+  renamePhase: (phaseIdx: number, name: string) => void;
   initPhase: (phaseIdx: number, phase: Phase) => void;
   setActionNote: (phaseIdx: number, row: number, note: string) => void;
   setJobNote: (phaseIdx: number, row: number, jobJP: string, note: string) => void;
@@ -155,6 +160,7 @@ export const useStore = create<PlannerState>()(
     (set, get) => ({
       language: 'EN',
       showJobs: {},
+      jobOrder: [],
       maxHP: 142000,
       tankHP: 225800,
       encounterLevel: 70,
@@ -183,6 +189,7 @@ export const useStore = create<PlannerState>()(
       }),
 
       setShowJobs: (jobs) => set({ showJobs: jobs }),
+      setJobOrder: (order) => set({ jobOrder: order }),
 
       toggleMit: (phaseIdx, actionRow, col) => {
         const p = get().plans[get().activePlanId];
@@ -358,6 +365,10 @@ export const useStore = create<PlannerState>()(
         return { customPhases: next };
       })),
 
+      renamePhase: (phaseIdx, name) => set((s) => patchActive(s, (plan) => ({
+        phaseNameOverrides: { ...(plan.phaseNameOverrides ?? {}), [phaseIdx]: name },
+      }))),
+
       toggleHidePhase: (phaseIdx, totalPhases) => set((s) => patchActive(s, (plan) => {
         const next = new Set(plan.hiddenPhases ?? []);
         if (next.has(phaseIdx)) {
@@ -498,6 +509,7 @@ export const useStore = create<PlannerState>()(
       },
       partialize: (s) => ({
         language: s.language,
+        jobOrder: s.jobOrder,
         maxHP: s.maxHP,
         tankHP: s.tankHP,
         encounterLevel: s.encounterLevel,

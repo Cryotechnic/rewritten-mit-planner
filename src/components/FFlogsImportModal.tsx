@@ -569,7 +569,14 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
       if (detectedHPs.tankHP !== null) setTankHP(detectedHPs.tankHP);
     }
     if (importMits) {
-      for (const m of detectedMits) setMit(m.phaseIdx, m.actionRow, m.col, true);
+      for (const m of detectedMits) {
+        // In full-timeline mode, the user may have reassigned actions to different phases;
+        // use the current phase assignment instead of the original (which was always 0).
+        const phaseIdx = importFullTimeline
+          ? (abilityAssignments[m.actionRow]?.phaseIdx ?? m.phaseIdx)
+          : m.phaseIdx;
+        setMit(phaseIdx, m.actionRow, m.col, true);
+      }
     }
     if (selectedFightName) renamePlan(activePlanId, selectedFightName);
     setStep('done');
@@ -597,12 +604,24 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
               <a href="https://www.fflogs.com/api/v2/client" target="_blank" rel="noreferrer" style={{ color: '#7c9fff' }}>
                 FFLogs GraphQL v2 API
               </a>
-              {' '}with client credentials OAuth. Create a client at{' '}
-              <a href="https://www.fflogs.com/api/clients/" target="_blank" rel="noreferrer" style={{ color: '#7c9fff' }}>
-                fflogs.com/api/clients/
-              </a>{' '}
-              using the <strong style={{ color: '#cbd5e1' }}>Client Credentials</strong> grant type.
+              {' '}with client credentials OAuth. You need to create an API client to use this feature.
             </p>
+            <details style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '12px', lineHeight: 1.6 }}>
+              <summary style={{ cursor: 'pointer', color: '#7c9fff', fontWeight: 600, marginBottom: '6px' }}>How to get your API credentials</summary>
+              <ol style={{ margin: '4px 0 0 16px', padding: 0 }}>
+                <li>Go to{' '}
+                  <a href="https://www.fflogs.com/api/clients/" target="_blank" rel="noreferrer" style={{ color: '#7c9fff' }}>
+                    fflogs.com/api/clients/
+                  </a>{' '}(you must be logged in to FFLogs).</li>
+                <li>Click <strong style={{ color: '#cbd5e1' }}>Create Client</strong>.</li>
+                <li>Enter any name (e.g. "MIT Planner").</li>
+                <li>Set the <strong style={{ color: '#cbd5e1' }}>Redirect URL</strong> to <code style={{ background: 'rgba(255,255,255,0.06)', padding: '1px 4px', borderRadius: '3px' }}>http://localhost</code> (it won't be used, but is required).</li>
+                <li>Check the <strong style={{ color: '#cbd5e1' }}>Public Client</strong> checkbox (not strictly required, but simplifies setup).</li>
+                <li>Click <strong style={{ color: '#cbd5e1' }}>Create</strong>.</li>
+                <li>Copy your <strong style={{ color: '#cbd5e1' }}>Client ID</strong> and <strong style={{ color: '#cbd5e1' }}>Client Secret</strong> from the resulting page and paste them below.</li>
+              </ol>
+              <p style={{ marginTop: '6px', color: '#64748b' }}>Your credentials are stored locally in your browser and never sent to our servers.</p>
+            </details>
             <div className="modal-field">
               <label>Report URL or Code</label>
               <input
@@ -692,7 +711,7 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
                 style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px', background: '#0d1020', border: 'none', borderBottom: '1px solid #2d3154', color: '#94a3b8', fontSize: '13px', cursor: 'pointer', textAlign: 'left' }}
               >
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ fontSize: '13px' }}>ℹ️</span> How importing works
+                  <span style={{ fontSize: '13px' }}>ℹ️</span> How importing works (PLEASE READ!)
                 </span>
                 <span style={{ fontSize: '10px' }}>{showGuide ? '▲' : '▼'}</span>
               </button>
@@ -816,7 +835,7 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 8px', background: '#0a0d1a', borderBottom: '1px solid #2d3154', flexWrap: 'wrap' }}>
                         <span style={{ fontSize: '11px', color: '#64748b', marginRight: '4px', whiteSpace: 'nowrap' }}>View:</span>
                         <button
-                          onClick={() => { setPhaseFilter(null); setSelectedAbilityIndices(new Set()); }}
+                          onClick={() => { setPhaseFilter(null); }}
                           style={{ fontSize: '11px', padding: '1px 8px', borderRadius: '999px', border: '1px solid', cursor: 'pointer',
                             background: phaseFilter === null ? '#fff' : 'transparent',
                             borderColor: phaseFilter === null ? '#fff' : '#2d3154',
@@ -827,7 +846,7 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
                         {allPhases.map((p, pi) => (
                           <button
                             key={pi}
-                            onClick={() => { setPhaseFilter(pi); setSelectedAbilityIndices(new Set()); }}
+                            onClick={() => { setPhaseFilter(pi); }}
                             style={{ fontSize: '11px', padding: '1px 8px', borderRadius: '999px', border: '1px solid', cursor: 'pointer',
                               background: phaseFilter === pi ? '#fff' : 'transparent',
                               borderColor: phaseFilter === pi ? '#fff' : '#2d3154',
@@ -841,9 +860,20 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
                     {/* Bulk-assign toolbar */}
                     {allPhases.length > 1 && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 8px', background: '#0d1020', borderBottom: '1px solid #2d3154', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap' }}>
-                          {selectedAbilityIndices.size > 0 ? `${selectedAbilityIndices.size} selected` : 'Click rows to select'}
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '11px', color: '#64748b' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                            <span style={{ display: 'inline-block', width: '12px', height: '12px', border: '2px solid #94a3b8', borderRadius: '50%', background: 'rgba(148,163,184,0.1)' }} />
+                            <span>select for phase assignment</span>
+                          </span>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                            <input type="checkbox" checked disabled style={{ width: '12px', height: '12px', margin: 0, pointerEvents: 'none' }} />
+                            <span>include in import</span>
+                          </span>
+                          <span style={{ color: '#475569' }}>·</span>
+                          <span title="Click: select one · Ctrl+click: add/remove · Shift+click: range · Ctrl+Shift: add range" style={{ cursor: 'help', borderBottom: '1px dotted #475569' }}>
+                            {selectedAbilityIndices.size > 0 ? `${selectedAbilityIndices.size} selected` : 'Shift/Ctrl+click'}
+                          </span>
+                        </div>
                         <div style={{ flex: 1 }} />
                         <span style={{ fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap' }}>Assign selected to:</span>
                         <select
@@ -873,6 +903,15 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
                         >
                           Apply
                         </button>
+                        {selectedAbilityIndices.size > 0 && (
+                          <button
+                            onClick={() => setSelectedAbilityIndices(new Set())}
+                            style={{ padding: '2px 6px', borderRadius: '4px', border: '1px solid #64748b', background: 'transparent', color: '#94a3b8', fontSize: '11px', cursor: 'pointer' }}
+                            title="Clear selection"
+                          >
+                            ✕
+                          </button>
+                        )}
                       </div>
                     )}
                     {/* Ability rows */}
@@ -912,15 +951,6 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
                         return (
                           <React.Fragment key={i}>
                             <div
-                              onClick={(e) => {
-                                if (e.shiftKey && lastSelectedIdx !== null) {
-                                  const lo = Math.min(lastSelectedIdx, i), hi = Math.max(lastSelectedIdx, i);
-                                  setSelectedAbilityIndices(prev => { const next = new Set(prev); for (let k = lo; k <= hi; k++) next.add(k); return next; });
-                                } else {
-                                  setSelectedAbilityIndices(prev => { const next = new Set(prev); next.has(i) ? next.delete(i) : next.add(i); return next; });
-                                  setLastSelectedIdx(i);
-                                }
-                              }}
                               style={{
                                 display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 8px',
                                 paddingLeft: isRepeat ? '20px' : '8px',
@@ -928,12 +958,56 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
                                 borderBottom: '1px solid #1e2235',
                                 borderLeft: isSelected ? '2px solid #7c9fff' : (!isRepeat && a.included) ? '2px solid #4ade80' : isRepeat ? '2px solid #2d3154' : '2px solid transparent',
                                 opacity: a.included ? (isRepeat ? 0.65 : 1) : 0.3,
-                                cursor: 'pointer', userSelect: 'none',
+                                userSelect: 'none',
                               }}
                             >
+                              {/* Selection column for phase assignment */}
+                              {allPhases.length > 1 && (
+                                <span
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (e.shiftKey && lastSelectedIdx !== null) {
+                                      // Shift+click: select range from anchor to here
+                                      const lo = Math.min(lastSelectedIdx, i), hi = Math.max(lastSelectedIdx, i);
+                                      if (e.ctrlKey || e.metaKey) {
+                                        // Ctrl+Shift+click: add range to existing selection
+                                        setSelectedAbilityIndices(prev => {
+                                          const next = new Set(prev);
+                                          for (let k = lo; k <= hi; k++) next.add(k);
+                                          return next;
+                                        });
+                                      } else {
+                                        // Shift+click: replace selection with range
+                                        const next = new Set<number>();
+                                        for (let k = lo; k <= hi; k++) next.add(k);
+                                        setSelectedAbilityIndices(next);
+                                      }
+                                    } else if (e.ctrlKey || e.metaKey) {
+                                      // Ctrl+click: toggle individual item without affecting others
+                                      setSelectedAbilityIndices(prev => { const next = new Set(prev); next.has(i) ? next.delete(i) : next.add(i); return next; });
+                                      setLastSelectedIdx(i);
+                                    } else {
+                                      // Plain click: select only this item (or deselect if already the only one selected)
+                                      const onlyThis = selectedAbilityIndices.size === 1 && selectedAbilityIndices.has(i);
+                                      setSelectedAbilityIndices(onlyThis ? new Set() : new Set([i]));
+                                      setLastSelectedIdx(i);
+                                    }
+                                  }}
+                                  title="Click: select · Ctrl+click: add/remove · Shift+click: range · Ctrl+Shift+click: add range"
+                                  style={{
+                                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                    width: '18px', height: '18px', borderRadius: '50%', flexShrink: 0, cursor: 'pointer',
+                                    border: isSelected ? '2px solid #7c9fff' : '2px solid #94a3b8',
+                                    background: isSelected ? '#7c9fff' : 'rgba(148,163,184,0.1)',
+                                  }}
+                                >
+                                  {isSelected && <span style={{ fontSize: '10px', color: '#0f0f1a', fontWeight: 700 }}>✓</span>}
+                                </span>
+                              )}
                               <input
                                 type="checkbox"
                                 checked={a.included}
+                                title="Include this ability in the import"
                                 onClick={(e) => e.stopPropagation()}
                                 onChange={(e) => setAbilityAssignments(prev => prev.map((x, j) => j === i ? { ...x, included: e.target.checked } : x))}
                               />
@@ -942,7 +1016,8 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
                               {a.nearbyCasts.length > 0 && (
                                 <button
                                   onClick={(e) => { e.stopPropagation(); setExpandedAbilityRows(prev => { const n = new Set(prev); n.has(i) ? n.delete(i) : n.add(i); return n; }); }}
-                                  style={{ fontSize: '10px', color: '#475569', background: 'none', border: '1px solid #2d3154', borderRadius: '3px', padding: '0 4px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+                                  style={{ fontSize: '10px', color: '#94a3b8', background: 'none', border: '1px solid #64748b', borderRadius: '3px', padding: '0 4px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+                                  title={`${a.nearbyCasts.length} other player cast${a.nearbyCasts.length !== 1 ? 's' : ''} within ±3s`}
                                 >
                                   {expandedAbilityRows.has(i) ? '▲' : '▼'} {a.nearbyCasts.length}
                                 </button>
@@ -959,8 +1034,8 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
                                     fontSize: '10px', whiteSpace: 'nowrap', flexShrink: 0, cursor: 'pointer',
                                     padding: '1px 6px', borderRadius: '3px',
                                     background: mergedIndices.has(i) ? '#1d3a8a' : 'transparent',
-                                    color: mergedIndices.has(i) ? '#93c5fd' : '#475569',
-                                    border: `1px solid ${mergedIndices.has(i) ? '#3b5bdb' : '#2d3154'}`,
+                                    color: mergedIndices.has(i) ? '#93c5fd' : '#94a3b8',
+                                    border: `1px solid ${mergedIndices.has(i) ? '#3b5bdb' : '#64748b'}`,
                                   }}
                                 >
                                   ↑ merge
@@ -983,17 +1058,12 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
                                     fontSize: '10px', whiteSpace: 'nowrap', flexShrink: 0, cursor: 'pointer',
                                     padding: '1px 6px', borderRadius: '3px',
                                     background: mergedCount > 0 ? '#1d3a8a' : 'transparent',
-                                    color: mergedCount > 0 ? '#93c5fd' : '#475569',
-                                    border: `1px solid ${mergedCount > 0 ? '#3b5bdb' : '#2d3154'}`,
+                                    color: mergedCount > 0 ? '#93c5fd' : '#94a3b8',
+                                    border: `1px solid ${mergedCount > 0 ? '#3b5bdb' : '#64748b'}`,
                                   }}
                                 >
                                   {mergedCount > 0 ? `+${mergedCount} merged` : `${sameNameIndices.length}×`}
                                 </button>
-                              )}
-                              {allPhases.length > 1 && (
-                                <span style={{ fontSize: '11px', color: isSelected ? '#7c9fff' : a.assigned ? '#64748b' : '#334155', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                                  {a.assigned ? (allPhases[a.phaseIdx]?.name || `Phase ${a.phaseIdx + 1}`) : 'Unassigned'}
-                                </span>
                               )}
                             </div>
                             {expandedAbilityRows.has(i) && a.nearbyCasts.length > 0 && (

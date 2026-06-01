@@ -106,8 +106,62 @@ interface TableBodyProps {
   jobNotesForPhase: Record<number, Record<string, string>>;
   visibleJobs: string[];
   setJobNote: (phaseIdx: number, row: number, jobJP: string, note: string) => void;
+  setDamageOverride: (phaseIdx: number, row: number, damage: number | null) => void;
   viewerMode: boolean;
   allowCooldownOverride: boolean;
+}
+
+function DamageCell({ phaseIdx, row, baseDamage, setDamageOverride, viewerMode }: {
+  phaseIdx: number; row: number; baseDamage: number; setDamageOverride: (p: number, r: number, d: number | null) => void; viewerMode: boolean;
+}) {
+  const [editing, setEditing] = React.useState(false);
+  const [draft, setDraft] = React.useState('');
+
+  if (editing && !viewerMode) {
+    return (
+      <td className="sticky-col dmg-cell editable-cell">
+        <input
+          type="text"
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => {
+            const parsed = parseInt(draft.replace(/,/g, ''), 10);
+            if (!isNaN(parsed) && parsed >= 0) {
+              setDamageOverride(phaseIdx, row, parsed || null);
+            } else if (draft.trim() === '') {
+              setDamageOverride(phaseIdx, row, null);
+            }
+            setEditing(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+            if (e.key === 'Escape') setEditing(false);
+          }}
+          style={{
+            width: '100%', height: '100%', border: 'none', outline: 'none',
+            background: 'var(--surface2, #1e2235)', color: 'inherit',
+            fontSize: 'inherit', fontFamily: 'inherit', textAlign: 'right',
+            padding: '0 4px', boxSizing: 'border-box',
+          }}
+        />
+      </td>
+    );
+  }
+
+  return (
+    <td
+      className="sticky-col dmg-cell editable-cell"
+      onDoubleClick={() => {
+        if (!viewerMode) {
+          setDraft(baseDamage > 0 ? baseDamage.toString() : '');
+          setEditing(true);
+        }
+      }}
+    >
+      {baseDamage > 0 ? baseDamage.toLocaleString() : ''}
+    </td>
+  );
 }
 
 function JobNoteRow({ jobJP, note, phaseIdx, row, setJobNote }: {
@@ -291,6 +345,7 @@ interface ActionRowProps {
   jobNotesForRow: Record<string, string>;
   visibleJobs: string[];
   setJobNote: (phaseIdx: number, row: number, jobJP: string, note: string) => void;
+  setDamageOverride: (phaseIdx: number, row: number, damage: number | null) => void;
   viewerMode: boolean;
   allowCooldownOverride: boolean;
 }
@@ -329,7 +384,7 @@ const ActionRow = React.memo(function ActionRow({
   isRowHidden, allVisibleCols, roleStartCols, jobStartCols,
   maxHP, tankHP, showNotes, note, tag, fixedColCount,
   toggleMit, setEditingRow, removeCustomAction, toggleHideRow, insertAfterRow, setActionNote,
-  jobNotesForRow, visibleJobs, setJobNote, viewerMode, allowCooldownOverride,
+  jobNotesForRow, visibleJobs, setJobNote, setDamageOverride, viewerMode, allowCooldownOverride,
 }: ActionRowProps) {
   const colBoundaryClass = (colId: string) =>
     roleStartCols.has(colId) ? 'role-boundary' : jobStartCols.has(colId) ? 'job-boundary' : '';
@@ -414,9 +469,7 @@ const ActionRow = React.memo(function ActionRow({
             <span className="type-badge" style={{ backgroundColor: typeColor }}>{action.type}</span>
           ) : null}
         </td>
-        <td className="sticky-col dmg-cell editable-cell" onDoubleClick={() => setEditingRow(action.row)}>
-          {baseDamage > 0 ? baseDamage.toLocaleString() : ''}
-        </td>
+        <DamageCell phaseIdx={phaseIdx} row={action.row} baseDamage={baseDamage} setDamageOverride={setDamageOverride} viewerMode={viewerMode} />
         {showNotes && (
           <NoteCell
             phaseIdx={phaseIdx}
@@ -491,7 +544,7 @@ const MitigationTableBody = React.memo(function MitigationTableBody({
   mergedActions, customRowIds, allVisibleCols, mitGridForPhase, cellCoverage,
   hiddenSet, showHidden, phaseIdx, maxHP, tankHP,
   roleStartCols, jobStartCols, toggleMit, setEditingRow, removeCustomAction, toggleHideRow, insertAfterRow,
-  showNotes, actionNotes, setActionNote, rowTagsForPhase, jobNotesForPhase, visibleJobs, setJobNote, viewerMode, allowCooldownOverride,
+  showNotes, actionNotes, setActionNote, rowTagsForPhase, jobNotesForPhase, visibleJobs, setJobNote, setDamageOverride, viewerMode, allowCooldownOverride,
 }: TableBodyProps) {
   const fixedColCount = 7 + (showNotes ? 1 : 0);
 
@@ -534,6 +587,7 @@ const MitigationTableBody = React.memo(function MitigationTableBody({
             jobNotesForRow={jobNotesForPhase[action.row] ?? EMPTY_JOB_NOTES}
             visibleJobs={visibleJobs}
             setJobNote={setJobNote}
+            setDamageOverride={setDamageOverride}
             viewerMode={viewerMode}
             allowCooldownOverride={allowCooldownOverride}
           />
@@ -544,7 +598,7 @@ const MitigationTableBody = React.memo(function MitigationTableBody({
 });
 
 export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onOpenPip, readOnlyJoin }: Props) {
-  const { language, toggleMit, initPhase, showJobs, setShowJobs, maxHP, tankHP, toggleHideRow, clearHiddenRows, encounterLevel, syncVersion, addCustomAction, removeCustomAction, clearPhase, clearPlan, clearAllPlans, clearPlanActions, setActionNote, setJobNote, viewerMode, toggleViewerMode, allowCooldownOverride, toggleAllowCooldownOverride } = useStore();
+  const { language, toggleMit, initPhase, showJobs, setShowJobs, jobOrder, setJobOrder, maxHP, tankHP, toggleHideRow, clearHiddenRows, encounterLevel, syncVersion, addCustomAction, removeCustomAction, clearPhase, clearPlan, clearAllPlans, clearPlanActions, setActionNote, setJobNote, setActionOverride, viewerMode, toggleViewerMode, allowCooldownOverride, toggleAllowCooldownOverride } = useStore();
   const { mitGrid, actionOverrides, hiddenRows, customActions, name: planName, baseActionsCleared, actionNotes, rowTags, jobNotes: jobNotesRaw } = useStore((s) => s.plans[s.activePlanId]);
   const jobNotes = jobNotesRaw ?? {};
 
@@ -725,6 +779,12 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
     const sorted = Array.from(map.entries())
       .map(([job, cols]) => ({ job, cols, isRoleStart: false }))
       .sort((a, b) => {
+        // Use custom jobOrder if available, fallback to default ROLE_GROUPS order
+        if (jobOrder.length > 0) {
+          const ai = jobOrder.indexOf(a.job);
+          const bi = jobOrder.indexOf(b.job);
+          return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+        }
         const ai = JOB_ORDER_FLAT.indexOf(a.job);
         const bi = JOB_ORDER_FLAT.indexOf(b.job);
         return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
@@ -739,7 +799,7 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
       }
     }
     return sorted;
-  }, [levelFilteredSkillCols]);
+  }, [levelFilteredSkillCols, jobOrder]);
 
   // Filter groups by showJobs
   const visibleGroups = React.useMemo(() => {
@@ -885,6 +945,10 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
     addCustomAction(phaseIdx, newAction);
     setEditingRow(row);
   }, [mergedActions, addCustomAction, phaseIdx]);
+
+  const handleSetDamageOverride = React.useCallback((pIdx: number, row: number, damage: number | null) => {
+    setActionOverride(pIdx, row, { damageHit: damage });
+  }, [setActionOverride]);
 
   const editingAction = editingRow !== null
     ? (actions.find((a) => a.row === editingRow) ?? phaseCustomActions.find((a) => a.row === editingRow) ?? null)
@@ -1033,6 +1097,27 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
                 {roleButton}
                 <button
                   className={`job-toggle ${showJobs[g.job] === false ? 'job-off' : 'visible'}`}
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData('text/plain', g.job);
+                    e.dataTransfer.effectAllowed = 'move';
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const draggedJob = e.dataTransfer.getData('text/plain');
+                    if (!draggedJob || draggedJob === g.job) return;
+                    const currentOrder = jobOrder.length > 0 ? [...jobOrder] : colGroups.map((x) => x.job);
+                    const fromIdx = currentOrder.indexOf(draggedJob);
+                    const toIdx = currentOrder.indexOf(g.job);
+                    if (fromIdx === -1 || toIdx === -1) return;
+                    currentOrder.splice(fromIdx, 1);
+                    currentOrder.splice(toIdx, 0, draggedJob);
+                    setJobOrder(currentOrder);
+                  }}
                   onClick={() => startTransition(() => {
                     if (selectMode) {
                       const allColJobs = colGroups.map((x) => x.job);
@@ -1055,6 +1140,18 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
             );
           });
         })()}
+        {jobOrder.length > 0 && (
+          <>
+            <span className="role-divider" />
+            <button
+              className="job-toggle job-off"
+              onClick={() => setJobOrder([])}
+              title="Reset job order to default"
+            >
+              ↺ Order
+            </button>
+          </>
+        )}
         {hiddenCount > 0 && (
           <>
             <span className="role-divider" />
@@ -1476,6 +1573,7 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
             jobNotesForPhase={jobNotes[phaseIdx] ?? EMPTY_JOB_NOTES_PHASE}
             visibleJobs={visibleJobs}
             setJobNote={setJobNote}
+            setDamageOverride={handleSetDamageOverride}
             viewerMode={viewerMode}
             allowCooldownOverride={allowCooldownOverride}
           />

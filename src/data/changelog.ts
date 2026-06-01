@@ -52,6 +52,22 @@ export interface ChangelogEntry {
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.8.7',
+    date: 'June 1, 2026',
+    title: 'Inline Damage Editing & Custom Job Order',
+    changes: [
+      { type: 'new', text: withIcons('Double-clicking a damage cell now allows inline editing of the damage value without opening the full Edit Action modal.') },
+      { type: 'new', text: withIcons('Job columns can now be reordered by dragging and dropping the job toggle buttons in the toolbar. Custom order persists across sessions.') },
+      { type: 'change', text: withIcons('FFLogs import modal now includes a step-by-step guide on how to create an API client and obtain credentials.') },
+      { type: 'new', text: 'FFLogs importer: dedicated selection column with Windows-style multi-select (Click, Ctrl+Click, Shift+Click, Ctrl+Shift+Click).' },
+      { type: 'new', text: 'FFLogs importer: clear selection button appears when rows are selected.' },
+      { type: 'fix', text: 'FFLogs importer: selection now persists when switching between phase tabs.' },
+      { type: 'fix', text: 'FFLogs importer: improved visibility of merge, occurrence count, and nearby casts buttons.' },
+      { type: 'new', text: 'Phase tabs can now be renamed by double-clicking them.' },
+      { type: 'fix', text: 'FFLogs importer: mitigations now correctly apply to all phases, not just the first.' },
+    ],
+  },
+  {
     version: '1.8.6',
     date: 'May 31, 2026',
     title: 'PLD Skill Fixes',

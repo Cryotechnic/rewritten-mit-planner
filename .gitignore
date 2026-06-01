@@ -25,3 +25,4 @@ dist-ssr
 
 server/rewritten-mitigation-planner-firebase-*
 server/.env
+.env

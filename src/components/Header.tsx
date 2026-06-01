@@ -1,4 +1,4 @@
-import { useState, startTransition } from 'react';
+import { useState, useRef, useEffect, startTransition } from 'react';
 import { useStore } from '../store';
 import type { EncounterData, Phase } from '../types';
 import { t } from '../i18n';
@@ -15,13 +15,27 @@ const LANGS = ['JP', 'EN', 'DE', 'FR', 'KO', 'CN'] as const;
 const ENCOUNTER_LEVELS = [50, 60, 70, 80, 90, 100] as const;
 
 export default function Header({ data, allPhases, onAddPhase, onJoinByCode: _onJoinByCode, onShowChangelog }: Props) {
-  const { setActivePhase, language, setLanguage, maxHP, tankHP, setMaxHP, setTankHP, encounterLevel, setEncounterLevel, plans, activePlanId, toggleHidePhase, removeCustomPhase, viewerMode } = useStore();
+  const { setActivePhase, language, setLanguage, maxHP, tankHP, setMaxHP, setTankHP, encounterLevel, setEncounterLevel, plans, activePlanId, toggleHidePhase, removeCustomPhase, renamePhase, viewerMode } = useStore();
   const activePlan = plans[activePlanId];
   const activePhaseIdx = activePlan.activePhaseIdx;
   const hiddenPhases = activePlan.hiddenPhases ?? new Set<number>();
   const hiddenPhaseList = allPhases.map((p, i) => ({ phase: p, idx: i })).filter(({ idx }) => hiddenPhases.has(idx));
   const [showRestoreMenu, setShowRestoreMenu] = useState(false);
+  const [editingPhaseIdx, setEditingPhaseIdx] = useState<number | null>(null);
+  const [editPhaseName, setEditPhaseName] = useState('');
+  const phaseInputRef = useRef<HTMLInputElement>(null);
   const totalPhases = allPhases.length;
+
+  useEffect(() => {
+    if (editingPhaseIdx !== null) phaseInputRef.current?.select();
+  }, [editingPhaseIdx]);
+
+  const commitPhaseRename = () => {
+    if (editingPhaseIdx !== null && editPhaseName.trim()) {
+      renamePhase(editingPhaseIdx, editPhaseName.trim());
+    }
+    setEditingPhaseIdx(null);
+  };
 
   return (
     <header className="header">
@@ -42,12 +56,25 @@ export default function Header({ data, allPhases, onAddPhase, onJoinByCode: _onJ
             if (isHidden) return null;
             return (
               <div key={idx} className="phase-tab-wrap">
+                {editingPhaseIdx === idx ? (
+                  <input
+                    ref={phaseInputRef}
+                    value={editPhaseName}
+                    size={Math.max(editPhaseName.length + 1, 4)}
+                    onChange={(e) => setEditPhaseName(e.target.value)}
+                    onBlur={commitPhaseRename}
+                    onKeyDown={(e) => { if (e.key === 'Enter') commitPhaseRename(); if (e.key === 'Escape') setEditingPhaseIdx(null); }}
+                    style={{ padding: '4px 8px', fontSize: '12px', fontFamily: 'inherit', background: '#1e2235', color: '#e2e8f0', border: '1px solid #4f6fff', borderRadius: '4px', outline: 'none', boxSizing: 'content-box' }}
+                  />
+                ) : (
                 <button
                   className={`phase-tab ${activePhaseIdx === idx ? 'active' : ''} ${isCustom ? 'phase-tab-custom' : ''}`}
                   onClick={() => startTransition(() => setActivePhase(idx))}
+                  onDoubleClick={() => { if (!viewerMode) { setEditingPhaseIdx(idx); setEditPhaseName(phase.name); } }}
                 >
                   {phase.name}
                 </button>
+                )}
                 {isCustom ? (
                   !viewerMode && (
                   <button
