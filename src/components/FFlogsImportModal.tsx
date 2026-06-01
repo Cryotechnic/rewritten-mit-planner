@@ -968,6 +968,7 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
                               {allPhases.length > 1 && (
                                 <span
                                   onClick={(e) => {
+                                    if (!a.included) return; // Don't allow selection if not checked
                                     e.stopPropagation();
                                     if (e.shiftKey && lastSelectedIdx !== null) {
                                       // Shift+click: select range from anchor to here
@@ -996,12 +997,13 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
                                       setLastSelectedIdx(i);
                                     }
                                   }}
-                                  title="Click: select · Ctrl+click: add/remove · Shift+click: range · Ctrl+Shift+click: add range"
+                                  title={a.included ? "Click: select · Ctrl+click: add/remove · Shift+click: range · Ctrl+Shift+click: add range" : "Check the ability first to assign to phases"}
                                   style={{
                                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                                    width: '18px', height: '18px', borderRadius: '50%', flexShrink: 0, cursor: 'pointer',
+                                    width: '18px', height: '18px', borderRadius: '50%', flexShrink: 0, cursor: a.included ? 'pointer' : 'not-allowed',
                                     border: isSelected ? '2px solid #7c9fff' : '2px solid #94a3b8',
                                     background: isSelected ? '#7c9fff' : 'rgba(148,163,184,0.1)',
+                                    opacity: a.included ? 1 : 0.5,
                                   }}
                                 >
                                   {isSelected && <span style={{ fontSize: '10px', color: '#0f0f1a', fontWeight: 700 }}>✓</span>}

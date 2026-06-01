@@ -52,18 +52,27 @@ export interface ChangelogEntry {
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.8.8',
+    date: 'June 1, 2026',
+    title: 'Scholar Succor & FFLogs UI Fix',
+    changes: [
+      { type: 'new', text: withIcons('Added Scholar\'s Succor as a standard mitigation column in data.') },
+      { type: 'fix', text: 'FFLogs importer: circle selector for phase assignment is now disabled until the ability checkbox is checked.' },
+    ],
+  },
+  {
     version: '1.8.7',
     date: 'June 1, 2026',
     title: 'Inline Damage Editing & Custom Job Order',
     changes: [
       { type: 'new', text: withIcons('Double-clicking a damage cell now allows inline editing of the damage value without opening the full Edit Action modal.') },
       { type: 'new', text: withIcons('Job columns can now be reordered by dragging and dropping the job toggle buttons in the toolbar. Custom order persists across sessions.') },
-      { type: 'change', text: withIcons('FFLogs import modal now includes a step-by-step guide on how to create an API client and obtain credentials.') },
       { type: 'new', text: 'FFLogs importer: dedicated selection column with Windows-style multi-select (Click, Ctrl+Click, Shift+Click, Ctrl+Shift+Click).' },
       { type: 'new', text: 'FFLogs importer: clear selection button appears when rows are selected.' },
+      { type: 'new', text: 'Phase tabs can now be renamed by double-clicking them.' },
+      { type: 'change', text: withIcons('FFLogs import modal now includes a step-by-step guide on how to create an API client and obtain credentials.') },
       { type: 'fix', text: 'FFLogs importer: selection now persists when switching between phase tabs.' },
       { type: 'fix', text: 'FFLogs importer: improved visibility of merge, occurrence count, and nearby casts buttons.' },
-      { type: 'new', text: 'Phase tabs can now be renamed by double-clicking them.' },
       { type: 'fix', text: 'FFLogs importer: mitigations now correctly apply to all phases, not just the first.' },
       { type: 'fix', text: withIcons('Intervention now correctly calculates all 3 mitigation layers: base 10%, Knight\'s Resolve +10%, and +10% when Rampart/Sentinel/Guardian is active on the same row.') },
     ],
