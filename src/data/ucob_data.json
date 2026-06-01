@@ -1075,6 +1075,23 @@
           "barrier": 540
         },
         {
+          "col": "CS",
+          "job": "学者",
+          "skill": "士気高揚の策",
+          "assign": "RANGE_PARTY",
+          "charge": 1,
+          "isAbility": false,
+          "effectTime": 30,
+          "recast": 2.5,
+          "mitPhysical": null,
+          "mitMagic": null,
+          "mitUnique": null,
+          "healBuffTarget": null,
+          "healBuff": null,
+          "barrierBuff": null,
+          "barrier": 320
+        },
+        {
           "col": "CQ",
           "job": "学者",
           "skill": "深謀遠慮の策",
@@ -5885,6 +5902,23 @@
           "healBuff": null,
           "barrierBuff": null,
           "barrier": 540
+        },
+        {
+          "col": "CS",
+          "job": "学者",
+          "skill": "士気高揚の策",
+          "assign": "RANGE_PARTY",
+          "charge": 1,
+          "isAbility": false,
+          "effectTime": 30,
+          "recast": 2.5,
+          "mitPhysical": null,
+          "mitMagic": null,
+          "mitUnique": null,
+          "healBuffTarget": null,
+          "healBuff": null,
+          "barrierBuff": null,
+          "barrier": 320
         },
         {
           "col": "CQ",
@@ -14539,6 +14573,23 @@
           "barrier": 540
         },
         {
+          "col": "CS",
+          "job": "学者",
+          "skill": "士気高揚の策",
+          "assign": "RANGE_PARTY",
+          "charge": 1,
+          "isAbility": false,
+          "effectTime": 30,
+          "recast": 2.5,
+          "mitPhysical": null,
+          "mitMagic": null,
+          "mitUnique": null,
+          "healBuffTarget": null,
+          "healBuff": null,
+          "barrierBuff": null,
+          "barrier": 320
+        },
+        {
           "col": "CQ",
           "job": "学者",
           "skill": "深謀遠慮の策",
@@ -23191,6 +23242,23 @@
           "barrier": 540
         },
         {
+          "col": "CS",
+          "job": "学者",
+          "skill": "士気高揚の策",
+          "assign": "RANGE_PARTY",
+          "charge": 1,
+          "isAbility": false,
+          "effectTime": 30,
+          "recast": 2.5,
+          "mitPhysical": null,
+          "mitMagic": null,
+          "mitUnique": null,
+          "healBuffTarget": null,
+          "healBuff": null,
+          "barrierBuff": null,
+          "barrier": 320
+        },
+        {
           "col": "CQ",
           "job": "学者",
           "skill": "深謀遠慮の策",
@@ -31841,6 +31909,23 @@
           "healBuff": null,
           "barrierBuff": null,
           "barrier": 540
+        },
+        {
+          "col": "CS",
+          "job": "学者",
+          "skill": "士気高揚の策",
+          "assign": "RANGE_PARTY",
+          "charge": 1,
+          "isAbility": false,
+          "effectTime": 30,
+          "recast": 2.5,
+          "mitPhysical": null,
+          "mitMagic": null,
+          "mitUnique": null,
+          "healBuffTarget": null,
+          "healBuff": null,
+          "barrierBuff": null,
+          "barrier": 320
         },
         {
           "col": "CQ",
