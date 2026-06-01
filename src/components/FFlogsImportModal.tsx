@@ -540,10 +540,13 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
     if (importFullTimeline) {
       // Group assignments by phase
       const byPhase: Record<number, import('../types').Action[]> = {};
+      const hasAnyAssignment = abilityAssignments.some(a => a.assigned);
       let row = 0;
       for (const [idx, a] of abilityAssignments.entries()) {
         const isMerged = mergedIndices.has(idx);
         if (!a.included || isMerged) { row++; continue; }
+        // Skip unassigned items when the user has explicitly assigned some to phases
+        if (hasAnyAssignment && !a.assigned) { row++; continue; }
         if (!byPhase[a.phaseIdx]) byPhase[a.phaseIdx] = [];
         byPhase[a.phaseIdx].push({
           row,
@@ -1243,7 +1246,7 @@ export default function FFlogsImportModal({ allPhases, skills, onClose }: Props)
                 <button
                   className="modal-btn save"
                   onClick={handleApply}
-                  disabled={!importPartyComp && selectedMatchIndices.size === 0}
+                  disabled={!importFullTimeline && !importPartyComp && !importMits && !importHP && selectedMatchIndices.size === 0}
                 >
                   Import
                 </button>

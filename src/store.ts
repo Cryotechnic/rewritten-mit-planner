@@ -467,14 +467,42 @@ export const useStore = create<PlannerState>()(
     {
       name: 'ucob-planner-state',
       version: 3,
-      storage: createJSONStorage(() => localStorage, {
-        replacer: (_key, value) =>
-          value instanceof Set ? { __type: 'Set', values: [...value] } : value,
-        reviver: (_key, value) =>
-          value && typeof value === 'object' && (value as any).__type === 'Set'
-            ? new Set((value as any).values)
-            : value,
-      }),
+      storage: (() => {
+        const base = createJSONStorage(() => localStorage, {
+          replacer: (_key, value) =>
+            value instanceof Set ? { __type: 'Set', values: [...value] } : value,
+          reviver: (_key, value) =>
+            value && typeof value === 'object' && (value as any).__type === 'Set'
+              ? new Set((value as any).values)
+              : value,
+        });
+        let timer: ReturnType<typeof setTimeout> | null = null;
+        let pendingName: string | null = null;
+        let pendingValue: any = null;
+        const flush = () => {
+          if (timer && pendingName != null) {
+            clearTimeout(timer);
+            timer = null;
+            base.setItem(pendingName, pendingValue);
+            pendingName = null;
+            pendingValue = null;
+          }
+        };
+        if (typeof window !== 'undefined') {
+          window.addEventListener('beforeunload', flush);
+          document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); });
+        }
+        return {
+          getItem: base.getItem,
+          removeItem: base.removeItem,
+          setItem: (name: string, value: any) => {
+            pendingName = name;
+            pendingValue = value;
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(() => { timer = null; pendingName = null; pendingValue = null; base.setItem(name, value); }, 300);
+          },
+        };
+      })(),
       migrate: (persisted: any, version: number) => {
         if (version === 0) {
           persisted = {

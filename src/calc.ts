@@ -8,6 +8,20 @@ const FORCE_CALC_SKILLS = new Set<string>([
 ]);
 
 /**
+ * Skills with conditional enhanced mitigation when a precondition skill is also active on the same row.
+ * Key = skill name (JP), value = { preconditionSkills, enhancedMit (magic/phys/unique) }
+ */
+const CONDITIONAL_MIT: Record<string, { preconditions: Set<string>; mitMagic: number; mitPhysical: number; mitUnique: number }> = {
+  // Intervention: base 19% (10% + Knight's Resolve 10%), enhanced to 27.1% when Rampart/Sentinel/Guardian active
+  'インターベンション': {
+    preconditions: new Set(['ランパート', 'センチネル', 'エクストリームガード']),
+    mitMagic: 0.729,
+    mitPhysical: 0.729,
+    mitUnique: 0.729,
+  },
+};
+
+/**
  * Floor with epsilon correction for floating-point safety.
  * Matches the fl() function from xiv-gear-planner/xivmath.ts.
  * e.g. fl(2.3 * 100) === 230 even if JS gives 229.999...
@@ -29,6 +43,13 @@ export function computeMitigation(
   checkedCols: Record<string, boolean>,
   damageType: 'Magic' | 'Physical' | 'Unique'
 ): number {
+  // Build set of active skill names for precondition checks
+  const activeSkills = new Set<string>();
+  for (const sc of skillCols) {
+    if (!checkedCols[sc.col]) continue;
+    activeSkills.add(sc.skill);
+  }
+
   let combined = 1.0;
   for (const sc of skillCols) {
     if (!checkedCols[sc.col]) continue;
@@ -39,10 +60,20 @@ export function computeMitigation(
       || sc.healBuff != null || sc.barrierBuff != null || sc.barrier != null;
     if (rawState === '-' && !hasMitValue && !FORCE_CALC_SKILLS.has(sc.skill)) continue;
 
+    // Check if this skill has conditional enhanced mitigation
+    const cond = CONDITIONAL_MIT[sc.skill];
+    const precondMet = cond && [...cond.preconditions].some(p => activeSkills.has(p));
+
     let mit: number | null = null;
-    if (damageType === 'Magic') mit = sc.mitMagic;
-    else if (damageType === 'Physical') mit = sc.mitPhysical;
-    else mit = sc.mitUnique; // null = skill doesn't apply to Unique/tankbuster, no fallback
+    if (precondMet) {
+      if (damageType === 'Magic') mit = cond.mitMagic;
+      else if (damageType === 'Physical') mit = cond.mitPhysical;
+      else mit = cond.mitUnique;
+    } else {
+      if (damageType === 'Magic') mit = sc.mitMagic;
+      else if (damageType === 'Physical') mit = sc.mitPhysical;
+      else mit = sc.mitUnique;
+    }
 
     // mit === 1 means "skill active but no reduction" (e.g. Holmgang), skip for perf
     if (mit !== null && mit > 0 && mit < 1) {
@@ -64,6 +95,13 @@ export function applyMitigations(
   checkedCols: Record<string, boolean>,
   damageType: 'Magic' | 'Physical' | 'Unique'
 ): number {
+  // Build set of active skill names for precondition checks
+  const activeSkills = new Set<string>();
+  for (const sc of skillCols) {
+    if (!checkedCols[sc.col]) continue;
+    activeSkills.add(sc.skill);
+  }
+
   let dmg = baseDmg;
   for (const sc of skillCols) {
     if (!checkedCols[sc.col]) continue;
@@ -71,10 +109,20 @@ export function applyMitigations(
     const hasMitValue = sc.mitPhysical != null || sc.mitMagic != null || sc.mitUnique != null
       || sc.healBuff != null || sc.barrierBuff != null || sc.barrier != null;
     if (rawState === '-' && !hasMitValue && !FORCE_CALC_SKILLS.has(sc.skill)) continue;
+
+    const cond = CONDITIONAL_MIT[sc.skill];
+    const precondMet = cond && [...cond.preconditions].some(p => activeSkills.has(p));
+
     let mit: number | null = null;
-    if (damageType === 'Magic') mit = sc.mitMagic;
-    else if (damageType === 'Physical') mit = sc.mitPhysical;
-    else mit = sc.mitUnique;
+    if (precondMet) {
+      if (damageType === 'Magic') mit = cond.mitMagic;
+      else if (damageType === 'Physical') mit = cond.mitPhysical;
+      else mit = cond.mitUnique;
+    } else {
+      if (damageType === 'Magic') mit = sc.mitMagic;
+      else if (damageType === 'Physical') mit = sc.mitPhysical;
+      else mit = sc.mitUnique;
+    }
     if (mit !== null && mit > 0 && mit < 1) {
       dmg = fl(dmg * mit);
     }

@@ -304,6 +304,7 @@ const FORCE_CHECKABLE_SKILLS = new Set<string>([
 const SKILL_EXTRA_TOOLTIP: Record<string, string> = {
   'ホーリーシェルトロン': '0-4s: 30% mit (Knight\'s Resolve) → 4-8s: 15% mit (Knight\'s Benediction)',
   'ハート・オブ・コランダム': '0-4s: ~28% mit (Corundum + Clarity) → 4-8s: 15% mit (Corundum only)',
+  'インターベンション': '19% mit (10% + Knight\'s Resolve 10%) → 27.1% mit w/ Rampart/Sentinel/Guardian',
 };
 
 // Single-target tank mitigation skills: only count toward mit% on TB-tagged rows
@@ -602,6 +603,9 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
   const { mitGrid, actionOverrides, hiddenRows, customActions, name: planName, baseActionsCleared, actionNotes, rowTags, jobNotes: jobNotesRaw } = useStore((s) => s.plans[s.activePlanId]);
   const jobNotes = jobNotesRaw ?? {};
 
+  // Deferred job order for the grid — lets toolbar update instantly while grid catches up
+  const deferredJobOrder = React.useDeferredValue(jobOrder);
+
   const tableContainerRef = React.useRef<HTMLDivElement>(null);
   const hoveredColRef = React.useRef<string | null>(null);
   React.useEffect(() => {
@@ -779,10 +783,10 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
     const sorted = Array.from(map.entries())
       .map(([job, cols]) => ({ job, cols, isRoleStart: false }))
       .sort((a, b) => {
-        // Use custom jobOrder if available, fallback to default ROLE_GROUPS order
-        if (jobOrder.length > 0) {
-          const ai = jobOrder.indexOf(a.job);
-          const bi = jobOrder.indexOf(b.job);
+        // Use deferred jobOrder for grid to avoid blocking UI
+        if (deferredJobOrder.length > 0) {
+          const ai = deferredJobOrder.indexOf(a.job);
+          const bi = deferredJobOrder.indexOf(b.job);
           return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
         }
         const ai = JOB_ORDER_FLAT.indexOf(a.job);
@@ -799,7 +803,8 @@ export default function MitigationGrid({ phaseIdx, phase, allPhases, skills, onO
       }
     }
     return sorted;
-  }, [levelFilteredSkillCols, jobOrder]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [levelFilteredSkillCols, deferredJobOrder.join(',')]);
 
   // Filter groups by showJobs
   const visibleGroups = React.useMemo(() => {

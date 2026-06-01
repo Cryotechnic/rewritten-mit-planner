@@ -47,6 +47,9 @@ export interface SkillCol {
   mitPhysical: number | null;
   mitMagic: number | null;
   mitUnique: number | null;
+  critMitMagic: number | null;
+  critMitPhysical: number | null;
+  precondition: string | null;
   healBuffTarget: string | null;
   healBuff: number | null;
   barrierBuff: number | null;

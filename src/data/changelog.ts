@@ -65,6 +65,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       { type: 'fix', text: 'FFLogs importer: improved visibility of merge, occurrence count, and nearby casts buttons.' },
       { type: 'new', text: 'Phase tabs can now be renamed by double-clicking them.' },
       { type: 'fix', text: 'FFLogs importer: mitigations now correctly apply to all phases, not just the first.' },
+      { type: 'fix', text: withIcons('Intervention now correctly calculates all 3 mitigation layers: base 10%, Knight\'s Resolve +10%, and +10% when Rampart/Sentinel/Guardian is active on the same row.') },
     ],
   },
   {
