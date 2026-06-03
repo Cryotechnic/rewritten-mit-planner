@@ -52,6 +52,18 @@ export interface ChangelogEntry {
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.8.9',
+    date: 'June 3, 2026',
+    title: 'Sync Reliability Fixes',
+    changes: [
+      { type: 'fix', text: 'Fixed sync silently failing when the Firestore connection goes stale (e.g. after browser idle overnight). A 10-second timeout now detects dead connections and shows an error banner.' },
+      { type: 'fix', text: 'Fixed push errors (network issues, timeouts) being silently swallowed with no user-visible feedback. All sync failures now display an error banner with details.' },
+      { type: 'fix', text: 'Fixed local mitigation edits being lost when a remote update arrives during the 600ms debounce window. Pending cell toggles are now preserved and re-applied on top of incoming data.' },
+      { type: 'fix', text: 'Fixed phase tab selection jumping to another user\'s active phase when receiving remote updates. Phase selection is now fully local per-user.' },
+      { type: 'new', text: 'Session state (share ID, write token) now persists in sessionStorage so a page refresh no longer disconnects from the sync session.' },
+    ],
+  },
+  {
     version: '1.8.8',
     date: 'June 1, 2026',
     title: 'Scholar Succor & FFLogs UI Fix',

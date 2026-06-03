@@ -38,8 +38,34 @@ const allSkillCols = (() => {
 
 type Tab = "planner" | "skills";
 
+// Session-storage keys for sync state (per-tab, survives refresh, no cross-tab leaks)
+const SS_SHARE_ID = 'mit-sync-shareId';
+const SS_WRITE_TOKEN = 'mit-sync-writeToken';
+const SS_READ_ONLY = 'mit-sync-readOnly';
+
+function saveSessionSync(shareId: string | null, writeToken: string | null, readOnly: boolean) {
+  if (shareId) {
+    sessionStorage.setItem(SS_SHARE_ID, shareId);
+    if (writeToken) sessionStorage.setItem(SS_WRITE_TOKEN, writeToken);
+    else sessionStorage.removeItem(SS_WRITE_TOKEN);
+    sessionStorage.setItem(SS_READ_ONLY, readOnly ? '1' : '0');
+  } else {
+    sessionStorage.removeItem(SS_SHARE_ID);
+    sessionStorage.removeItem(SS_WRITE_TOKEN);
+    sessionStorage.removeItem(SS_READ_ONLY);
+  }
+}
+
+function loadSessionSync() {
+  return {
+    shareId: sessionStorage.getItem(SS_SHARE_ID),
+    writeToken: sessionStorage.getItem(SS_WRITE_TOKEN),
+    readOnly: sessionStorage.getItem(SS_READ_ONLY) === '1',
+  };
+}
+
 export default function App() {
-  const { plans, activePlanId, renamePlan, addCustomPhase, shareId, clientId, setShareId, applyRemotePlan, maxHP, tankHP, encounterLevel, language, viewerMode, toggleViewerMode, setWriteToken, resetPlans, allowCooldownOverride, lastSeenVersion, setLastSeenVersion, addRecentSession, removeRecentSession, recentSessions } = useStore();
+  const { plans, activePlanId, renamePlan, addCustomPhase, shareId, clientId, setShareId, applyRemotePlan, maxHP, tankHP, encounterLevel, language, viewerMode, toggleViewerMode, setWriteToken, resetPlans, allowCooldownOverride, lastSeenVersion, setLastSeenVersion, addRecentSession, removeRecentSession, recentSessions, clearPendingEdits, hasPendingEdits } = useStore();
   const [tab, setTab] = useState<Tab>("planner");
   const [showAddPhase, setShowAddPhase] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
@@ -137,6 +163,7 @@ export default function App() {
           // Session expired: drop it and let the user start fresh
           setShareId(null);
           setWriteToken(null);
+          saveSessionSync(null, null, false);
           awaitingFirstSyncRef.current = false;
         } else if (encrypted) {
           setNeedJoinPassword(true);
@@ -145,17 +172,56 @@ export default function App() {
         setShareError('Could not reach the sync session. Check your connection.');
       });
     } else {
-      // Sharer: generate ID + write token, prompt for optional password
-      // Reset all plans so sharing always starts from a blank slate
-      resetPlans();
-      const id = generateShareId();
-      const token = generateWriteToken();
-      pendingShareIdRef.current = id;
-      writeTokenRef.current = token;
-      setWriteToken(token);
-      setShowPasswordSetup(true);
+      // Check sessionStorage for a session that survived a page refresh
+      const ss = loadSessionSync();
+      if (ss.shareId) {
+        const id = ss.shareId;
+        awaitingFirstSyncRef.current = true;
+        if (ss.writeToken) {
+          writeTokenRef.current = ss.writeToken;
+          setWriteToken(ss.writeToken);
+        } else {
+          setReadOnlyJoin(ss.readOnly);
+          if (ss.readOnly && !viewerMode) toggleViewerMode();
+        }
+        setShareId(id);
+        getSessionMeta(id).then(({ exists, encrypted }) => {
+          if (!exists) {
+            setShareId(null);
+            setWriteToken(null);
+            saveSessionSync(null, null, false);
+            awaitingFirstSyncRef.current = false;
+            // Session expired, start fresh
+            resetPlans();
+            const newId = generateShareId();
+            const token = generateWriteToken();
+            pendingShareIdRef.current = newId;
+            writeTokenRef.current = token;
+            setWriteToken(token);
+            setShowPasswordSetup(true);
+          } else if (encrypted) {
+            setNeedJoinPassword(true);
+          }
+        }).catch(() => {
+          setShareError('Could not reach the sync session. Check your connection.');
+        });
+      } else {
+        // No session to reconnect — start fresh
+        resetPlans();
+        const id = generateShareId();
+        const token = generateWriteToken();
+        pendingShareIdRef.current = id;
+        writeTokenRef.current = token;
+        setWriteToken(token);
+        setShowPasswordSetup(true);
+      }
     }
   }, []);
+
+  // Persist sync state to sessionStorage so page refresh doesn't disconnect
+  useEffect(() => {
+    saveSessionSync(shareId, writeTokenRef.current, readOnlyJoin);
+  }, [shareId, readOnlyJoin, sessionPassword]);
 
   function handleSharerPasswordConfirm(password: string | null) {
     const id = pendingShareIdRef.current!;
@@ -228,6 +294,7 @@ export default function App() {
     setWaitingForHost(false);
     setReadOnlyJoin(false);
     setShowOobe(false);
+    saveSessionSync(null, null, false);
     if (viewerMode) toggleViewerMode();
     awaitingFirstSyncRef.current = false;
     skipNextPushRef.current = false;
@@ -286,7 +353,9 @@ export default function App() {
     unsubRef.current = subscribePlan(shareId, clientId, (remotePlans, remoteActivePlanId, remoteSettings) => {
       awaitingFirstSyncRef.current = false;
       setWaitingForHost(false);
-      skipNextPushRef.current = true;
+      // Only suppress the echo push if there are no pending local edits.
+      // If local edits exist, they'll be re-applied on top of remote and need to be pushed.
+      if (!hasPendingEdits()) skipNextPushRef.current = true;
       applyRemotePlan(remotePlans as Record<string, PlanData>, remoteActivePlanId, remoteSettings);
     }, sessionPassword ?? undefined, () => {
       // Encrypted doc arrived but we have no password, show prompt
@@ -315,10 +384,16 @@ export default function App() {
     }
     if (pushTimerRef.current) clearTimeout(pushTimerRef.current);
     pushTimerRef.current = setTimeout(() => {
-      pushPlan(shareId, plans, activePlanId, clientId, { maxHP, tankHP, encounterLevel, allowCooldownOverride }, sessionPassword ?? undefined, writeTokenRef.current ?? undefined).catch((err) => {
+      pushPlan(shareId, plans, activePlanId, clientId, { maxHP, tankHP, encounterLevel, allowCooldownOverride }, sessionPassword ?? undefined, writeTokenRef.current ?? undefined).then(() => {
+        clearPendingEdits();
+      }).catch((err) => {
         console.error(err);
-        if (err?.code === 'permission-denied') {
+        if (err?.message === 'sync-timeout') {
+          setShareError('Sync timed out — your connection may be interrupted. Changes are saved locally.');
+        } else if (err?.code === 'permission-denied') {
           setShareError('Write access denied: your write token may be invalid or missing. Try rejoining with the full share link.');
+        } else {
+          setShareError(`Failed to sync changes: ${err?.message || err?.code || 'unknown error'}. Check your connection and try again.`);
         }
       });
     }, 600);

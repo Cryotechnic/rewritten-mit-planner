@@ -55,6 +55,10 @@ export interface RecentSession {
 
 const MAX_RECENT_SESSIONS = 8;
 
+// Tracks local mit cell edits not yet confirmed by a push.
+// Key format: "planId/phaseIdx/row/col"
+type PendingMitEdits = Record<string, boolean>;
+
 interface PlannerState {
   language: Language;
   showJobs: Record<string, boolean>;
@@ -73,6 +77,7 @@ interface PlannerState {
   allowCooldownOverride: boolean;
   lastSeenVersion: string | null;
   recentSessions: RecentSession[];
+  _pendingMitEdits: PendingMitEdits;
 
   setActivePhase: (idx: number) => void;
   setLanguage: (lang: Language) => void;
@@ -119,6 +124,8 @@ interface PlannerState {
   addRecentSession: (entry: Omit<RecentSession, 'lastVisited'>) => void;
   removeRecentSession: (shareId: string) => void;
   applyRemotePlan: (plans: Record<string, PlanData>, activePlanId: string, settings?: { maxHP?: number; tankHP?: number; encounterLevel?: number; allowCooldownOverride?: boolean }) => void;
+  clearPendingEdits: () => void;
+  hasPendingEdits: () => boolean;
 }
 
 function patchActive(s: PlannerState, fn: (p: PlanData) => Partial<PlanData>): Partial<PlannerState> {
@@ -174,6 +181,7 @@ export const useStore = create<PlannerState>()(
       allowCooldownOverride: false,
       lastSeenVersion: null as string | null,
       recentSessions: [] as RecentSession[],
+      _pendingMitEdits: {} as PendingMitEdits,
 
       setActivePhase: (idx) => set((s) => patchActive(s, () => ({ activePhaseIdx: idx }))),
 
@@ -192,28 +200,40 @@ export const useStore = create<PlannerState>()(
       setJobOrder: (order) => set({ jobOrder: order }),
 
       toggleMit: (phaseIdx, actionRow, col) => {
-        const p = get().plans[get().activePlanId];
+        const s = get();
+        const p = s.plans[s.activePlanId];
         const current = p.mitGrid[phaseIdx]?.[actionRow]?.[col] ?? false;
-        set((s) => patchActive(s, (plan) => ({
-          mitGrid: {
-            ...plan.mitGrid,
-            [phaseIdx]: {
-              ...(plan.mitGrid[phaseIdx] ?? {}),
-              [actionRow]: { ...(plan.mitGrid[phaseIdx]?.[actionRow] ?? {}), [col]: !current },
+        const newVal = !current;
+        const key = `${s.activePlanId}/${phaseIdx}/${actionRow}/${col}`;
+        set((s) => ({
+          ...patchActive(s, (plan) => ({
+            mitGrid: {
+              ...plan.mitGrid,
+              [phaseIdx]: {
+                ...(plan.mitGrid[phaseIdx] ?? {}),
+                [actionRow]: { ...(plan.mitGrid[phaseIdx]?.[actionRow] ?? {}), [col]: newVal },
+              },
             },
-          },
-        })));
+          })),
+          _pendingMitEdits: { ...s._pendingMitEdits, [key]: newVal },
+        }));
       },
 
-      setMit: (phaseIdx, actionRow, col, val) => set((s) => patchActive(s, (plan) => ({
-        mitGrid: {
-          ...plan.mitGrid,
-          [phaseIdx]: {
-            ...(plan.mitGrid[phaseIdx] ?? {}),
-            [actionRow]: { ...(plan.mitGrid[phaseIdx]?.[actionRow] ?? {}), [col]: val },
-          },
-        },
-      }))),
+      setMit: (phaseIdx, actionRow, col, val) => set((s) => {
+        const key = `${s.activePlanId}/${phaseIdx}/${actionRow}/${col}`;
+        return {
+          ...patchActive(s, (plan) => ({
+            mitGrid: {
+              ...plan.mitGrid,
+              [phaseIdx]: {
+                ...(plan.mitGrid[phaseIdx] ?? {}),
+                [actionRow]: { ...(plan.mitGrid[phaseIdx]?.[actionRow] ?? {}), [col]: val },
+              },
+            },
+          })),
+          _pendingMitEdits: { ...s._pendingMitEdits, [key]: val },
+        };
+      }),
 
       setMaxHP: (hp) => set({ maxHP: hp }),
       setTankHP: (hp) => set({ tankHP: hp }),
@@ -435,7 +455,32 @@ export const useStore = create<PlannerState>()(
         // Otherwise merge so in-flight local edits survive a concurrent remote push.
         const localKeys = Object.keys(s.plans);
         const isBlankSlate = localKeys.length === 1 && localKeys[0] === INIT_ID && !s.plans[INIT_ID].name;
-        const newPlans = isBlankSlate ? remotePlans : { ...s.plans, ...remotePlans };
+        const merged = isBlankSlate ? remotePlans : { ...s.plans, ...remotePlans };
+        // Preserve local activePhaseIdx — phase selection is per-user, not shared.
+        const newPlans: Record<string, PlanData> = {};
+        for (const [id, plan] of Object.entries(merged)) {
+          newPlans[id] = s.plans[id]
+            ? { ...plan, activePhaseIdx: s.plans[id].activePhaseIdx }
+            : plan;
+        }
+        // Re-apply any pending local mit edits so they aren't lost by the remote overwrite.
+        for (const [key, val] of Object.entries(s._pendingMitEdits)) {
+          const [planId, phaseStr, rowStr, col] = key.split('/');
+          if (!newPlans[planId]) continue;
+          const phaseIdx = Number(phaseStr);
+          const row = Number(rowStr);
+          const plan = newPlans[planId];
+          newPlans[planId] = {
+            ...plan,
+            mitGrid: {
+              ...plan.mitGrid,
+              [phaseIdx]: {
+                ...(plan.mitGrid[phaseIdx] ?? {}),
+                [row]: { ...(plan.mitGrid[phaseIdx]?.[row] ?? {}), [col]: val },
+              },
+            },
+          };
+        }
         const activePlanId = newPlans[s.activePlanId] ? s.activePlanId : Object.keys(newPlans)[0];
         return {
           plans: newPlans,
@@ -447,6 +492,9 @@ export const useStore = create<PlannerState>()(
           syncVersion: s.syncVersion + 1,
         };
       }),
+
+      clearPendingEdits: () => set({ _pendingMitEdits: {} }),
+      hasPendingEdits: () => Object.keys(get()._pendingMitEdits).length > 0,
 
       initPhase: (phaseIdx, phase) => {
         // Check before calling set(); returning {} from set() still triggers a re-render

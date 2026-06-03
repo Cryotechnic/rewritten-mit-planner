@@ -128,12 +128,14 @@ export async function pushPlan(
 ): Promise<void> {
   const json = JSON.stringify({ plans, activePlanId, settings }, replacer);
   const base = { clientId, updatedAt: Date.now(), ...(writeToken ? { writeToken } : {}) };
-  if (password) {
-    const { ciphertext, iv, salt } = await encryptJson(json, password);
-    await setDoc(doc(db, COLLECTION, shareId), { ciphertext, iv, salt, ...base });
-  } else {
-    await setDoc(doc(db, COLLECTION, shareId), { json, ...base });
-  }
+  const writePromise = password
+    ? encryptJson(json, password).then(({ ciphertext, iv, salt }) =>
+        setDoc(doc(db, COLLECTION, shareId), { ciphertext, iv, salt, ...base }))
+    : setDoc(doc(db, COLLECTION, shareId), { json, ...base });
+  // Timeout: if Firestore doesn't acknowledge within 10s, the connection is likely dead
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error('sync-timeout')), 10_000));
+  await Promise.race([writePromise, timeout]);
 }
 
 export function subscribePlan(
