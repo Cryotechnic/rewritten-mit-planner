@@ -51,7 +51,14 @@ export function generateWriteToken(): string {
 // ── Encryption helpers ──────────────────────────────────────────────────────
 
 function toBase64(buf: ArrayBuffer | Uint8Array): string {
-  return btoa(String.fromCharCode(...new Uint8Array(buf instanceof ArrayBuffer ? buf : buf.buffer)));
+  const bytes = new Uint8Array(buf instanceof ArrayBuffer ? buf : buf.buffer);
+  // Process in chunks to avoid exceeding the JS call-stack argument limit
+  const CHUNK = 0x8000;
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK) as unknown as number[]);
+  }
+  return btoa(binary);
 }
 
 function fromBase64(s: string): Uint8Array<ArrayBuffer> {
