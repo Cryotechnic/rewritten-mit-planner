@@ -52,6 +52,14 @@ export interface ChangelogEntry {
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.8.10',
+    date: 'June 4, 2026',
+    title: 'HP Bar Fix & Encryption Stability',
+    changes: [
+      { type: 'fix', text: 'Fixed HP bar using Tank HP for all physical damage rows instead of only TB-tagged rows. Party-wide physical hits now correctly use the party Max HP value.' },
+    ],
+  },
+  {
     version: '1.8.9',
     date: 'June 3, 2026',
     title: 'Sync Reliability Fixes',

@@ -414,7 +414,7 @@ const ActionRow = React.memo(function ActionRow({
   const mitigatedDamage = baseDamage > 0
     ? applyMitigations(baseDamage, action, calcCols, effectiveChecked, damageType)
     : 0;
-  const hp = damageType === 'Physical' ? tankHP : maxHP;
+  const hp = tag === 'tb' ? tankHP : maxHP;
   const barrier = computeBarrier(calcCols, effectiveChecked, hp, computeHealBuff(calcCols, effectiveChecked));
   const mitPct = baseDamage > 0 ? Math.round((1 - mit) * 100) : null;
   const hasInvuln = tag === 'tb' && allVisibleCols.some(sc => checked[sc.col] && INVULN_SKILLS.has(sc.skill));
